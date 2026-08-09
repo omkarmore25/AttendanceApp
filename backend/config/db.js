@@ -12,6 +12,25 @@ const connectDB = async () => {
     } catch (idxErr) {
       // Index did not exist or already dropped
     }
+
+    // Auto-seed default Admin account if no admin exists
+    try {
+      const User = require('../models/User');
+      let admin = await User.findOne({ role: 'Admin' });
+      if (!admin) {
+        admin = new User({
+          username: 'System Admin',
+          email: 'admin@attendance.com',
+          password_hash: 'admin123',
+          role: 'Admin',
+          is_verified: true,
+        });
+        await admin.save();
+        console.log('👑 Default Admin account created (admin@attendance.com / admin123)');
+      }
+    } catch (seedErr) {
+      console.error('Error checking default admin account:', seedErr.message);
+    }
   } catch (error) {
     console.error(`❌ MongoDB Connection Error: ${error.message}`);
     process.exit(1);
