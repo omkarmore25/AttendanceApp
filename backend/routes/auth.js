@@ -221,7 +221,23 @@ router.post('/login', async (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const user = await User.findOne({ email: cleanEmail }).select('+password_hash');
+    let user = await User.findOne({ email: cleanEmail }).select('+password_hash');
+
+    // Auto-create default admin account if it does not exist yet in MongoDB
+    if (!user && cleanEmail === 'admin@attendance.com') {
+      const admin = new User({
+        username: 'System Admin',
+        name: 'System Admin',
+        email: 'admin@attendance.com',
+        phone: '9999999999',
+        password_hash: 'admin123',
+        role: 'Admin',
+        is_email_verified: true,
+        is_manual_entry: false,
+      });
+      await admin.save();
+      user = await User.findOne({ email: cleanEmail }).select('+password_hash');
+    }
 
     if (!user) {
       return res.status(401).json({
