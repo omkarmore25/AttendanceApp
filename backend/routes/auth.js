@@ -343,13 +343,6 @@ router.post('/forgot-password', async (req, res) => {
       });
     }
 
-    if (user.google_id && !user.password_hash) {
-      return res.status(400).json({
-        success: false,
-        message: 'This account was created with Google Sign-In. Please log in with Google.',
-      });
-    }
-
     const resetCode = generateOTP();
     user.resetPasswordToken = resetCode;
     user.resetPasswordExpires = Date.now() + 60 * 60 * 1000; // 1 hour

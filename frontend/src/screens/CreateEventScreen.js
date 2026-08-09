@@ -89,7 +89,13 @@ const CreateEventScreen = ({ navigation }) => {
     try {
       setSearchingMap(true);
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q.trim())}`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q.trim())}`,
+        {
+          headers: {
+            'User-Agent': 'SantSamagamApp/1.0 (omkarmore5178@gmail.com)',
+            'Accept-Language': 'en',
+          },
+        }
       );
       const data = await res.json();
       if (data && data.length > 0) {

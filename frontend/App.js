@@ -7,6 +7,20 @@ import { AuthProvider } from './src/context/AuthContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import theme from './src/theme';
 
+// Forward Google OAuth tokens back to native Android App if opened via mobile browser
+if (Platform.OS === 'web' && typeof window !== 'undefined') {
+  const hash = window.location.hash || window.location.search || '';
+  if (hash.includes('access_token=')) {
+    const params = new URLSearchParams(hash.replace('#', '?'));
+    const token = params.get('access_token');
+    if (token) {
+      setTimeout(() => {
+        window.location.href = `attendanceapp://login#access_token=${token}`;
+      }, 300);
+    }
+  }
+}
+
 function App() {
   return (
     <SafeAreaProvider style={styles.root}>
