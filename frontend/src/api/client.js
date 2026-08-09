@@ -1,8 +1,8 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ─── API Base URL (Local dev or Live Production Server) ───
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
+// ─── API Base URL (Live Production Server) ───
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://attendance-backend-h7if.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

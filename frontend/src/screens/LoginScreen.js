@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../context/AuthContext';
 import theme from '../theme';
 import { showAlert } from '../utils/dialog';
@@ -81,10 +82,41 @@ const LoginScreen = ({ navigation }) => {
           }
         });
       } else {
-        showAlert('Google Sign-In', 'Please log in with Email & Password or configure Google OAuth.');
+        // Native Mobile Android APK Google Sign In
+        const redirectUri = 'https://attendance-app-one-umber.vercel.app';
+        const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(redirectUri)}&scope=openid%20profile%20email`;
+
+        const result = await WebBrowser.openAuthSessionAsync(googleAuthUrl, redirectUri);
+
+        if (result.type === 'success' && result.url) {
+          const hashString = result.url.split('#')[1] || result.url.split('?')[1] || '';
+          const params = new URLSearchParams(hashString);
+          const accessToken = params.get('access_token');
+
+          if (accessToken) {
+            const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            const userInfo = await userRes.json();
+
+            if (userInfo.email) {
+              const loginRes = await googleLogin({
+                googleId: userInfo.sub,
+                email: userInfo.email,
+                username: userInfo.name || userInfo.email.split('@')[0],
+              });
+              if (!loginRes.success) {
+                showAlert('Google Sign-In Failed', loginRes.message);
+              }
+            } else {
+              showAlert('Google Sign-In', 'Could not fetch Google profile.');
+            }
+          }
+        }
         setGoogleLoading(false);
       }
     } catch (error) {
+      console.error('Google Sign In error:', error);
       showAlert('Error', 'Google Sign-In failed.');
       setGoogleLoading(false);
     }

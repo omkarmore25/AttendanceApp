@@ -1,9 +1,11 @@
 {
   "expo": {
     "name": "AttendanceApp",
-    "slug": "attendance-app",
+    "slug": "app",
+    "owner": "omkarmores-team",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
@@ -12,6 +14,11 @@
       }
     },
     "android": {
+      "package": "com.attendanceapp.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#160c18"
+      },
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
@@ -24,6 +31,11 @@
           "locationWhenInUsePermission": "This app needs your location to verify attendance at events."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c2d4a5a0-4c90-48e8-9412-1d4b6e54c3fd"
+      }
+    }
   }
 }
