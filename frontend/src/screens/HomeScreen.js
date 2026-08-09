@@ -71,9 +71,9 @@ const HomeScreen = ({ navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
+      if (events.length === 0) setLoading(true);
       fetchEvents();
-    }, [])
+    }, [events.length])
   );
 
   const onRefresh = () => {

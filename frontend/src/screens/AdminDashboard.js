@@ -30,9 +30,9 @@ const AdminDashboard = ({ navigation }) => {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
+      if (!stats) setLoading(true);
       fetchStats();
-    }, [])
+    }, [stats])
   );
 
   const StatCard = ({ emoji, label, value, color }) => (
