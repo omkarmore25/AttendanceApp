@@ -42,8 +42,8 @@ const screenOptions = {
 // ─── Tab Icon Component ───
 const TabIcon = ({ emoji, label, focused }) => (
   <View style={styles.tabIcon}>
-    <Text style={{ fontSize: focused ? 22 : 20 }}>{emoji}</Text>
-    <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
+    <Text style={{ fontSize: focused ? 20 : 18 }}>{emoji}</Text>
+    <Text style={[styles.tabLabel, focused && styles.tabLabelActive]} numberOfLines={1}>
       {label}
     </Text>
   </View>
@@ -202,12 +202,14 @@ const styles = StyleSheet.create({
   tabIcon: {
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 70,
   },
   tabLabel: {
     fontSize: 10,
     color: theme.colors.textMuted,
-    marginTop: 4,
+    marginTop: 2,
     fontWeight: '500',
+    textAlign: 'center',
   },
   tabLabelActive: {
     color: theme.colors.primary,

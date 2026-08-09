@@ -68,9 +68,6 @@ const AdminDashboard = ({ navigation }) => {
           <Text style={styles.devotionalHeader}>जय सच्चिदानंद 🚩</Text>
           <Text style={styles.userName}>Admin Panel — {user?.username || user?.name || 'Admin'} 🛡️</Text>
         </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Stats Grid */}

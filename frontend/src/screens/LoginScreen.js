@@ -8,6 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../context/AuthContext';
@@ -36,6 +37,46 @@ const LoginScreen = ({ navigation }) => {
         script.defer = true;
         document.body.appendChild(script);
       }
+    } else {
+      const handleDeepLink = async (event) => {
+        if (!event?.url) return;
+        const hashString = event.url.split('#')[1] || event.url.split('?')[1] || '';
+        const params = new URLSearchParams(hashString);
+        const accessToken = params.get('access_token');
+
+        if (accessToken) {
+          try {
+            setGoogleLoading(true);
+            WebBrowser.dismissBrowser();
+            const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            const userInfo = await userRes.json();
+
+            if (userInfo.email) {
+              const loginRes = await googleLogin({
+                googleId: userInfo.sub,
+                email: userInfo.email,
+                username: userInfo.name || userInfo.email.split('@')[0],
+              });
+              if (!loginRes.success) {
+                showAlert('Google Sign-In Failed', loginRes.message);
+              }
+            }
+          } catch (err) {
+            console.error('Deep link login error:', err);
+          } finally {
+            setGoogleLoading(false);
+          }
+        }
+      };
+
+      const subscription = Linking.addEventListener('url', handleDeepLink);
+      Linking.getInitialURL().then((url) => {
+        if (url) handleDeepLink({ url });
+      });
+
+      return () => subscription.remove();
     }
   }, []);
 
@@ -94,6 +135,7 @@ const LoginScreen = ({ navigation }) => {
           const accessToken = params.get('access_token');
 
           if (accessToken) {
+            WebBrowser.dismissBrowser();
             const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
               headers: { Authorization: `Bearer ${accessToken}` },
             });

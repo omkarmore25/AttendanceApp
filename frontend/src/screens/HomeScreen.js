@@ -183,9 +183,6 @@ const HomeScreen = ({ navigation }) => {
           <Text style={styles.devotionalHeader}>जय सच्चिदानंद 🚩</Text>
           <Text style={styles.userName}>Welcome back, {user?.username || user?.name || 'User'} 👋</Text>
         </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Missing Mobile Prompt Banner */}
