@@ -86,7 +86,7 @@ router.post('/send-otp', async (req, res) => {
     if (!mailRes || !mailRes.success) {
       return res.status(500).json({
         success: false,
-        message: 'Failed to send verification email. Please check your email address.',
+        message: `Email delivery error: ${mailRes?.error || 'Failed to send email via SMTP'}`,
       });
     }
 
