@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, StyleSheet } from 'react-native';
+import { Text, View, StyleSheet, Platform } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import theme from '../theme';
 
@@ -79,9 +79,9 @@ const AdminTabs = () => (
         backgroundColor: theme.colors.bgCard,
         borderTopColor: theme.colors.border,
         borderTopWidth: 1,
-        height: 70,
-        paddingBottom: 10,
-        paddingTop: 8,
+        height: Platform.OS === 'web' ? 62 : 65,
+        paddingBottom: Platform.OS === 'web' ? 4 : 8,
+        paddingTop: 4,
       },
       tabBarShowLabel: false,
     }}
@@ -119,9 +119,9 @@ const UserTabs = () => (
         backgroundColor: theme.colors.bgCard,
         borderTopColor: theme.colors.border,
         borderTopWidth: 1,
-        height: 70,
-        paddingBottom: 10,
-        paddingTop: 8,
+        height: Platform.OS === 'web' ? 62 : 65,
+        paddingBottom: Platform.OS === 'web' ? 4 : 8,
+        paddingTop: 4,
       },
       tabBarShowLabel: false,
     }}

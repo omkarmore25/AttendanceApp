@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: theme.spacing.lg,
-    paddingBottom: 100,
+    paddingBottom: 80,
   },
   eventCard: {
     backgroundColor: theme.colors.bgCard,
@@ -435,6 +435,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.xl,
+    paddingBottom: 80,
   },
   emptyEmoji: {
     fontSize: 64,

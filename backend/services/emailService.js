@@ -6,17 +6,12 @@
 const nodemailer = require('nodemailer');
 
 const createTransporter = () => {
-  const user = process.env.SMTP_USER || process.env.EMAIL_USER || 'omkarmore5178@gmail.com';
-  const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS || 'gyqqsqjglxnrjxxo';
+  const user = (process.env.SMTP_USER || process.env.EMAIL_USER || 'omkarmore5178@gmail.com').trim();
+  const pass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || 'gyqqsqjglxnrjxxo').replace(/\s+/g, '');
 
   return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
+    service: 'gmail',
     auth: { user, pass },
-    tls: {
-      rejectUnauthorized: false,
-    },
   });
 };
 
