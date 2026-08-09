@@ -68,10 +68,12 @@ const sendVerificationEmail = async (email, name, verificationToken) => {
         console.log(`✅ [BREVO SENT] Verification Email delivered to ${email}: ${data.messageId}`);
         return { success: true };
       } else {
-        console.warn(`⚠️ [BREVO API ERROR]:`, JSON.stringify(data));
+        console.error(`❌ [BREVO API ERROR]:`, JSON.stringify(data));
+        return { success: false, error: `Brevo API: ${data.message || data.code || 'Unverified sender email'}` };
       }
     } catch (brevoErr) {
-      console.warn(`⚠️ [BREVO FETCH ERROR]:`, brevoErr.message);
+      console.error(`❌ [BREVO FETCH ERROR]:`, brevoErr.message);
+      return { success: false, error: `Brevo Network: ${brevoErr.message}` };
     }
   }
 
@@ -145,9 +147,13 @@ const sendPasswordResetEmail = async (email, resetLink, code, name) => {
       if (response.ok) {
         console.log(`✅ [BREVO SENT] Password Reset Email delivered to ${email}: ${data.messageId}`);
         return { success: true };
+      } else {
+        console.error(`❌ [BREVO RESET ERROR]:`, JSON.stringify(data));
+        return { success: false, error: `Brevo API: ${data.message || data.code}` };
       }
     } catch (brevoErr) {
-      console.warn(`⚠️ [BREVO RESET ERROR]:`, brevoErr.message);
+      console.error(`❌ [BREVO RESET FETCH ERROR]:`, brevoErr.message);
+      return { success: false, error: `Brevo Network: ${brevoErr.message}` };
     }
   }
 
@@ -164,11 +170,11 @@ const sendPasswordResetEmail = async (email, resetLink, code, name) => {
       return { success: true };
     } catch (err) {
       console.error('⚠️ [RESET EMAIL ERROR]:', err.message);
+      return { success: false, error: err.message };
     }
   }
 
-  console.log(`🔑 Reset Password Code for ${email}: ${code}`);
-  return { success: true };
+  return { success: false, error: 'Email service unconfigured' };
 };
 
 module.exports = {
