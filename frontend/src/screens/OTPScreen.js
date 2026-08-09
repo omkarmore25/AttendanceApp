@@ -67,6 +67,9 @@ const OTPScreen = ({ route, navigation }) => {
               Enter the 6-digit verification code sent to{'\n'}
               <Text style={styles.emailHighlight}>{email}</Text>
             </Text>
+            <Text style={styles.spamHint}>
+              💡 Check Spam or Promotions folder if you don't see it in Inbox.
+            </Text>
           </View>
 
           {/* OTP Input */}
@@ -159,6 +162,13 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  spamHint: {
+    fontSize: 12,
+    color: '#ff6b00',
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   emailHighlight: {
     color: '#ff6b00',
