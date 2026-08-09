@@ -82,7 +82,13 @@ router.post('/send-otp', async (req, res) => {
       expiresAt,
     });
 
-    await sendVerificationEmail(cleanEmail, cleanUsername, otp);
+    const mailRes = await sendVerificationEmail(cleanEmail, cleanUsername, otp);
+    if (!mailRes || !mailRes.success) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to send verification email. Please check your email address.',
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -92,7 +98,7 @@ router.post('/send-otp', async (req, res) => {
     console.error('Send OTP error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to send verification email. Please try again.',
+      message: 'Failed to send verification email.',
     });
   }
 });
@@ -115,23 +121,22 @@ router.post('/verify-otp', async (req, res) => {
     const pending = pendingRegistrations.get(cleanEmail);
 
     const isValidStored = pending && pending.otp === otp && Date.now() < pending.expiresAt;
-    const isValidDevMock = otp === '123456';
 
-    if (!isValidStored && !isValidDevMock) {
+    if (!isValidStored) {
       return res.status(400).json({
         success: false,
         message: 'Invalid or expired verification code.',
       });
     }
 
-    const username = pending ? pending.username : (req.body.username || cleanEmail.split('@')[0]);
-    const phone = pending ? pending.phone : (req.body.phone || '');
-    const password = pending ? pending.password : req.body.password;
+    const username = pending ? pending.username : (bodyUsername || cleanEmail.split('@')[0]);
+    const phone = pending ? pending.phone : (bodyPhone || '');
+    const password = pending ? pending.password : bodyPassword;
 
     if (!password) {
       return res.status(400).json({
         success: false,
-        message: 'Registration session expired. Please request a new code.',
+        message: 'Password required to complete verification.',
       });
     }
 

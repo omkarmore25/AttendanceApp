@@ -6,8 +6,8 @@
 const nodemailer = require('nodemailer');
 
 const createTransporter = () => {
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const user = process.env.SMTP_USER || process.env.EMAIL_USER;
+  const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS;
 
   if (user && pass) {
     if (user.includes('gmail.com')) {
@@ -59,8 +59,9 @@ const sendVerificationEmail = async (email, name, verificationToken) => {
 
   if (transporter) {
     try {
+      const sender = process.env.SMTP_USER || process.env.EMAIL_USER;
       await transporter.sendMail({
-        from: `"${process.env.EMAIL_FROM_NAME || 'AttendanceApp'}" <${process.env.SMTP_USER}>`,
+        from: `"${process.env.EMAIL_FROM_NAME || 'AttendanceApp'}" <${sender}>`,
         to: email,
         subject: 'Verify Your AttendanceApp Account ✅',
         html,
@@ -69,11 +70,11 @@ const sendVerificationEmail = async (email, name, verificationToken) => {
       return { success: true };
     } catch (err) {
       console.error('⚠️ [EMAIL SEND ERROR]:', err.message);
+      return { success: false, error: err.message };
     }
   }
 
-  console.log(`🔑 Verification Code for ${email}: ${verificationToken}`);
-  return { success: true };
+  return { success: false, error: 'SMTP Transporter not configured' };
 };
 
 // 2. Password Reset Email
@@ -104,8 +105,9 @@ const sendPasswordResetEmail = async (email, resetLink, code, name) => {
 
   if (transporter) {
     try {
+      const sender = process.env.SMTP_USER || process.env.EMAIL_USER;
       await transporter.sendMail({
-        from: `"${process.env.EMAIL_FROM_NAME || 'AttendanceApp'}" <${process.env.SMTP_USER}>`,
+        from: `"${process.env.EMAIL_FROM_NAME || 'AttendanceApp'}" <${sender}>`,
         to: email,
         subject: 'Reset your AttendanceApp Password 🔐',
         html,
