@@ -73,30 +73,21 @@ const LoginScreen = ({ navigation }) => {
 
         window.google.accounts.id.prompt((notification) => {
           if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            fallbackGoogleLogin();
+            showAlert(
+              'Google Origin Setup Required',
+              'To enable official Google One Tap on your live domain, add https://attendance-app-one-umber.vercel.app to Authorized Origins in Google Cloud Console.\n\nAlternatively, please sign up or log in using Email & Password.'
+            );
+            setGoogleLoading(false);
           }
         });
       } else {
-        await fallbackGoogleLogin();
+        showAlert('Google Sign-In', 'Please log in with Email & Password or configure Google OAuth.');
+        setGoogleLoading(false);
       }
     } catch (error) {
       showAlert('Error', 'Google Sign-In failed.');
       setGoogleLoading(false);
     }
-  };
-
-  const fallbackGoogleLogin = async () => {
-    const googleData = {
-      googleId: `google_user_${Date.now()}`,
-      email: `user_${Math.floor(Math.random() * 1000)}@gmail.com`,
-      username: 'Google User',
-    };
-
-    const result = await googleLogin(googleData);
-    if (!result.success) {
-      showAlert('Google Sign-In Failed', result.message);
-    }
-    setGoogleLoading(false);
   };
 
   return (
