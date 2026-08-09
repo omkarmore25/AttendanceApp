@@ -14,6 +14,37 @@ const router = express.Router();
 const pendingRegistrations = new Map();
 
 // ═══════════════════════════════════════════════════════
+// POST /api/auth/seed-admin — Seed Default Admin Account
+// ═══════════════════════════════════════════════════════
+router.post('/seed-admin', async (req, res) => {
+  try {
+    const cleanEmail = 'admin@attendance.com';
+    let admin = await User.findOne({ email: cleanEmail });
+    if (!admin) {
+      admin = new User({
+        username: 'System Admin',
+        name: 'System Admin',
+        email: cleanEmail,
+        phone: '9999999999',
+        password_hash: 'admin123',
+        role: 'Admin',
+        is_email_verified: true,
+        is_manual_entry: false,
+      });
+      await admin.save();
+    } else {
+      admin.password_hash = 'admin123';
+      admin.role = 'Admin';
+      admin.is_email_verified = true;
+      await admin.save();
+    }
+    res.json({ success: true, message: '👑 Admin account seeded/reset (admin@attendance.com / admin123)' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════
 // POST /api/auth/send-otp — Request Email Verification OTP
 // ═══════════════════════════════════════════════════════
 router.post('/send-otp', async (req, res) => {
