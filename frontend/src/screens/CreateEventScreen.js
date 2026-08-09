@@ -10,6 +10,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 import api from '../api/client';
 import theme from '../theme';
@@ -445,7 +446,13 @@ const CreateEventScreen = ({ navigation }) => {
     var marker = L.marker([${mapCenter.lat}, ${mapCenter.lng}], { icon: customIcon, draggable: true }).addTo(map);
 
     function notifyParent(lat, lng) {
-      window.parent.postMessage({ type: 'PICK_LOCATION', lat: lat.toFixed(6), lng: lng.toFixed(6) }, '*');
+      var msg = JSON.stringify({ type: 'PICK_LOCATION', lat: lat.toFixed(6), lng: lng.toFixed(6) });
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(msg);
+      }
+      if (window.parent) {
+        window.parent.postMessage({ type: 'PICK_LOCATION', lat: lat.toFixed(6), lng: lng.toFixed(6) }, '*');
+      }
     }
 
     map.on('click', function(e) {
@@ -462,12 +469,107 @@ const CreateEventScreen = ({ navigation }) => {
 </html>`}
                 />
               ) : (
-                <View style={styles.nativeMapFallback}>
-                  <Text style={styles.nativeMapText}>📍 Selected Pin Location:</Text>
-                  <Text style={styles.coordsText}>
-                    Lat: {latitude || '19.0760'} | Lng: {longitude || '72.8777'}
-                  </Text>
-                </View>
+                <WebView
+                  originWhitelist={['*']}
+                  source={{
+                    html: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    html, body, #map { width: 100%; height: 100%; margin: 0; padding: 0; background: #0b0f19; }
+    .leaflet-container { font-family: sans-serif; }
+    .leaflet-control-attribution { display: none !important; }
+    .google-badge {
+      position: absolute; bottom: 8px; left: 8px; z-index: 1000;
+      background: rgba(28, 36, 56, 0.9); color: #ff6b00; border: 1px solid #ff6b00;
+      padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; pointer-events: none;
+    }
+    .view-toggle {
+      position: absolute; top: 10px; right: 10px; z-index: 1000;
+      background: #1c2438; color: #ff6b00; border: 1px solid #ff6b00;
+      padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="google-badge">Google Maps</div>
+  <button class="view-toggle" id="toggleBtn" onclick="toggleMapType()">🛰️ Satellite View</button>
+  <div id="map"></div>
+  <script>
+    var map = L.map('map').setView([${mapCenter.lat}, ${mapCenter.lng}], 15);
+
+    var googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      attribution: '© Google Maps'
+    }).addTo(map);
+
+    var googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      attribution: '© Google Maps'
+    });
+
+    var isSatellite = false;
+    function toggleMapType() {
+      if (isSatellite) {
+        map.removeLayer(googleSatellite);
+        googleRoadmap.addTo(map);
+        document.getElementById('toggleBtn').innerText = '🛰️ Satellite View';
+      } else {
+        map.removeLayer(googleRoadmap);
+        googleSatellite.addTo(map);
+        document.getElementById('toggleBtn').innerText = '🗺️ Roadmap View';
+      }
+      isSatellite = !isSatellite;
+    }
+
+    var customIcon = L.icon({
+      iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+      iconSize: [25, 41],
+      iconAnchor: [12, 41],
+      popupAnchor: [1, -34],
+      shadowSize: [41, 41]
+    });
+
+    var marker = L.marker([${mapCenter.lat}, ${mapCenter.lng}], { icon: customIcon, draggable: true }).addTo(map);
+
+    function notifyParent(lat, lng) {
+      var msg = JSON.stringify({ type: 'PICK_LOCATION', lat: lat.toFixed(6), lng: lng.toFixed(6) });
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(msg);
+      }
+    }
+
+    map.on('click', function(e) {
+      marker.setLatLng(e.latlng);
+      notifyParent(e.latlng.lat, e.latlng.lng);
+    });
+
+    marker.on('dragend', function(e) {
+      var pt = marker.getLatLng();
+      notifyParent(pt.lat, pt.lng);
+    });
+  </script>
+</body>
+</html>`
+                  }}
+                  onMessage={(event) => {
+                    try {
+                      const data = JSON.parse(event.nativeEvent.data);
+                      if (data.type === 'PICK_LOCATION') {
+                        setLatitude(String(data.lat));
+                        setLongitude(String(data.lng));
+                      }
+                    } catch (e) {}
+                  }}
+                  style={{ width: '100%', height: 270, borderRadius: 12 }}
+                  javaScriptEnabled={true}
+                  domStorageEnabled={true}
+                />
               )}
             </View>
 
