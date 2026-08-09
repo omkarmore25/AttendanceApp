@@ -16,9 +16,12 @@ const createTransporter = () => {
 };
 
 // 1. Account Verification Email
+const DEFAULT_BREVO_KEY = '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';
+
 const sendVerificationEmail = async (email, name, verificationToken) => {
-  const transporter = createTransporter();
-  const verifyUrl = `${process.env.CLIENT_URL || 'http://localhost:8081'}/verify-email?token=${verificationToken}`;
+  const brevoKey = process.env.BREVO_API_KEY || process.env.EMAIL_PASS || DEFAULT_BREVO_KEY;
+  const senderEmail = process.env.EMAIL_USER || process.env.SMTP_USER || 'omkarmore5178@gmail.com';
+  const senderName = process.env.EMAIL_FROM_NAME || 'AttendanceApp';
 
   const html = `
     <div style="font-family: Arial, sans-serif; padding: 25px; color: #333; background-color: #0d1322; border-radius: 16px; max-width: 600px; margin: 0 auto; border: 1px solid #212d4a;">
@@ -26,7 +29,7 @@ const sendVerificationEmail = async (email, name, verificationToken) => {
         <h1 style="color: #ff6b00; margin: 0; font-size: 28px;">📍 AttendanceApp</h1>
       </div>
       <div style="background-color: #161f33; padding: 25px; border-radius: 12px; border: 1px solid #273554; color: #ffffff;">
-        <h2 style="color: #ffffff; margin-top: 0;">Welcome, ${name}! 🎉</h2>
+        <h2 style="color: #ffffff; margin-top: 0;">Welcome, ${name || 'User'}! 🎉</h2>
         <p style="font-size: 15px; color: #94a3b8; line-height: 1.6;">
           Thank you for signing up. Please verify your email address to complete registration:
         </p>
@@ -42,11 +45,42 @@ const sendVerificationEmail = async (email, name, verificationToken) => {
     </div>
   `;
 
+  // Try Brevo HTTP API first (Zero data-center IP blocks)
+  if (brevoKey && (brevoKey.startsWith('xkeysib') || brevoKey.startsWith('xsmtpsib'))) {
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoKey,
+          'Content-Type': 'application/json',
+          'accept': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { name: senderName, email: senderEmail },
+          to: [{ email, name: name || 'User' }],
+          subject: 'Verify Your AttendanceApp Account ✅',
+          htmlContent: html,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        console.log(`✅ [BREVO SENT] Verification Email delivered to ${email}: ${data.messageId}`);
+        return { success: true };
+      } else {
+        console.warn(`⚠️ [BREVO API ERROR]:`, JSON.stringify(data));
+      }
+    } catch (brevoErr) {
+      console.warn(`⚠️ [BREVO FETCH ERROR]:`, brevoErr.message);
+    }
+  }
+
+  // Fallback to Nodemailer SMTP
+  const transporter = createTransporter();
   if (transporter) {
     try {
-      const sender = process.env.SMTP_USER || process.env.EMAIL_USER;
       await transporter.sendMail({
-        from: `"${process.env.EMAIL_FROM_NAME || 'AttendanceApp'}" <${sender}>`,
+        from: `"${senderName}" <${senderEmail}>`,
         to: email,
         subject: 'Verify Your AttendanceApp Account ✅',
         html,
@@ -64,7 +98,9 @@ const sendVerificationEmail = async (email, name, verificationToken) => {
 
 // 2. Password Reset Email
 const sendPasswordResetEmail = async (email, resetLink, code, name) => {
-  const transporter = createTransporter();
+  const brevoKey = process.env.BREVO_API_KEY || process.env.EMAIL_PASS || DEFAULT_BREVO_KEY;
+  const senderEmail = process.env.EMAIL_USER || process.env.SMTP_USER || 'omkarmore5178@gmail.com';
+  const senderName = process.env.EMAIL_FROM_NAME || 'AttendanceApp';
 
   const html = `
     <div style="font-family: Arial, sans-serif; padding: 25px; color: #333; background-color: #0d1322; border-radius: 16px; max-width: 600px; margin: 0 auto; border: 1px solid #212d4a;">
@@ -88,11 +124,38 @@ const sendPasswordResetEmail = async (email, resetLink, code, name) => {
     </div>
   `;
 
+  if (brevoKey && (brevoKey.startsWith('xkeysib') || brevoKey.startsWith('xsmtpsib'))) {
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'api-key': brevoKey,
+          'Content-Type': 'application/json',
+          'accept': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: { name: senderName, email: senderEmail },
+          to: [{ email, name: name || 'User' }],
+          subject: 'Reset your AttendanceApp Password 🔐',
+          htmlContent: html,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        console.log(`✅ [BREVO SENT] Password Reset Email delivered to ${email}: ${data.messageId}`);
+        return { success: true };
+      }
+    } catch (brevoErr) {
+      console.warn(`⚠️ [BREVO RESET ERROR]:`, brevoErr.message);
+    }
+  }
+
+  const transporter = createTransporter();
   if (transporter) {
     try {
-      const sender = process.env.SMTP_USER || process.env.EMAIL_USER;
       await transporter.sendMail({
-        from: `"${process.env.EMAIL_FROM_NAME || 'AttendanceApp'}" <${sender}>`,
+        from: `"${senderName}" <${senderEmail}>`,
         to: email,
         subject: 'Reset your AttendanceApp Password 🔐',
         html,
