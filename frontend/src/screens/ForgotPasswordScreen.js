@@ -40,7 +40,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={styles.inner}>
         <View style={styles.card}>
