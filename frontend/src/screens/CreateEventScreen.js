@@ -160,20 +160,20 @@ const CreateEventScreen = ({ navigation }) => {
       showAlert('Missing Field', 'Please enter an event name.');
       return;
     }
-    // Date Validation (DD-MM-YYYY or YYYY-MM-DD)
-    let formattedDate = date.trim();
+    // Date Validation (DD/MM/YYYY or DD-MM-YYYY or YYYY-MM-DD)
+    let formattedDate = date.trim().replace(/\//g, '-');
     if (/^\d{2}-\d{2}-\d{4}$/.test(formattedDate)) {
       const [d, m, y] = formattedDate.split('-');
       formattedDate = `${y}-${m}-${d}`;
     } else if (!/^\d{4}-\d{2}-\d{2}$/.test(formattedDate)) {
-      showAlert('Invalid Date', 'Please enter date in DD-MM-YYYY format.\nExample: 15-08-2026');
+      showAlert('Invalid Date', 'Please enter date in DD/MM/YYYY format.\nExample: 15/08/2026');
       return;
     }
 
     // Time Validation (12-hour e.g. 2:30 PM or 24-hour e.g. 14:30)
     let formattedTime = time.trim();
     if (!/^(0?[1-9]|1[0-2]):[0-5]\d\s*(AM|PM|am|pm)$/i.test(formattedTime) && !/^([01]\d|2[0-3]):([0-5]\d)$/.test(formattedTime)) {
-      showAlert('Invalid Time', 'Please enter time in 12-hour format.\nExample: 2:30 PM or 10:00 AM');
+      showAlert('Invalid Time', 'Please enter time in 12-hour format.\nExample: 02:30 PM or 10:00 AM');
       return;
     }
 
@@ -207,29 +207,62 @@ const CreateEventScreen = ({ navigation }) => {
   const renderInput = (label, value, setter, fieldKey, options = {}) => (
     <View style={[styles.inputGroup, focusedField === fieldKey && styles.inputGroupFocused]}>
       <Text style={styles.inputLabel}>{label}</Text>
-      {Platform.OS === 'web' && (options.type === 'date' || options.type === 'time') ? (
+      {Platform.OS === 'web' && options.type === 'date' ? (
         <input
-          type={options.type}
-          value={options.type === 'date' && value && value.includes('-') && value.split('-')[0].length === 2 ? value.split('-').reverse().join('-') : value}
+          type="date"
+          value={value && value.includes('/') ? value.split('/').reverse().join('-') : (value && value.includes('-') && value.split('-')[0].length === 2 ? value.split('-').reverse().join('-') : value)}
           onChange={(e) => {
             const val = e.target.value;
-            if (options.type === 'date' && val) {
+            if (val) {
               const [y, m, d] = val.split('-');
-              setter(`${d}-${m}-${y}`);
-            } else if (options.type === 'time' && val) {
+              setter(`${d}/${m}/${y}`);
+            }
+          }}
+          style={{
+            backgroundColor: 'transparent',
+            color: '#ffffff',
+            colorScheme: 'dark',
+            border: 'none',
+            outline: 'none',
+            fontSize: '15px',
+            paddingTop: '6px',
+            paddingBottom: '6px',
+            width: '100%',
+            fontFamily: 'inherit',
+          }}
+        />
+      ) : Platform.OS === 'web' && options.type === 'time' ? (
+        <input
+          type="time"
+          value={(() => {
+            if (!value) return '';
+            if (/^\d{2}:\d{2}$/.test(value)) return value;
+            const match = value.match(/^(0?[1-9]|1[0-2]):([0-5]\d)\s*(AM|PM|am|pm)$/i);
+            if (match) {
+              let h = parseInt(match[1], 10);
+              const m = match[2];
+              const p = match[3].toUpperCase();
+              if (p === 'PM' && h < 12) h += 12;
+              if (p === 'AM' && h === 12) h = 0;
+              return `${String(h).padStart(2, '0')}:${m}`;
+            }
+            return '';
+          })()}
+          onChange={(e) => {
+            const val = e.target.value;
+            if (val) {
               const [h, m] = val.split(':');
               const hourInt = parseInt(h, 10);
               const period = hourInt >= 12 ? 'PM' : 'AM';
               const displayHour = hourInt % 12 || 12;
               const formattedH = String(displayHour).padStart(2, '0');
               setter(`${formattedH}:${m} ${period}`);
-            } else {
-              setter(val);
             }
           }}
           style={{
             backgroundColor: 'transparent',
             color: '#ffffff',
+            colorScheme: 'dark',
             border: 'none',
             outline: 'none',
             fontSize: '15px',
@@ -253,21 +286,6 @@ const CreateEventScreen = ({ navigation }) => {
     </View>
   );
 
-  const getQuickDate = (type) => {
-    const now = new Date();
-    if (type === 'tomorrow') {
-      now.setDate(now.getDate() + 1);
-    } else if (type === 'sunday') {
-      const day = now.getDay();
-      const diff = now.getDate() + (7 - day) % 7;
-      now.setDate(diff);
-    }
-    const d = String(now.getDate()).padStart(2, '0');
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const y = now.getFullYear();
-    return `${d}-${m}-${y}`;
-  };
-
   return (
     <ScrollView
       style={styles.container}
@@ -284,35 +302,16 @@ const CreateEventScreen = ({ navigation }) => {
 
       <View style={styles.row}>
         <View style={{ flex: 1, marginRight: 8 }}>
-          {renderInput('DATE (CALENDAR)', date, setDate, 'date', {
-            placeholder: 'DD-MM-YYYY',
+          {renderInput('DATE (DD/MM/YYYY)', date, setDate, 'date', {
+            placeholder: 'DD/MM/YYYY',
             type: 'date',
           })}
-          <View style={styles.quickPresetRow}>
-            <TouchableOpacity style={styles.quickPresetBtn} onPress={() => setDate(getQuickDate('today'))}>
-              <Text style={styles.quickPresetText}>Today</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickPresetBtn} onPress={() => setDate(getQuickDate('tomorrow'))}>
-              <Text style={styles.quickPresetText}>Tomorrow</Text>
-            </TouchableOpacity>
-          </View>
         </View>
         <View style={{ flex: 1, marginLeft: 8 }}>
-          {renderInput('TIME (CLOCK)', time, setTime, 'time', {
+          {renderInput('TIME (e.g. 02:30 PM)', time, setTime, 'time', {
             placeholder: '02:30 PM',
             type: 'time',
           })}
-          <View style={styles.quickPresetRow}>
-            <TouchableOpacity style={styles.quickPresetBtn} onPress={() => setTime('10:00 AM')}>
-              <Text style={styles.quickPresetText}>10 AM</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickPresetBtn} onPress={() => setTime('02:30 PM')}>
-              <Text style={styles.quickPresetText}>2:30 PM</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickPresetBtn} onPress={() => setTime('06:00 PM')}>
-              <Text style={styles.quickPresetText}>6 PM</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
 
