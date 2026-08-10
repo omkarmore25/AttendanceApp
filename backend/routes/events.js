@@ -30,10 +30,23 @@ router.post('/', auth, adminOnly, async (req, res) => {
       }
     }
 
+    let parseTime = start_time;
+    if (typeof start_time === 'string' && /AM|PM/i.test(start_time)) {
+      const match = start_time.trim().match(/^(0?[1-9]|1[0-2]):([0-5]\d)\s*(AM|PM|am|pm)$/i);
+      if (match) {
+        let h = parseInt(match[1], 10);
+        const m = match[2];
+        const p = match[3].toUpperCase();
+        if (p === 'PM' && h < 12) h += 12;
+        if (p === 'AM' && h === 12) h = 0;
+        parseTime = `${String(h).padStart(2, '0')}:${m}`;
+      }
+    }
+
     const event = new Event({
       name,
       scheduled_date: new Date(parseDate),
-      start_time,
+      start_time: parseTime,
       latitude,
       longitude,
       radius_in_meters: radius_in_meters || parseInt(process.env.GEOFENCE_RADIUS) || 50,

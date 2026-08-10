@@ -230,13 +230,29 @@ const CreateEventScreen = ({ navigation }) => {
       return;
     }
 
+    const convert12to24 = (time12Str) => {
+      if (!time12Str) return '19:00';
+      const clean = time12Str.trim();
+      if (/^([01]\d|2[0-3]):([0-5]\d)$/.test(clean)) return clean;
+      const match = clean.match(/^(0?[1-9]|1[0-2]):([0-5]\d)\s*(AM|PM|am|pm)$/i);
+      if (!match) return '19:00';
+      let h = parseInt(match[1], 10);
+      const m = match[2];
+      const p = match[3].toUpperCase();
+      if (p === 'PM' && h < 12) h += 12;
+      if (p === 'AM' && h === 12) h = 0;
+      return `${String(h).padStart(2, '0')}:${m}`;
+    };
+
+    const finalStartTime = convert12to24(time);
+
     try {
       setLoading(true);
 
       await api.post('/events', {
         name: name.trim(),
         scheduled_date: formattedDate,
-        start_time: formattedTime,
+        start_time: finalStartTime,
         latitude: parseFloat(latitude),
         longitude: parseFloat(longitude),
         radius_in_meters: parseInt(radius) || 50,
