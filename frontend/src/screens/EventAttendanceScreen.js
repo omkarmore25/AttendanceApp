@@ -100,7 +100,6 @@ const EventAttendanceScreen = ({ route }) => {
               <th style="width: 40px;">#</th>
               <th>Attendee Name</th>
               <th>Mobile Number</th>
-              <th>Email Address</th>
               <th>Verification Mode</th>
               <th>Attendance Timestamp</th>
             </tr>
@@ -111,7 +110,6 @@ const EventAttendanceScreen = ({ route }) => {
                 <td><b>${index + 1}</b></td>
                 <td><b>${item.user_id?.name || item.user_id?.username || 'Unknown'}</b></td>
                 <td>${item.user_id?.phone || '—'}</td>
-                <td>${item.user_id?.email || '—'}</td>
                 <td>
                   <span class="${item.marked_by === 'Self' ? 'badge-self' : 'badge-admin'}">
                     ${item.marked_by === 'Self' ? '📍 GPS Verified' : '👤 Admin Marked'}
