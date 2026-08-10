@@ -19,7 +19,7 @@ import { showAlert } from '../utils/dialog';
 const CreateEventScreen = ({ navigation }) => {
   const [name, setName] = useState('');
   const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
+  const [time, setTime] = useState('07:00 PM');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [radius, setRadius] = useState('50');
@@ -302,16 +302,81 @@ const CreateEventScreen = ({ navigation }) => {
 
       <View style={styles.row}>
         <View style={{ flex: 1, marginRight: 8 }}>
-          {renderInput('DATE (DD/MM/YYYY)', date, setDate, 'date', {
-            placeholder: 'DD/MM/YYYY',
-            type: 'date',
-          })}
+          <View style={[styles.inputGroup, focusedField === 'date' && styles.inputGroupFocused]}>
+            <Text style={styles.inputLabel}>DATE (DD/MM/YYYY)</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={date}
+                onChangeText={setDate}
+                placeholder="15/08/2026"
+                placeholderTextColor={theme.colors.textMuted}
+                onFocus={() => setFocusedField('date')}
+                onBlur={() => setFocusedField(null)}
+              />
+              {Platform.OS === 'web' && (
+                <input
+                  type="date"
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      const [y, m, d] = e.target.value.split('-');
+                      setDate(`${d}/${m}/${y}`);
+                    }
+                  }}
+                  style={{
+                    position: 'absolute',
+                    right: 0,
+                    opacity: 0,
+                    width: '36px',
+                    height: '36px',
+                    cursor: 'pointer',
+                  }}
+                />
+              )}
+              <Text style={{ fontSize: 18, marginLeft: 4 }}>📅</Text>
+            </View>
+          </View>
         </View>
+
         <View style={{ flex: 1, marginLeft: 8 }}>
-          {renderInput('TIME (e.g. 02:30 PM)', time, setTime, 'time', {
-            placeholder: '02:30 PM',
-            type: 'time',
-          })}
+          <View style={[styles.inputGroup, focusedField === 'time' && styles.inputGroupFocused]}>
+            <Text style={styles.inputLabel}>TIME (e.g. 02:30 PM)</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={time}
+                onChangeText={setTime}
+                placeholder="02:30 PM"
+                placeholderTextColor={theme.colors.textMuted}
+                onFocus={() => setFocusedField('time')}
+                onBlur={() => setFocusedField(null)}
+              />
+              {Platform.OS === 'web' && (
+                <input
+                  type="time"
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      const [h, m] = e.target.value.split(':');
+                      const hourInt = parseInt(h, 10);
+                      const period = hourInt >= 12 ? 'PM' : 'AM';
+                      const displayHour = hourInt % 12 || 12;
+                      const formattedH = String(displayHour).padStart(2, '0');
+                      setTime(`${formattedH}:${m} ${period}`);
+                    }
+                  }}
+                  style={{
+                    position: 'absolute',
+                    right: 0,
+                    opacity: 0,
+                    width: '36px',
+                    height: '36px',
+                    cursor: 'pointer',
+                  }}
+                />
+              )}
+              <Text style={{ fontSize: 18, marginLeft: 4 }}>⏰</Text>
+            </View>
+          </View>
         </View>
       </View>
 
