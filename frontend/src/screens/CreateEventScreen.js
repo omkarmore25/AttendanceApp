@@ -207,17 +207,66 @@ const CreateEventScreen = ({ navigation }) => {
   const renderInput = (label, value, setter, fieldKey, options = {}) => (
     <View style={[styles.inputGroup, focusedField === fieldKey && styles.inputGroupFocused]}>
       <Text style={styles.inputLabel}>{label}</Text>
-      <TextInput
-        style={styles.input}
-        value={value}
-        onChangeText={setter}
-        placeholderTextColor={theme.colors.textMuted}
-        onFocus={() => setFocusedField(fieldKey)}
-        onBlur={() => setFocusedField(null)}
-        {...options}
-      />
+      {Platform.OS === 'web' && (options.type === 'date' || options.type === 'time') ? (
+        <input
+          type={options.type}
+          value={options.type === 'date' && value && value.includes('-') && value.split('-')[0].length === 2 ? value.split('-').reverse().join('-') : value}
+          onChange={(e) => {
+            const val = e.target.value;
+            if (options.type === 'date' && val) {
+              const [y, m, d] = val.split('-');
+              setter(`${d}-${m}-${y}`);
+            } else if (options.type === 'time' && val) {
+              const [h, m] = val.split(':');
+              const hourInt = parseInt(h, 10);
+              const period = hourInt >= 12 ? 'PM' : 'AM';
+              const displayHour = hourInt % 12 || 12;
+              const formattedH = String(displayHour).padStart(2, '0');
+              setter(`${formattedH}:${m} ${period}`);
+            } else {
+              setter(val);
+            }
+          }}
+          style={{
+            backgroundColor: 'transparent',
+            color: '#ffffff',
+            border: 'none',
+            outline: 'none',
+            fontSize: '15px',
+            paddingTop: '6px',
+            paddingBottom: '6px',
+            width: '100%',
+            fontFamily: 'inherit',
+          }}
+        />
+      ) : (
+        <TextInput
+          style={styles.input}
+          value={value}
+          onChangeText={setter}
+          placeholderTextColor={theme.colors.textMuted}
+          onFocus={() => setFocusedField(fieldKey)}
+          onBlur={() => setFocusedField(null)}
+          {...options}
+        />
+      )}
     </View>
   );
+
+  const getQuickDate = (type) => {
+    const now = new Date();
+    if (type === 'tomorrow') {
+      now.setDate(now.getDate() + 1);
+    } else if (type === 'sunday') {
+      const day = now.getDay();
+      const diff = now.getDate() + (7 - day) % 7;
+      now.setDate(diff);
+    }
+    const d = String(now.getDate()).padStart(2, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const y = now.getFullYear();
+    return `${d}-${m}-${y}`;
+  };
 
   return (
     <ScrollView
@@ -235,16 +284,35 @@ const CreateEventScreen = ({ navigation }) => {
 
       <View style={styles.row}>
         <View style={{ flex: 1, marginRight: 8 }}>
-          {renderInput('DATE (DD-MM-YYYY)', date, setDate, 'date', {
-            placeholder: '15-08-2026',
-            keyboardType: 'default',
+          {renderInput('DATE (CALENDAR)', date, setDate, 'date', {
+            placeholder: 'DD-MM-YYYY',
+            type: 'date',
           })}
+          <View style={styles.quickPresetRow}>
+            <TouchableOpacity style={styles.quickPresetBtn} onPress={() => setDate(getQuickDate('today'))}>
+              <Text style={styles.quickPresetText}>Today</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickPresetBtn} onPress={() => setDate(getQuickDate('tomorrow'))}>
+              <Text style={styles.quickPresetText}>Tomorrow</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={{ flex: 1, marginLeft: 8 }}>
-          {renderInput('TIME (e.g. 2:30 PM)', time, setTime, 'time', {
+          {renderInput('TIME (CLOCK)', time, setTime, 'time', {
             placeholder: '02:30 PM',
-            keyboardType: 'default',
+            type: 'time',
           })}
+          <View style={styles.quickPresetRow}>
+            <TouchableOpacity style={styles.quickPresetBtn} onPress={() => setTime('10:00 AM')}>
+              <Text style={styles.quickPresetText}>10 AM</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickPresetBtn} onPress={() => setTime('02:30 PM')}>
+              <Text style={styles.quickPresetText}>2:30 PM</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickPresetBtn} onPress={() => setTime('06:00 PM')}>
+              <Text style={styles.quickPresetText}>6 PM</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -852,6 +920,25 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: theme.fontWeight.bold,
     fontSize: theme.fontSize.md,
+  },
+  quickPresetRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 6,
+    flexWrap: 'wrap',
+  },
+  quickPresetBtn: {
+    backgroundColor: theme.colors.primary + '20',
+    borderColor: theme.colors.primary + '40',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  quickPresetText: {
+    color: theme.colors.primary,
+    fontSize: 11,
+    fontWeight: 'bold',
   },
 });
 

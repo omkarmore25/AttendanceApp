@@ -52,36 +52,104 @@ const EventAttendanceScreen = ({ route }) => {
     );
   };
 
-  const exportToCSV = () => {
+  const downloadAttendanceDoc = () => {
     if (records.length === 0) {
-      showAlert('No Records', 'There are no attendance records to export.');
+      showAlert('No Records', 'There are no attendance records to download.');
       return;
     }
 
-    const headers = ['#', 'Name', 'Phone Number', 'Email', 'Marked By', 'Date & Time'];
-    const rows = records.map((item, index) => [
-      index + 1,
-      `"${(item.user_id?.name || item.user_id?.username || 'Unknown').replace(/"/g, '""')}"`,
-      `"${item.user_id?.phone || ''}"`,
-      `"${item.user_id?.email || ''}"`,
-      `"${item.marked_by || 'Self'}"`,
-      `"${new Date(item.timestamp).toLocaleString('en-IN')}"`,
-    ]);
+    const reportTitle = `Sant_Samagam_${eventName.replace(/[^a-zA-Z0-9]/g, '_')}_Attendance`;
 
-    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    // Create formatted HTML for Word Document (.doc)
+    const docHtml = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>${eventName} — Attendance Report</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 24px; color: #1e293b; background-color: #ffffff; }
+          .header { text-align: center; border-bottom: 3px solid #ff6b00; padding-bottom: 16px; margin-bottom: 24px; }
+          .title { font-size: 24px; font-weight: bold; color: #ff6b00; margin: 0; }
+          .subtitle { font-size: 16px; color: #64748b; margin-top: 4px; }
+          .info-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+          .info-row { font-size: 14px; margin-bottom: 6px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th { background-color: #ff6b00; color: #ffffff; font-size: 13px; font-weight: bold; padding: 10px; border: 1px solid #e2e8f0; text-align: left; }
+          td { font-size: 13px; padding: 9px 10px; border: 1px solid #e2e8f0; }
+          tr:nth-child(even) { background-color: #f8fafc; }
+          .badge-self { background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; }
+          .badge-admin { background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; }
+          .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="title">🚩 जय सच्चिदानंद — Sant Samagam</div>
+          <div class="subtitle">Official Attendance Roster Report</div>
+        </div>
+
+        <div class="info-card">
+          <div class="info-row"><b>Event Name / Venue:</b> ${eventName}</div>
+          <div class="info-row"><b>Total Present Attendees:</b> ${records.length} Users</div>
+          <div class="info-row"><b>Report Generated Date:</b> ${new Date().toLocaleString('en-IN')}</div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40px;">#</th>
+              <th>Attendee Name</th>
+              <th>Mobile Number</th>
+              <th>Email Address</th>
+              <th>Verification Mode</th>
+              <th>Attendance Timestamp</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${records.map((item, index) => `
+              <tr>
+                <td><b>${index + 1}</b></td>
+                <td><b>${item.user_id?.name || item.user_id?.username || 'Unknown'}</b></td>
+                <td>${item.user_id?.phone || '—'}</td>
+                <td>${item.user_id?.email || '—'}</td>
+                <td>
+                  <span class="${item.marked_by === 'Self' ? 'badge-self' : 'badge-admin'}">
+                    ${item.marked_by === 'Self' ? '📍 GPS Verified' : '👤 Admin Marked'}
+                  </span>
+                </td>
+                <td>${new Date(item.timestamp).toLocaleString('en-IN')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          Generated automatically by Sant Samagam Attendance System
+        </div>
+      </body>
+      </html>
+    `;
 
     if (Platform.OS === 'web') {
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([docHtml], { type: 'application/msword;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${eventName.replace(/[^a-zA-Z0-9]/g, '_')}_Attendance.csv`);
+      link.setAttribute('download', `${reportTitle}.doc`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      showAlert('✅ CSV Downloaded!', `Attendance list for "${eventName}" (${records.length} attendees) downloaded successfully.`);
+      showAlert('✅ Document Downloaded!', `Attendance document for "${eventName}" (${records.length} attendees) saved as .doc file.`);
     } else {
-      showAlert('CSV Generated', `Generated ${records.length} attendance records for "${eventName}".`);
+      // Mobile native app: trigger download data URI link
+      const encodedUri = 'data:application/msword;charset=utf-8,' + encodeURIComponent(docHtml);
+      const link = document.createElement('a');
+      link.href = encodedUri;
+      link.setAttribute('download', `${reportTitle}.doc`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showAlert('✅ Document Generated!', `Attendance document for "${eventName}" saved successfully.`);
     }
   };
 
@@ -141,8 +209,8 @@ const EventAttendanceScreen = ({ route }) => {
           <Text style={styles.title} numberOfLines={1}>{eventName}</Text>
           <Text style={styles.subtitle}>{records.length} Attendees Total</Text>
         </View>
-        <TouchableOpacity style={styles.exportBtn} onPress={exportToCSV}>
-          <Text style={styles.exportBtnText}>📥 Export CSV</Text>
+        <TouchableOpacity style={styles.exportBtn} onPress={downloadAttendanceDoc}>
+          <Text style={styles.exportBtnText}>📄 Download Doc</Text>
         </TouchableOpacity>
       </View>
 
