@@ -34,6 +34,54 @@ const CreateEventScreen = ({ navigation }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [mapCenter, setMapCenter] = useState({ lat: '19.0760', lng: '72.8777' });
 
+  // Interactive Calendar & Time Picker Modal states
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showTimeModal, setShowTimeModal] = useState(false);
+  const [calYear, setCalYear] = useState(new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+
+  const [selHour, setSelHour] = useState('07');
+  const [selMinute, setSelMinute] = useState('00');
+  const [selPeriod, setSelPeriod] = useState('PM');
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
+
+  const prevMonth = () => {
+    if (calMonth === 0) {
+      setCalMonth(11);
+      setCalYear((prev) => prev - 1);
+    } else {
+      setCalMonth((prev) => prev - 1);
+    }
+  };
+
+  const nextMonth = () => {
+    if (calMonth === 11) {
+      setCalMonth(0);
+      setCalYear((prev) => prev + 1);
+    } else {
+      setCalMonth((prev) => prev + 1);
+    }
+  };
+
+  const selectDay = (day) => {
+    const formattedDay = String(day).padStart(2, '0');
+    const formattedMonth = String(calMonth + 1).padStart(2, '0');
+    setDate(`${formattedDay}/${formattedMonth}/${calYear}`);
+    setShowCalendarModal(false);
+  };
+
+  const confirmTime = () => {
+    setTime(`${selHour}:${selMinute} ${selPeriod}`);
+    setShowTimeModal(false);
+  };
+
   const openMapPickerModal = () => {
     setMapCenter({ lat: latitude || '19.0760', lng: longitude || '72.8777' });
     setShowMapModal(true);
@@ -302,7 +350,11 @@ const CreateEventScreen = ({ navigation }) => {
 
       <View style={styles.row}>
         <View style={{ flex: 1, marginRight: 8 }}>
-          <View style={[styles.inputGroup, focusedField === 'date' && styles.inputGroupFocused]}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => setShowCalendarModal(true)}
+            style={[styles.inputGroup, focusedField === 'date' && styles.inputGroupFocused]}
+          >
             <Text style={styles.inputLabel}>DATE (DD/MM/YYYY)</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TextInput
@@ -311,72 +363,36 @@ const CreateEventScreen = ({ navigation }) => {
                 onChangeText={setDate}
                 placeholder="15/08/2026"
                 placeholderTextColor={theme.colors.textMuted}
-                onFocus={() => setFocusedField('date')}
-                onBlur={() => setFocusedField(null)}
+                editable={true}
               />
-              {Platform.OS === 'web' && (
-                <input
-                  type="date"
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      const [y, m, d] = e.target.value.split('-');
-                      setDate(`${d}/${m}/${y}`);
-                    }
-                  }}
-                  style={{
-                    position: 'absolute',
-                    right: 0,
-                    opacity: 0,
-                    width: '36px',
-                    height: '36px',
-                    cursor: 'pointer',
-                  }}
-                />
-              )}
-              <Text style={{ fontSize: 18, marginLeft: 4 }}>📅</Text>
+              <TouchableOpacity onPress={() => setShowCalendarModal(true)}>
+                <Text style={{ fontSize: 20, marginLeft: 4 }}>📅</Text>
+              </TouchableOpacity>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         <View style={{ flex: 1, marginLeft: 8 }}>
-          <View style={[styles.inputGroup, focusedField === 'time' && styles.inputGroupFocused]}>
-            <Text style={styles.inputLabel}>TIME (e.g. 02:30 PM)</Text>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => setShowTimeModal(true)}
+            style={[styles.inputGroup, focusedField === 'time' && styles.inputGroupFocused]}
+          >
+            <Text style={styles.inputLabel}>TIME (CLOCK)</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TextInput
                 style={[styles.input, { flex: 1 }]}
                 value={time}
                 onChangeText={setTime}
-                placeholder="02:30 PM"
+                placeholder="07:00 PM"
                 placeholderTextColor={theme.colors.textMuted}
-                onFocus={() => setFocusedField('time')}
-                onBlur={() => setFocusedField(null)}
+                editable={true}
               />
-              {Platform.OS === 'web' && (
-                <input
-                  type="time"
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      const [h, m] = e.target.value.split(':');
-                      const hourInt = parseInt(h, 10);
-                      const period = hourInt >= 12 ? 'PM' : 'AM';
-                      const displayHour = hourInt % 12 || 12;
-                      const formattedH = String(displayHour).padStart(2, '0');
-                      setTime(`${formattedH}:${m} ${period}`);
-                    }
-                  }}
-                  style={{
-                    position: 'absolute',
-                    right: 0,
-                    opacity: 0,
-                    width: '36px',
-                    height: '36px',
-                    cursor: 'pointer',
-                  }}
-                />
-              )}
-              <Text style={{ fontSize: 18, marginLeft: 4 }}>⏰</Text>
+              <TouchableOpacity onPress={() => setShowTimeModal(true)}>
+                <Text style={{ fontSize: 20, marginLeft: 4 }}>⏰</Text>
+              </TouchableOpacity>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -443,6 +459,133 @@ const CreateEventScreen = ({ navigation }) => {
           <Text style={styles.submitText}>Create Event</Text>
         )}
       </TouchableOpacity>
+
+      {/* Interactive Calendar Date Picker Modal */}
+      <Modal
+        visible={showCalendarModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowCalendarModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.calCard}>
+            <View style={styles.calHeader}>
+              <TouchableOpacity style={styles.calNavBtn} onPress={prevMonth}>
+                <Text style={styles.calNavText}>◄</Text>
+              </TouchableOpacity>
+              <Text style={styles.calMonthTitle}>
+                {monthNames[calMonth]} {calYear}
+              </Text>
+              <TouchableOpacity style={styles.calNavBtn} onPress={nextMonth}>
+                <Text style={styles.calNavText}>►</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Days of week */}
+            <View style={styles.calWeekRow}>
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+                <Text key={d} style={styles.calWeekText}>{d}</Text>
+              ))}
+            </View>
+
+            {/* Grid of days */}
+            <View style={styles.calDaysGrid}>
+              {Array.from({ length: getFirstDayOfMonth(calYear, calMonth) }).map((_, i) => (
+                <View key={`empty-${i}`} style={styles.calDayCell} />
+              ))}
+              {Array.from({ length: getDaysInMonth(calYear, calMonth) }).map((_, i) => {
+                const day = i + 1;
+                const formattedDay = String(day).padStart(2, '0');
+                const formattedMonth = String(calMonth + 1).padStart(2, '0');
+                const curDateStr = `${formattedDay}/${formattedMonth}/${calYear}`;
+                const isSelected = date === curDateStr;
+                return (
+                  <TouchableOpacity
+                    key={`day-${day}`}
+                    style={[styles.calDayCell, isSelected && styles.calDaySelected]}
+                    onPress={() => selectDay(day)}
+                  >
+                    <Text style={[styles.calDayText, isSelected && styles.calDayTextSelected]}>
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity
+              style={styles.calCloseBtn}
+              onPress={() => setShowCalendarModal(false)}
+            >
+              <Text style={styles.calCloseText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Interactive Time Picker Modal */}
+      <Modal
+        visible={showTimeModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowTimeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.calCard}>
+            <Text style={styles.calMonthTitle}>⏰ Select Event Time</Text>
+            <Text style={{ color: theme.colors.textMuted, fontSize: 13, textAlign: 'center', marginBottom: 16 }}>
+              Default set to 07:00 PM
+            </Text>
+
+            {/* Hours selection */}
+            <Text style={styles.timeSectionLabel}>Select Hour:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map((h) => (
+                <TouchableOpacity
+                  key={h}
+                  style={[styles.timeChip, selHour === h && styles.timeChipSelected]}
+                  onPress={() => setSelHour(h)}
+                >
+                  <Text style={[styles.timeChipText, selHour === h && styles.timeChipTextSelected]}>{h}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Minutes selection */}
+            <Text style={styles.timeSectionLabel}>Select Minute:</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16, justifyContent: 'center' }}>
+              {['00', '15', '30', '45'].map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  style={[styles.timeChip, selMinute === m && styles.timeChipSelected]}
+                  onPress={() => setSelMinute(m)}
+                >
+                  <Text style={[styles.timeChipText, selMinute === m && styles.timeChipTextSelected]}>{m}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Period selection */}
+            <Text style={styles.timeSectionLabel}>AM / PM:</Text>
+            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20, justifyContent: 'center' }}>
+              {['AM', 'PM'].map((p) => (
+                <TouchableOpacity
+                  key={p}
+                  style={[styles.periodBtn, selPeriod === p && styles.periodBtnSelected]}
+                  onPress={() => setSelPeriod(p)}
+                >
+                  <Text style={[styles.periodText, selPeriod === p && styles.periodTextSelected]}>{p}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Confirm button */}
+            <TouchableOpacity style={styles.confirmTimeBtn} onPress={confirmTime}>
+              <Text style={styles.confirmTimeText}>Set Time: {selHour}:{selMinute} {selPeriod}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Interactive Map Picker Modal */}
       <Modal
@@ -1003,6 +1146,140 @@ const styles = StyleSheet.create({
     color: theme.colors.primary,
     fontSize: 11,
     fontWeight: 'bold',
+  },
+  calCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#161f33',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#212d4a',
+  },
+  calHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  calNavBtn: {
+    padding: 8,
+  },
+  calNavText: {
+    color: '#ff6b00',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  calMonthTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  calWeekRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#212d4a',
+    paddingBottom: 6,
+  },
+  calWeekText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: 'bold',
+    width: 36,
+    textAlign: 'center',
+  },
+  calDaysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+  },
+  calDayCell: {
+    width: '14.28%',
+    height: 38,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    marginVertical: 2,
+  },
+  calDaySelected: {
+    backgroundColor: '#ff6b00',
+  },
+  calDayText: {
+    color: '#ffffff',
+    fontSize: 14,
+  },
+  calDayTextSelected: {
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  calCloseBtn: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  calCloseText: {
+    color: '#94a3b8',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  timeSectionLabel: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  timeChip: {
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: '#273554',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginRight: 6,
+  },
+  timeChipSelected: {
+    backgroundColor: '#ff6b00',
+    borderColor: '#ff6b00',
+  },
+  timeChipText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  timeChipTextSelected: {
+    color: '#ffffff',
+  },
+  periodBtn: {
+    backgroundColor: '#111827',
+    borderWidth: 1,
+    borderColor: '#273554',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  periodBtnSelected: {
+    backgroundColor: '#ff6b00',
+    borderColor: '#ff6b00',
+  },
+  periodText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  periodTextSelected: {
+    color: '#ffffff',
+  },
+  confirmTimeBtn: {
+    backgroundColor: '#ff6b00',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  confirmTimeText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 15,
   },
 });
 
