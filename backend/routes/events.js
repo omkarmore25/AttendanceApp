@@ -21,9 +21,18 @@ router.post('/', auth, adminOnly, async (req, res) => {
       });
     }
 
+    let parseDate = scheduled_date;
+    if (typeof scheduled_date === 'string') {
+      const cleanD = scheduled_date.replace(/\//g, '-');
+      if (/^\d{2}-\d{2}-\d{4}$/.test(cleanD)) {
+        const [d, m, y] = cleanD.split('-');
+        parseDate = `${y}-${m}-${d}`;
+      }
+    }
+
     const event = new Event({
       name,
-      scheduled_date: new Date(scheduled_date),
+      scheduled_date: new Date(parseDate),
       start_time,
       latitude,
       longitude,

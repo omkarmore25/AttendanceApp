@@ -15,8 +15,7 @@ const eventSchema = new mongoose.Schema(
     start_time: {
       type: String,
       required: [true, 'Start time is required'],
-      // Stored as "HH:MM" (24-hour format) for display flexibility
-      match: [/^([01]\d|2[0-3]):([0-5]\d)$/, 'Start time must be in HH:MM format'],
+      trim: true,
     },
     latitude: {
       type: Number,
