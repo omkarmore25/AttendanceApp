@@ -61,48 +61,140 @@ const EventAttendanceScreen = ({ route }) => {
 
     const reportTitle = `Sant_Samagam_${eventName.replace(/[^a-zA-Z0-9]/g, '_')}_Attendance`;
 
-    const docHtml = `
-      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    const pdfHtml = `
+      <!DOCTYPE html>
+      <html>
       <head>
-        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-        <title>${eventName} — Attendance Report</title>
+        <meta charset="utf-8">
+        <title>${eventName} — Attendance PDF Report</title>
+        <style>
+          @media print {
+            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          }
+          body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            padding: 24px;
+            color: #0f172a;
+            background-color: #ffffff;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 3px solid #ff6b00;
+            padding-bottom: 16px;
+            margin-bottom: 20px;
+          }
+          .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff6b00;
+            margin: 0;
+          }
+          .subtitle {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 4px;
+          }
+          .info-card {
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 20px;
+          }
+          .info-row {
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: #334155;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+          }
+          th {
+            background-color: #ff6b00 !important;
+            color: #ffffff !important;
+            font-size: 12px;
+            font-weight: bold;
+            padding: 10px 8px;
+            border: 1px solid #ff6b00;
+            text-align: left;
+          }
+          td {
+            font-size: 12px;
+            padding: 9px 8px;
+            border: 1px solid #cbd5e1;
+            color: #0f172a;
+          }
+          tr:nth-child(even) {
+            background-color: #f8fafc;
+          }
+          .badge-self {
+            background-color: #dcfce7;
+            color: #166534;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 11px;
+          }
+          .badge-admin {
+            background-color: #fef3c7;
+            color: #92400e;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 11px;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 11px;
+            color: #94a3b8;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 10px;
+          }
+        </style>
       </head>
-      <body style="font-family: Arial, sans-serif; background-color: #ffffff; color: #0f172a; padding: 20px;">
-        <div style="text-align: center; border-bottom: 2px solid #ff6b00; padding-bottom: 14px; margin-bottom: 20px;">
-          <div style="font-size: 24px; font-weight: bold; color: #ff6b00; margin: 0;">Sant Samagam (Satsang Attendance)</div>
-          <div style="font-size: 14px; color: #64748b; margin-top: 4px;">Official Attendance Roster Report</div>
+      <body>
+        <div class="header">
+          <div class="title">Sant Samagam (Satsang Attendance)</div>
+          <div class="subtitle">Official Attendance Roster PDF Report</div>
         </div>
 
-        <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 14px; margin-bottom: 20px; border-radius: 6px; color: #0f172a;">
-          <div style="font-size: 13px; margin-bottom: 6px; color: #0f172a;"><b>Event Name / Venue:</b> ${eventName}</div>
-          <div style="font-size: 13px; margin-bottom: 6px; color: #0f172a;"><b>Total Attendees Present:</b> ${records.length} Users</div>
-          <div style="font-size: 13px; color: #0f172a;"><b>Report Generated Date:</b> ${new Date().toLocaleString('en-IN')}</div>
+        <div class="info-card">
+          <div class="info-row"><b>Event Name / Venue:</b> ${eventName}</div>
+          <div class="info-row"><b>Total Attendees Present:</b> ${records.length} Users</div>
+          <div class="info-row"><b>Report Generated Date:</b> ${new Date().toLocaleString('en-IN')}</div>
         </div>
 
-        <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; border: 1px solid #cbd5e1; background-color: #ffffff;">
+        <table>
           <thead>
-            <tr style="background-color: #ff6b00; color: #ffffff;">
-              <th style="width: 8%; background-color: #ff6b00; color: #ffffff; font-size: 12px; font-weight: bold; padding: 10px 6px; border: 1px solid #e2e8f0; text-align: center;">#</th>
-              <th style="width: 28%; background-color: #ff6b00; color: #ffffff; font-size: 12px; font-weight: bold; padding: 10px 6px; border: 1px solid #e2e8f0; text-align: left;">Attendee Name</th>
-              <th style="width: 24%; background-color: #ff6b00; color: #ffffff; font-size: 12px; font-weight: bold; padding: 10px 6px; border: 1px solid #e2e8f0; text-align: left;">Mobile Number</th>
-              <th style="width: 18%; background-color: #ff6b00; color: #ffffff; font-size: 12px; font-weight: bold; padding: 10px 6px; border: 1px solid #e2e8f0; text-align: left;">Verification</th>
-              <th style="width: 22%; background-color: #ff6b00; color: #ffffff; font-size: 12px; font-weight: bold; padding: 10px 6px; border: 1px solid #e2e8f0; text-align: left;">Date & Time</th>
+            <tr>
+              <th style="width: 8%; text-align: center;">#</th>
+              <th style="width: 30%;">Attendee Name</th>
+              <th style="width: 22%;">Mobile Number</th>
+              <th style="width: 18%;">Verification</th>
+              <th style="width: 22%;">Date & Time</th>
             </tr>
           </thead>
           <tbody>
             ${records.map((item, index) => `
-              <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; color: #0f172a;">
-                <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: center; color: #0f172a;"><b>${index + 1}</b></td>
-                <td style="border: 1px solid #cbd5e1; padding: 8px; color: #0f172a;"><b>${item.user_id?.name || item.user_id?.username || 'Unknown'}</b></td>
-                <td style="border: 1px solid #cbd5e1; padding: 8px; color: #0f172a;">${item.user_id?.phone || '—'}</td>
-                <td style="border: 1px solid #cbd5e1; padding: 8px; color: #0f172a;">${item.marked_by === 'Self' ? 'GPS Verified' : 'Admin Marked'}</td>
-                <td style="border: 1px solid #cbd5e1; padding: 8px; color: #0f172a;">${new Date(item.timestamp).toLocaleString('en-IN')}</td>
+              <tr>
+                <td style="text-align: center;"><b>${index + 1}</b></td>
+                <td><b>${item.user_id?.name || item.user_id?.username || 'Unknown'}</b></td>
+                <td>${item.user_id?.phone || '—'}</td>
+                <td>
+                  <span class="${item.marked_by === 'Self' ? 'badge-self' : 'badge-admin'}">
+                    ${item.marked_by === 'Self' ? 'GPS Verified' : 'Admin Marked'}
+                  </span>
+                </td>
+                <td>${new Date(item.timestamp).toLocaleString('en-IN')}</td>
               </tr>
             `).join('')}
           </tbody>
         </table>
 
-        <div style="text-align: center; margin-top: 24px; font-size: 11px; color: #64748b; border-top: 1px solid #cbd5e1; padding-top: 10px;">
+        <div class="footer">
           Generated automatically by Sant Samagam Attendance System
         </div>
       </body>
@@ -110,15 +202,19 @@ const EventAttendanceScreen = ({ route }) => {
     `;
 
     if (Platform.OS === 'web') {
-      const blob = new Blob([docHtml], { type: 'application/msword;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `${reportTitle}.doc`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showAlert('✅ Document Downloaded!', `Attendance document for "${eventName}" (${records.length} attendees) saved as .doc file.`);
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(pdfHtml);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+        }, 250);
+      } else {
+        const blob = new Blob([pdfHtml], { type: 'text/html;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+      }
     } else {
       const downloadUrl = `${api.defaults.baseURL}/attendance/export-doc/${eventId}`;
       try {
@@ -186,7 +282,7 @@ const EventAttendanceScreen = ({ route }) => {
           <Text style={styles.subtitle}>{records.length} Attendees Total</Text>
         </View>
         <TouchableOpacity style={styles.exportBtn} onPress={downloadAttendanceDoc}>
-          <Text style={styles.exportBtnText}>📄 Download Doc</Text>
+          <Text style={styles.exportBtnText}>📄 Export PDF / Print</Text>
         </TouchableOpacity>
       </View>
 
