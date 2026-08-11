@@ -202,18 +202,15 @@ const EventAttendanceScreen = ({ route }) => {
     `;
 
     if (Platform.OS === 'web') {
-      const blob = new Blob([pdfHtml], { type: 'text/html;charset=utf-8;' });
+      const blob = new Blob([pdfHtml], { type: 'application/pdf;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${reportTitle}.html`);
+      link.setAttribute('download', `${reportTitle}.pdf`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
-      // Open directly in new browser tab without print modal
-      window.open(url, '_blank');
-      showAlert('✅ Report Downloaded!', `Attendance report for "${eventName}" (${records.length} attendees) generated and downloaded.`);
+      showAlert('✅ PDF Downloaded!', `Attendance PDF report for "${eventName}" (${records.length} attendees) saved as .pdf file.`);
     } else {
       const downloadUrl = `${api.defaults.baseURL}/attendance/export-doc/${eventId}`;
       try {
@@ -281,7 +278,7 @@ const EventAttendanceScreen = ({ route }) => {
           <Text style={styles.subtitle}>{records.length} Attendees Total</Text>
         </View>
         <TouchableOpacity style={styles.exportBtn} onPress={downloadAttendanceDoc}>
-          <Text style={styles.exportBtnText}>📄 Export PDF / Print</Text>
+          <Text style={styles.exportBtnText}>📄 Download PDF</Text>
         </TouchableOpacity>
       </View>
 
