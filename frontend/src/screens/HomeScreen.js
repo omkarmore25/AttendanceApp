@@ -57,6 +57,7 @@ const HomeScreen = ({ navigation }) => {
             return { ...event, address };
           } catch {
             return { ...event, address: { short: 'Location unavailable' } };
+          }
         })
       );
 
