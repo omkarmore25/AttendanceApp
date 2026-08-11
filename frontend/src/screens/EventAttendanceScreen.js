@@ -202,18 +202,37 @@ const EventAttendanceScreen = ({ route }) => {
     `;
 
     if (Platform.OS === 'web') {
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(pdfHtml);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => {
-          printWindow.print();
-        }, 300);
+      const element = document.createElement('div');
+      element.innerHTML = pdfHtml;
+      element.style.width = '700px';
+      element.style.padding = '20px';
+      element.style.backgroundColor = '#ffffff';
+
+      const opt = {
+        margin: 10,
+        filename: `${reportTitle}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      const generatePdf = () => {
+        if (window.html2pdf) {
+          window.html2pdf().set(opt).from(element).save().then(() => {
+            showAlert('✅ PDF Downloaded!', `Attendance report saved as "${reportTitle}.pdf" in Downloads.`);
+          }).catch((err) => {
+            console.error('PDF generation error:', err);
+          });
+        }
+      };
+
+      if (window.html2pdf) {
+        generatePdf();
       } else {
-        const blob = new Blob([pdfHtml], { type: 'text/html;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        script.onload = generatePdf;
+        document.body.appendChild(script);
       }
     } else {
       const downloadUrl = `${api.defaults.baseURL}/attendance/export-doc/${eventId}`;
