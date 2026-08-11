@@ -23,6 +23,7 @@ const HomeScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [newPhone, setNewPhone] = useState('');
   const [savingPhone, setSavingPhone] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const saveMobileNumber = async () => {
     if (!newPhone.trim() || !/^\d{10,15}$/.test(newPhone.trim())) {
@@ -87,6 +88,14 @@ const HomeScreen = ({ navigation }) => {
     setRefreshing(true);
     fetchEvents();
   };
+
+  const filteredEvents = events.filter((item) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    const nameMatch = item.name?.toLowerCase().includes(q);
+    const locMatch = (item.address?.full || item.address?.short || '').toLowerCase().includes(q);
+    return nameMatch || locMatch;
+  });
 
   const getStatusStyle = (status) => {
     switch (status) {
@@ -218,19 +227,38 @@ const HomeScreen = ({ navigation }) => {
         </View>
       ) : null}
 
+      {/* Search Bar */}
+      <View style={styles.searchBox}>
+        <Text style={styles.searchEmoji}>🔍</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search events by name or location..."
+          placeholderTextColor={theme.colors.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+            <Text style={styles.clearSearchText}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* Section Title */}
-      <Text style={styles.sectionTitle}>Upcoming Events</Text>
+      <Text style={styles.sectionTitle}>Events List ({filteredEvents.length})</Text>
 
       {/* Event List */}
-      {events.length === 0 ? (
+      {filteredEvents.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyEmoji}>📭</Text>
-          <Text style={styles.emptyTitle}>No Events Yet</Text>
-          <Text style={styles.emptySubtitle}>Events will appear here once created by admin</Text>
+          <Text style={styles.emptyEmoji}>{searchQuery ? '🔍' : '📭'}</Text>
+          <Text style={styles.emptyTitle}>{searchQuery ? 'No Events Found' : 'No Events Yet'}</Text>
+          <Text style={styles.emptySubtitle}>
+            {searchQuery ? `No events match "${searchQuery}"` : 'Events will appear here once created by admin'}
+          </Text>
         </View>
       ) : (
         <FlatList
-          data={events}
+          data={filteredEvents}
           renderItem={renderEventCard}
           keyExtractor={(item) => item._id}
           showsVerticalScrollIndicator={false}
@@ -327,6 +355,36 @@ const styles = StyleSheet.create({
     color: '#000',
     fontWeight: theme.fontWeight.bold,
     fontSize: theme.fontSize.sm,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.bgCard,
+    borderRadius: theme.borderRadius.lg,
+    marginHorizontal: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.md,
+    height: 48,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: theme.spacing.sm,
+  },
+  searchEmoji: {
+    fontSize: 18,
+    marginRight: theme.spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    color: theme.colors.textPrimary,
+    fontSize: theme.fontSize.md,
+    height: '100%',
+  },
+  clearSearchBtn: {
+    padding: 6,
+  },
+  clearSearchText: {
+    color: theme.colors.textMuted,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   devotionalHeader: {
     fontSize: theme.fontSize.xl,

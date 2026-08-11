@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../api/client';
@@ -17,6 +18,7 @@ const ManageEventsScreen = ({ navigation }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchEvents = async () => {
     try {
@@ -151,6 +153,12 @@ const ManageEventsScreen = ({ navigation }) => {
     </View>
   );
 
+  const filteredEvents = events.filter((item) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return item.name?.toLowerCase().includes(q) || item.status?.toLowerCase().includes(q);
+  });
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -161,8 +169,25 @@ const ManageEventsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      {/* Search Bar */}
+      <View style={styles.searchBox}>
+        <Text style={styles.searchEmoji}>🔍</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search events by name..."
+          placeholderTextColor={theme.colors.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+            <Text style={styles.clearSearchText}>✕</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       <FlatList
-        data={events}
+        data={filteredEvents}
         renderItem={renderEvent}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.list}
@@ -172,8 +197,8 @@ const ManageEventsScreen = ({ navigation }) => {
         }
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>📅</Text>
-            <Text style={styles.emptyText}>No events created yet</Text>
+            <Text style={styles.emptyEmoji}>{searchQuery ? '🔍' : '📅'}</Text>
+            <Text style={styles.emptyText}>{searchQuery ? `No events match "${searchQuery}"` : 'No events created yet'}</Text>
           </View>
         }
       />
@@ -184,6 +209,23 @@ const ManageEventsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.bg },
   centered: { flex: 1, backgroundColor: theme.colors.bg, justifyContent: 'center', alignItems: 'center' },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.bgCard,
+    borderRadius: theme.borderRadius.lg,
+    marginHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.md,
+    height: 48,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  searchEmoji: { fontSize: 18, marginRight: theme.spacing.sm },
+  searchInput: { flex: 1, color: theme.colors.textPrimary, fontSize: theme.fontSize.md, height: '100%' },
+  clearSearchBtn: { padding: 6 },
+  clearSearchText: { color: theme.colors.textMuted, fontSize: 16, fontWeight: 'bold' },
   list: { padding: theme.spacing.lg, paddingBottom: 150 },
   card: {
     backgroundColor: theme.colors.bgCard,
