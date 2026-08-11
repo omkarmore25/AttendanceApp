@@ -133,7 +133,7 @@ const EventDetailScreen = ({ route, navigation }) => {
   if (!event) return null;
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 150 }} showsVerticalScrollIndicator={false}>
       {/* Map Header */}
       <View style={styles.mapArea}>
         <View style={styles.mapPlaceholder}>

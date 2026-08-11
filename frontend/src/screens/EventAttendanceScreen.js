@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     fontWeight: theme.fontWeight.bold,
     fontSize: theme.fontSize.sm,
   },
-  list: { padding: theme.spacing.lg, paddingBottom: 100 },
+  list: { padding: theme.spacing.lg, paddingBottom: 150 },
   record: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.bgCard,
     borderRadius: theme.borderRadius.md, padding: theme.spacing.md,
