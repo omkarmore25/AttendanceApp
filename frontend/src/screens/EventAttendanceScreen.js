@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Platform,
+  Linking,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../api/client';
@@ -237,9 +238,15 @@ const EventAttendanceScreen = ({ route }) => {
     } else {
       const downloadUrl = `${api.defaults.baseURL}/attendance/export-doc/${eventId}`;
       try {
-        await WebBrowser.openBrowserAsync(downloadUrl);
+        await Linking.openURL(downloadUrl);
+        showAlert('📥 Downloading...', 'Downloading attendance report to your phone Downloads folder.');
       } catch (err) {
         console.error('Download error:', err);
+        try {
+          await WebBrowser.openBrowserAsync(downloadUrl);
+        } catch (wbErr) {
+          showAlert('Download Error', 'Could not open download link.');
+        }
       }
     }
   };
