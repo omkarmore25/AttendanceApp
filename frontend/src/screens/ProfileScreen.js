@@ -58,7 +58,7 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>👤</Text>
