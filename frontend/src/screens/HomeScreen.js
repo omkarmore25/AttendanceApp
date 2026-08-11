@@ -56,9 +56,16 @@ const HomeScreen = ({ navigation }) => {
             return { ...event, address };
           } catch {
             return { ...event, address: { short: 'Location unavailable' } };
-          }
         })
       );
+
+      const statusPriority = { Active: 1, Upcoming: 2, Completed: 3 };
+      eventsWithAddress.sort((a, b) => {
+        const prioA = statusPriority[a.status] || 4;
+        const prioB = statusPriority[b.status] || 4;
+        if (prioA !== prioB) return prioA - prioB;
+        return new Date(b.scheduled_date) - new Date(a.scheduled_date);
+      });
 
       setEvents(eventsWithAddress);
     } catch (error) {

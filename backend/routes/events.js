@@ -92,8 +92,17 @@ router.get('/', auth, async (req, res) => {
     }
 
     const events = await Event.find(filter)
-      .sort({ scheduled_date: 1, start_time: 1 })
       .populate('created_by', 'name');
+
+    const statusPriority = { Active: 1, Upcoming: 2, Completed: 3 };
+    events.sort((a, b) => {
+      const prioA = statusPriority[a.status] || 4;
+      const prioB = statusPriority[b.status] || 4;
+      if (prioA !== prioB) {
+        return prioA - prioB;
+      }
+      return new Date(b.scheduled_date) - new Date(a.scheduled_date);
+    });
 
     res.status(200).json({
       success: true,

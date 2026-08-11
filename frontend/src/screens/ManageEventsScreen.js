@@ -21,7 +21,15 @@ const ManageEventsScreen = ({ navigation }) => {
   const fetchEvents = async () => {
     try {
       const response = await api.get('/events');
-      setEvents(response.data.events || []);
+      const fetched = response.data.events || [];
+      const statusPriority = { Active: 1, Upcoming: 2, Completed: 3 };
+      fetched.sort((a, b) => {
+        const prioA = statusPriority[a.status] || 4;
+        const prioB = statusPriority[b.status] || 4;
+        if (prioA !== prioB) return prioA - prioB;
+        return new Date(b.scheduled_date) - new Date(a.scheduled_date);
+      });
+      setEvents(fetched);
     } catch (error) {
       console.error('Fetch events error:', error);
     } finally {
