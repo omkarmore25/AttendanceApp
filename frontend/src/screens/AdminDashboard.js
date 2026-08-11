@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     paddingHorizontal: theme.spacing.lg,
-    paddingBottom: 100,
+    paddingBottom: 150,
     gap: theme.spacing.sm,
   },
   actionCard: {

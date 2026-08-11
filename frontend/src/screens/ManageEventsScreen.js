@@ -176,7 +176,7 @@ const ManageEventsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.bg },
   centered: { flex: 1, backgroundColor: theme.colors.bg, justifyContent: 'center', alignItems: 'center' },
-  list: { padding: theme.spacing.lg, paddingBottom: 100 },
+  list: { padding: theme.spacing.lg, paddingBottom: 150 },
   card: {
     backgroundColor: theme.colors.bgCard,
     borderRadius: theme.borderRadius.lg,

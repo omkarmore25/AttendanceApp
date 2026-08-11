@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: theme.spacing.lg,
-    paddingBottom: 80,
+    paddingBottom: 150,
   },
   eventCard: {
     backgroundColor: theme.colors.bgCard,
