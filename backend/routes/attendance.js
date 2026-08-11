@@ -200,7 +200,7 @@ router.get('/export-doc/:eventId', async (req, res) => {
       <body style="font-family: Arial, sans-serif; background-color: #ffffff; color: #0f172a; padding: 20px;">
         <div style="text-align: center; border-bottom: 2px solid #ff6b00; padding-bottom: 14px; margin-bottom: 20px;">
           <div style="font-size: 24px; font-weight: bold; color: #ff6b00; margin: 0;">Sant Samagam (Satsang Attendance)</div>
-          <div style="font-size: 14px; color: #64748b; margin-top: 4px;">Official Attendance Roster Report</div>
+          <div style="font-size: 14px; color: #64748b; margin-top: 4px;">Official Attendance Report</div>
         </div>
 
         <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 14px; margin-bottom: 20px; border-radius: 6px; color: #0f172a;">

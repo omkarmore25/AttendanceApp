@@ -158,7 +158,7 @@ const EventAttendanceScreen = ({ route }) => {
       <body>
         <div class="header">
           <div class="title">Sant Samagam (Satsang Attendance)</div>
-          <div class="subtitle">Official Attendance Roster PDF Report</div>
+          <div class="subtitle">Official Attendance Report</div>
         </div>
 
         <div class="info-card">
@@ -202,19 +202,18 @@ const EventAttendanceScreen = ({ route }) => {
     `;
 
     if (Platform.OS === 'web') {
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(pdfHtml);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(() => {
-          printWindow.print();
-        }, 250);
-      } else {
-        const blob = new Blob([pdfHtml], { type: 'text/html;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-      }
+      const blob = new Blob([pdfHtml], { type: 'text/html;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${reportTitle}.html`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Open directly in new browser tab without print modal
+      window.open(url, '_blank');
+      showAlert('✅ Report Downloaded!', `Attendance report for "${eventName}" (${records.length} attendees) generated and downloaded.`);
     } else {
       const downloadUrl = `${api.defaults.baseURL}/attendance/export-doc/${eventId}`;
       try {
