@@ -197,42 +197,42 @@ router.get('/export-doc/:eventId', async (req, res) => {
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
         <title>${event.name} — Attendance Report</title>
       </head>
-      <body style="font-family: Arial, sans-serif; background-color: #0f172a; color: #ffffff; padding: 20px;">
+      <body style="font-family: Arial, sans-serif; background-color: #ffffff; color: #0f172a; padding: 20px;">
         <div style="text-align: center; border-bottom: 2px solid #ff6b00; padding-bottom: 14px; margin-bottom: 20px;">
           <div style="font-size: 24px; font-weight: bold; color: #ff6b00; margin: 0;">Sant Samagam (Satsang Attendance)</div>
-          <div style="font-size: 14px; color: #94a3b8; margin-top: 4px;">Official Attendance Roster Report</div>
+          <div style="font-size: 14px; color: #64748b; margin-top: 4px;">Official Attendance Roster Report</div>
         </div>
 
-        <div style="background-color: #1e293b; border: 1px solid #334155; padding: 14px; margin-bottom: 20px; border-radius: 6px; color: #ffffff;">
-          <div style="font-size: 13px; margin-bottom: 6px; color: #ffffff;"><b>Event Name / Venue:</b> ${event.name}</div>
-          <div style="font-size: 13px; margin-bottom: 6px; color: #ffffff;"><b>Total Attendees Present:</b> ${records.length} Users</div>
-          <div style="font-size: 13px; color: #ffffff;"><b>Report Generated Date:</b> ${new Date().toLocaleString('en-IN')}</div>
+        <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 14px; margin-bottom: 20px; border-radius: 6px; color: #0f172a;">
+          <div style="font-size: 13px; margin-bottom: 6px; color: #0f172a;"><b>Event Name / Venue:</b> ${event.name}</div>
+          <div style="font-size: 13px; margin-bottom: 6px; color: #0f172a;"><b>Total Attendees Present:</b> ${records.length} Users</div>
+          <div style="font-size: 13px; color: #0f172a;"><b>Report Generated Date:</b> ${new Date().toLocaleString('en-IN')}</div>
         </div>
 
-        <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; border: 1px solid #334155; background-color: #1e293b;">
+        <table style="width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; border: 1px solid #cbd5e1; background-color: #ffffff;">
           <thead>
             <tr style="background-color: #ff6b00; color: #ffffff;">
-              <th style="width: 8%; background-color: #ff6b00; color: #ffffff; font-size: 12px; font-weight: bold; padding: 10px 6px; border: 1px solid #ff6b00; text-align: center;">#</th>
-              <th style="width: 28%; background-color: #ff6b00; color: #ffffff; font-size: 12px; font-weight: bold; padding: 10px 6px; border: 1px solid #ff6b00; text-align: left;">Attendee Name</th>
-              <th style="width: 24%; background-color: #ff6b00; color: #ffffff; font-size: 12px; font-weight: bold; padding: 10px 6px; border: 1px solid #ff6b00; text-align: left;">Mobile Number</th>
-              <th style="width: 18%; background-color: #ff6b00; color: #ffffff; font-size: 12px; font-weight: bold; padding: 10px 6px; border: 1px solid #ff6b00; text-align: left;">Verification</th>
-              <th style="width: 22%; background-color: #ff6b00; color: #ffffff; font-size: 12px; font-weight: bold; padding: 10px 6px; border: 1px solid #ff6b00; text-align: left;">Date & Time</th>
+              <th style="width: 8%; background-color: #ff6b00; color: #ffffff; font-size: 12px; font-weight: bold; padding: 10px 6px; border: 1px solid #e2e8f0; text-align: center;">#</th>
+              <th style="width: 28%; background-color: #ff6b00; color: #ffffff; font-size: 12px; font-weight: bold; padding: 10px 6px; border: 1px solid #e2e8f0; text-align: left;">Attendee Name</th>
+              <th style="width: 24%; background-color: #ff6b00; color: #ffffff; font-size: 12px; font-weight: bold; padding: 10px 6px; border: 1px solid #e2e8f0; text-align: left;">Mobile Number</th>
+              <th style="width: 18%; background-color: #ff6b00; color: #ffffff; font-size: 12px; font-weight: bold; padding: 10px 6px; border: 1px solid #e2e8f0; text-align: left;">Verification</th>
+              <th style="width: 22%; background-color: #ff6b00; color: #ffffff; font-size: 12px; font-weight: bold; padding: 10px 6px; border: 1px solid #e2e8f0; text-align: left;">Date & Time</th>
             </tr>
           </thead>
           <tbody>
             ${records.map((item, index) => `
-              <tr style="background-color: ${index % 2 === 0 ? '#1e293b' : '#0f172a'}; color: #ffffff;">
-                <td style="border: 1px solid #334155; padding: 8px; text-align: center; color: #ffffff;"><b>${index + 1}</b></td>
-                <td style="border: 1px solid #334155; padding: 8px; color: #ffffff;"><b>${item.user_id?.name || item.user_id?.username || 'Unknown'}</b></td>
-                <td style="border: 1px solid #334155; padding: 8px; color: #ffffff;">${item.user_id?.phone || '—'}</td>
-                <td style="border: 1px solid #334155; padding: 8px; color: #ffffff;">${item.marked_by === 'Self' ? 'GPS Verified' : 'Admin Marked'}</td>
-                <td style="border: 1px solid #334155; padding: 8px; color: #ffffff;">${new Date(item.timestamp).toLocaleString('en-IN')}</td>
+              <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; color: #0f172a;">
+                <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: center; color: #0f172a;"><b>${index + 1}</b></td>
+                <td style="border: 1px solid #cbd5e1; padding: 8px; color: #0f172a;"><b>${item.user_id?.name || item.user_id?.username || 'Unknown'}</b></td>
+                <td style="border: 1px solid #cbd5e1; padding: 8px; color: #0f172a;">${item.user_id?.phone || '—'}</td>
+                <td style="border: 1px solid #cbd5e1; padding: 8px; color: #0f172a;">${item.marked_by === 'Self' ? 'GPS Verified' : 'Admin Marked'}</td>
+                <td style="border: 1px solid #cbd5e1; padding: 8px; color: #0f172a;">${new Date(item.timestamp).toLocaleString('en-IN')}</td>
               </tr>
             `).join('')}
           </tbody>
         </table>
 
-        <div style="text-align: center; margin-top: 24px; font-size: 11px; color: #94a3b8; border-top: 1px solid #334155; padding-top: 10px;">
+        <div style="text-align: center; margin-top: 24px; font-size: 11px; color: #64748b; border-top: 1px solid #cbd5e1; padding-top: 10px;">
           Generated automatically by Sant Samagam Attendance System
         </div>
       </body>
