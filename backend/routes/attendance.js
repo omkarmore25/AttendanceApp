@@ -174,4 +174,97 @@ router.get('/my', auth, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════
+// GET /api/attendance/export-doc/:eventId — Export Word Doc (.doc)
+// ═══════════════════════════════════════════════════════
+router.get('/export-doc/:eventId', async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).send('Event not found.');
+    }
+
+    const records = await Attendance.find({ event_id: eventId })
+      .populate('user_id', 'name username phone email')
+      .sort({ timestamp: 1 });
+
+    const reportTitle = `Sant_Samagam_${event.name.replace(/[^a-zA-Z0-9]/g, '_')}_Attendance`;
+
+    const docHtml = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>${event.name} — Attendance Report</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 24px; color: #1e293b; background-color: #ffffff; }
+          .header { text-align: center; border-bottom: 3px solid #ff6b00; padding-bottom: 16px; margin-bottom: 24px; }
+          .title { font-size: 24px; font-weight: bold; color: #ff6b00; margin: 0; }
+          .subtitle { font-size: 16px; color: #64748b; margin-top: 4px; }
+          .info-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+          .info-row { font-size: 14px; margin-bottom: 6px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+          th { background-color: #ff6b00; color: #ffffff; font-size: 13px; font-weight: bold; padding: 10px; border: 1px solid #e2e8f0; text-align: left; }
+          td { font-size: 13px; padding: 9px 10px; border: 1px solid #e2e8f0; }
+          tr:nth-child(even) { background-color: #f8fafc; }
+          .badge-self { background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; }
+          .badge-admin { background: #fef3c7; color: #92400e; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 11px; }
+          .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="title">🚩 जय सच्चिदानंद — Sant Samagam</div>
+          <div class="subtitle">Official Attendance Roster Report</div>
+        </div>
+
+        <div class="info-card">
+          <div class="info-row"><b>Event Name / Venue:</b> ${event.name}</div>
+          <div class="info-row"><b>Total Present Attendees:</b> ${records.length} Users</div>
+          <div class="info-row"><b>Report Generated Date:</b> ${new Date().toLocaleString('en-IN')}</div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 40px;">#</th>
+              <th>Attendee Name</th>
+              <th>Mobile Number</th>
+              <th>Verification Mode</th>
+              <th>Attendance Timestamp</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${records.map((item, index) => `
+              <tr>
+                <td><b>${index + 1}</b></td>
+                <td><b>${item.user_id?.name || item.user_id?.username || 'Unknown'}</b></td>
+                <td>${item.user_id?.phone || '—'}</td>
+                <td>
+                  <span class="${item.marked_by === 'Self' ? 'badge-self' : 'badge-admin'}">
+                    ${item.marked_by === 'Self' ? '📍 GPS Verified' : '👤 Admin Marked'}
+                  </span>
+                </td>
+                <td>${new Date(item.timestamp).toLocaleString('en-IN')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          Generated automatically by Sant Samagam Attendance System
+        </div>
+      </body>
+      </html>
+    `;
+
+    res.setHeader('Content-Type', 'application/msword; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${reportTitle}.doc"`);
+    return res.status(200).send(docHtml);
+  } catch (err) {
+    console.error('Doc export error:', err);
+    res.status(500).send('Error generating document.');
+  }
+});
+
 module.exports = router;
