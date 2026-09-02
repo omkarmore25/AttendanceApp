@@ -20,6 +20,8 @@ import ManualAttendanceScreen from '../screens/ManualAttendanceScreen';
 import ManageGroupsScreen from '../screens/ManageGroupsScreen';
 import ManageUsersScreen from '../screens/ManageUsersScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import JapmalaScreen from '../screens/JapmalaScreen';
+import JapmalaReportScreen from '../screens/JapmalaReportScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -67,6 +69,7 @@ const AdminHomeStack = () => (
     <Stack.Screen name="EventAttendance" component={EventAttendanceScreen} options={{ title: 'Attendance' }} />
     <Stack.Screen name="ManualAttendance" component={ManualAttendanceScreen} options={{ title: 'Offline Attendance' }} />
     <Stack.Screen name="ManageGroups" component={ManageGroupsScreen} options={{ title: 'Groups' }} />
+    <Stack.Screen name="JapmalaReport" component={JapmalaReportScreen} options={{ title: '📿 Japmala Report' }} />
   </Stack.Navigator>
 );
 
@@ -106,6 +109,13 @@ const AdminTabs = () => (
       }}
     />
     <Tab.Screen
+      name="JapmalaTab"
+      component={JapmalaScreen}
+      options={{
+        tabBarIcon: ({ focused }) => <TabIcon emoji="📿" label="Japmala" focused={focused} />,
+      }}
+    />
+    <Tab.Screen
       name="ProfileTab"
       component={ProfileScreen}
       options={{
@@ -141,6 +151,13 @@ const UserTabs = () => (
       component={UserHomeStack}
       options={{
         tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" label="Home" focused={focused} />,
+      }}
+    />
+    <Tab.Screen
+      name="JapmalaTab"
+      component={JapmalaScreen}
+      options={{
+        tabBarIcon: ({ focused }) => <TabIcon emoji="📿" label="Japmala" focused={focused} />,
       }}
     />
     <Tab.Screen

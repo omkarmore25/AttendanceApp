@@ -101,7 +101,9 @@ router.get('/', auth, async (req, res) => {
       if (prioA !== prioB) {
         return prioA - prioB;
       }
-      return new Date(b.scheduled_date) - new Date(a.scheduled_date);
+      const dateDiff = new Date(a.scheduled_date) - new Date(b.scheduled_date);
+      if (dateDiff !== 0) return dateDiff;
+      return (a.start_time || '').localeCompare(b.start_time || '');
     });
 
     res.status(200).json({

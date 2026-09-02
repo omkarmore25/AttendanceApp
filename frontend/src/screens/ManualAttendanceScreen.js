@@ -22,12 +22,6 @@ const ManualAttendanceScreen = () => {
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(null);
 
-  // For adding new offline users (kids / no smartphone)
-  const [showAddUser, setShowAddUser] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-  const [addingUser, setAddingUser] = useState(false);
-
   const fetchData = async () => {
     try {
       const [usersRes, eventsRes] = await Promise.all([
@@ -104,32 +98,6 @@ const ManualAttendanceScreen = () => {
       showAlert('Error', error.response?.data?.message || 'Failed to toggle attendance');
     } finally {
       setToggling(null);
-    }
-  };
-
-  const addManualUser = async () => {
-    if (!newName.trim()) {
-      showAlert('Missing Fields', 'Name is required.');
-      return;
-    }
-
-    try {
-      setAddingUser(true);
-      await api.post('/admin/manual-users', {
-        name: newName.trim(),
-        username: newName.trim(),
-        phone: newPhone.trim(),
-      });
-
-      setNewName('');
-      setNewPhone('');
-      setShowAddUser(false);
-      fetchData();
-      showAlert('✅ User Added', `"${newName}" created and added to attendees list.`);
-    } catch (error) {
-      showAlert('Error', error.response?.data?.message || 'Failed to add user');
-    } finally {
-      setAddingUser(false);
     }
   };
 
@@ -230,48 +198,6 @@ const ManualAttendanceScreen = () => {
           onChangeText={setSearch}
         />
       </View>
-
-      {/* Add Offline User Button */}
-      <TouchableOpacity
-        style={styles.addUserBtn}
-        onPress={() => setShowAddUser(!showAddUser)}
-      >
-        <Text style={styles.addUserBtnText}>
-          {showAddUser ? '✕ Cancel' : '+ Add Non-Smartphone User'}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Add User Form */}
-      {showAddUser && (
-        <View style={styles.addUserForm}>
-          <TextInput
-            style={styles.addInput}
-            placeholder="Full Name"
-            placeholderTextColor={theme.colors.textMuted}
-            value={newName}
-            onChangeText={setNewName}
-          />
-          <TextInput
-            style={styles.addInput}
-            placeholder="Phone Number"
-            placeholderTextColor={theme.colors.textMuted}
-            value={newPhone}
-            onChangeText={setNewPhone}
-            keyboardType="phone-pad"
-          />
-          <TouchableOpacity
-            style={styles.addSubmitBtn}
-            onPress={addManualUser}
-            disabled={addingUser}
-          >
-            {addingUser ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.addSubmitText}>Add User</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* User List */}
       <FlatList

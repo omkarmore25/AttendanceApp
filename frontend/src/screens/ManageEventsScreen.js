@@ -29,7 +29,9 @@ const ManageEventsScreen = ({ navigation }) => {
         const prioA = statusPriority[a.status] || 4;
         const prioB = statusPriority[b.status] || 4;
         if (prioA !== prioB) return prioA - prioB;
-        return new Date(b.scheduled_date) - new Date(a.scheduled_date);
+        const dateDiff = new Date(a.scheduled_date) - new Date(b.scheduled_date);
+        if (dateDiff !== 0) return dateDiff;
+        return (a.start_time || '').localeCompare(b.start_time || '');
       });
       setEvents(fetched);
     } catch (error) {

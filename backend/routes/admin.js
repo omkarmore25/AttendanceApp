@@ -160,6 +160,82 @@ router.get('/users', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════
+// PUT /api/admin/users/:id — Admin updates user's name and phone
+// ═══════════════════════════════════════════════════════
+router.put('/users/:id', async (req, res) => {
+  try {
+    const { name, username, phone, email } = req.body;
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found.',
+      });
+    }
+
+    if (user.role === 'Admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Cannot modify Admin account via this endpoint.',
+      });
+    }
+
+    if (name !== undefined && name.trim() !== '') {
+      user.name = name.trim();
+      if (user.is_manual_entry) {
+        user.username = (username || name).trim();
+      }
+    }
+    if (username !== undefined && username.trim() !== '' && !user.is_manual_entry) {
+      user.username = username.trim();
+    }
+    if (phone !== undefined) {
+      user.phone = phone.trim();
+    }
+    if (email !== undefined && email.trim() !== '') {
+      user.email = email.trim().toLowerCase();
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: `User "${user.name}" updated successfully.`,
+      user: {
+        _id: user._id,
+        name: user.name,
+        username: user.username,
+        phone: user.phone,
+        email: user.email,
+        role: user.role,
+        is_manual_entry: user.is_manual_entry,
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (error) {
+    if (error.kind === 'ObjectId') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid user ID format.',
+      });
+    }
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'A user with this username or email already exists.',
+      });
+    }
+
+    console.error('User update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating user.',
+    });
+  }
+});
+
 // DELETE /api/admin/users/:id — Permanently delete a user
 router.delete('/users/:id', async (req, res) => {
   try {

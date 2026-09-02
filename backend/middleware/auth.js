@@ -11,8 +11,11 @@ const User = require('../models/User');
  */
 const auth = async (req, res, next) => {
   try {
-    // 1. Extract token from header
-    const authHeader = req.header('Authorization');
+    // 1. Extract token from header or query parameter
+    let authHeader = req.header('Authorization');
+    if ((!authHeader || !authHeader.startsWith('Bearer ')) && req.query?.token) {
+      authHeader = `Bearer ${req.query.token}`;
+    }
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({

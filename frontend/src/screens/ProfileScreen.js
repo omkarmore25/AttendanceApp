@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import theme from '../theme';
 import api from '../api/client';
@@ -18,6 +19,29 @@ const ProfileScreen = ({ navigation }) => {
   const [name, setName] = useState(user?.name || user?.username || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [saving, setSaving] = useState(false);
+
+  // Japmala summary state
+  const [japmalaTotal, setJapmalaTotal] = useState(0);
+  const [japmalaDays, setJapmalaDays] = useState(0);
+  const [loadingJapmala, setLoadingJapmala] = useState(true);
+
+  const fetchJapmalaStats = async () => {
+    try {
+      const res = await api.get('/japmala/my');
+      setJapmalaTotal(res.data.total ?? 0);
+      setJapmalaDays(res.data.days ?? res.data.count ?? 0);
+    } catch (err) {
+      console.error('Error fetching japmala stats:', err);
+    } finally {
+      setLoadingJapmala(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchJapmalaStats();
+    }, [])
+  );
 
   const handleSaveProfile = async () => {
     if (!name.trim()) {
@@ -58,7 +82,7 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>👤</Text>
@@ -68,6 +92,34 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.roleBadge}>
           <Text style={styles.roleText}>{user?.role === 'Admin' ? '🛡️ Administrator' : '👤 Standard User'}</Text>
         </View>
+      </View>
+
+      {/* 📿 Japmala Card on Profile */}
+      <View style={[styles.card, styles.japmalaCard]}>
+        <View style={styles.japmalaHeaderRow}>
+          <Text style={styles.japmalaCardTitle}>📿 JAPMALA RECORD (जपानुष्ठान)</Text>
+          <Text style={styles.japmalaLiveBadge}>● Live</Text>
+        </View>
+        <Text style={styles.japmalaSubtitle}>Includes your entries & entries verified by Secretary / Admin</Text>
+
+        <View style={styles.japmalaStatsRow}>
+          <View style={styles.japmalaStatBox}>
+            <Text style={styles.japmalaNumber}>{loadingJapmala ? '—' : japmalaTotal}</Text>
+            <Text style={styles.japmalaLabel}>Total Malas (एकूण माळा)</Text>
+          </View>
+          <View style={styles.japmalaDivider} />
+          <View style={styles.japmalaStatBox}>
+            <Text style={styles.japmalaNumber}>{loadingJapmala ? '—' : japmalaDays}</Text>
+            <Text style={styles.japmalaLabel}>Total Days (एकूण दिवस)</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.openJapmalaBtn}
+          onPress={() => navigation.navigate('JapmalaTab')}
+        >
+          <Text style={styles.openJapmalaBtnText}>📿 Open Japmala Tracker / नोंदी पहा →</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
@@ -189,6 +241,77 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
+
+  // Japmala Card Styles
+  japmalaCard: {
+    borderColor: theme.colors.primary + '60',
+    backgroundColor: theme.colors.bgCard,
+  },
+  japmalaHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  japmalaCardTitle: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.primary,
+    letterSpacing: 1.2,
+  },
+  japmalaLiveBadge: {
+    color: theme.colors.success,
+    fontSize: theme.fontSize.xs,
+    fontWeight: 'bold',
+  },
+  japmalaSubtitle: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textMuted,
+    marginTop: 2,
+    marginBottom: theme.spacing.md,
+  },
+  japmalaStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.md,
+  },
+  japmalaStatBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  japmalaNumber: {
+    fontSize: 28,
+    fontWeight: theme.fontWeight.heavy,
+    color: theme.colors.accent,
+  },
+  japmalaLabel: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  japmalaDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: theme.colors.border,
+  },
+  openJapmalaBtn: {
+    backgroundColor: theme.colors.primary + '20',
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  openJapmalaBtnText: {
+    color: theme.colors.primary,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.bold,
+  },
+
   sectionTitle: {
     fontSize: theme.fontSize.xs,
     fontWeight: theme.fontWeight.bold,

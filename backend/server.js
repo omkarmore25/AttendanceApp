@@ -35,6 +35,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/events', require('./routes/events'));
 app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/japmala', require('./routes/japmala'));
 
 // ─── Health Check Endpoint ───
 app.get('/api/health', (req, res) => {
