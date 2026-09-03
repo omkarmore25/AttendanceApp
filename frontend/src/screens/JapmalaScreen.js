@@ -13,7 +13,11 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../api/client';
 import theme from '../theme';
-import { saveOfflineJapmala } from '../utils/offlineSync';
+import {
+  saveOfflineJapmala,
+  saveOfflineJapmalaEdit,
+  saveOfflineJapmalaDelete,
+} from '../utils/offlineSync';
 
 // ─── Language Strings ───
 const strings = {
@@ -381,17 +385,45 @@ const JapmalaScreen = () => {
 
   const handleUpdate = async () => {
     if (!editCount || Number(editCount) < 0) return;
+    const itemId = editItem._id || editItem.id;
+    const updatePayload = {
+      count: Number(editCount),
+      note: editNote,
+      date: editDate,
+      toDate: editEntryType === 'range' ? editToDate : null,
+      entryType: editEntryType,
+    };
+
     try {
-      await api.put(`/japmala/${editItem._id}`, {
-        count: Number(editCount),
-        note: editNote,
-        date: editDate,
-        toDate: editEntryType === 'range' ? editToDate : null,
-        entryType: editEntryType,
-      });
+      await api.put(`/japmala/${itemId}`, updatePayload);
       setEditModal(false);
       fetchEntries();
     } catch (error) {
+      if (!error.response || error.message === 'Network Error' || error.code === 'ECONNABORTED' || editItem.isOffline) {
+        try {
+          await saveOfflineJapmalaEdit(itemId, updatePayload);
+
+          // Update local entries state immediately
+          setEntries((prev) =>
+            prev.map((item) =>
+              (item._id === itemId || item.id === itemId)
+                ? { ...item, ...updatePayload, isOffline: true }
+                : item
+            )
+          );
+
+          setEditModal(false);
+          alert(
+            lang === 'mr'
+              ? '💾 बदल ऑफलाइन सेव्ह झाले आहेत! इंटरनेट सुरू होताच क्लाउडवर सिंक होतील.'
+              : '💾 Offline Mode: Changes saved locally! Will sync to cloud when connected.'
+          );
+          return;
+        } catch (offlineErr) {
+          console.error('Offline update failed:', offlineErr);
+        }
+      }
+
       const msg = error.response?.data?.message || 'Failed to update entry.';
       alert(msg);
     }
@@ -399,11 +431,33 @@ const JapmalaScreen = () => {
 
   const handleDelete = async () => {
     if (!confirm(t.confirmDelete)) return;
+    const itemId = editItem._id || editItem.id;
+
     try {
-      await api.delete(`/japmala/${editItem._id}`);
+      await api.delete(`/japmala/${itemId}`);
       setEditModal(false);
       fetchEntries();
     } catch (error) {
+      if (!error.response || error.message === 'Network Error' || error.code === 'ECONNABORTED' || editItem.isOffline) {
+        try {
+          await saveOfflineJapmalaDelete(itemId);
+
+          // Remove from local entries state immediately
+          setEntries((prev) => prev.filter((item) => (item._id !== itemId && item.id !== itemId)));
+          setSummaryTotal((prev) => Math.max(0, prev - Number(editItem.count || 0)));
+
+          setEditModal(false);
+          alert(
+            lang === 'mr'
+              ? '🗑️ नोंद हटवली गेली (ऑफलाइन)! इंटरनेट सुरू होताच क्लाउडवरूनही हटवली जाईल.'
+              : '🗑️ Entry deleted locally! Will sync deletion to cloud when connected.'
+          );
+          return;
+        } catch (offlineErr) {
+          console.error('Offline delete failed:', offlineErr);
+        }
+      }
+
       alert('Failed to delete entry.');
     }
   };
