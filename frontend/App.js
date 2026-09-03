@@ -9,6 +9,12 @@ import OfflineStatusBanner from './src/components/OfflineStatusBanner';
 import AppNavigator from './src/navigation/AppNavigator';
 import theme from './src/theme';
 
+// Ensure dark background on web root to prevent white flash
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  document.documentElement.style.backgroundColor = '#0d1322';
+  document.body.style.backgroundColor = '#0d1322';
+}
+
 // Forward Google OAuth tokens back to native Android App if opened via mobile browser
 if (Platform.OS === 'web' && typeof window !== 'undefined') {
   const hash = window.location.hash || window.location.search || '';
@@ -42,8 +48,8 @@ function App() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: theme.colors.bg,
-    ...(Platform.OS === 'web' ? { height: '100vh', width: '100vw', minHeight: '100vh' } : {}),
+    backgroundColor: '#0d1322',
+    ...(Platform.OS === 'web' ? { height: '100vh', width: '100vw', minHeight: '100vh', backgroundColor: '#0d1322' } : {}),
   },
 });
 

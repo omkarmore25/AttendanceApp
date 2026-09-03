@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, StyleSheet, Platform } from 'react-native';
+import { Text, View, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import theme from '../theme';
 
@@ -207,8 +207,22 @@ const AppNavigator = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.loadingEmoji}>📍</Text>
-        <Text style={styles.loadingText}>AttendanceApp</Text>
+        {/* Glowing Spiritual Icon Circle */}
+        <View style={styles.splashIconCircle}>
+          <Text style={styles.splashIconEmoji}>📿</Text>
+        </View>
+
+        {/* Brand App Name */}
+        <Text style={styles.splashTitle}>Sant Samagam</Text>
+        <Text style={styles.splashSubtitle}>संत समागम</Text>
+
+        {/* Tagline */}
+        <Text style={styles.splashTagline}>सत्संग, सेवा व जपानुष्ठान</Text>
+
+        {/* Pulsing Saffron Spinner */}
+        <ActivityIndicator size="small" color="#f97316" style={styles.splashSpinner} />
+
+        <Text style={styles.splashGreeting}>जय सच्चिदानंद 🙏</Text>
       </View>
     );
   }
@@ -229,18 +243,58 @@ const AppNavigator = () => {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: theme.colors.bg,
+    backgroundColor: '#0d1322',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 24,
   },
-  loadingEmoji: {
-    fontSize: 56,
-    marginBottom: 16,
+  splashIconCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(249, 115, 22, 0.12)',
+    borderWidth: 2,
+    borderColor: 'rgba(249, 115, 22, 0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: '#f97316',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  loadingText: {
-    fontSize: 24,
+  splashIconEmoji: {
+    fontSize: 46,
+  },
+  splashTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  splashSubtitle: {
+    fontSize: 18,
     fontWeight: '700',
-    color: theme.colors.textPrimary,
+    color: '#f97316',
+    marginBottom: 8,
+  },
+  splashTagline: {
+    fontSize: 13,
+    color: '#94a3b8',
+    fontWeight: '500',
+    letterSpacing: 0.5,
+    marginBottom: 24,
+  },
+  splashSpinner: {
+    marginVertical: 8,
+  },
+  splashGreeting: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600',
+    marginTop: 16,
   },
   tabIcon: {
     alignItems: 'center',
