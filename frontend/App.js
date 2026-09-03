@@ -4,6 +4,8 @@ import { View, StyleSheet, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
+import { OfflineProvider } from './src/context/OfflineContext';
+import OfflineStatusBanner from './src/components/OfflineStatusBanner';
 import AppNavigator from './src/navigation/AppNavigator';
 import theme from './src/theme';
 
@@ -26,8 +28,11 @@ function App() {
     <SafeAreaProvider style={styles.root}>
       <View style={styles.root}>
         <AuthProvider>
-          <StatusBar style="light" />
-          <AppNavigator />
+          <OfflineProvider>
+            <StatusBar style="light" />
+            <OfflineStatusBanner />
+            <AppNavigator />
+          </OfflineProvider>
         </AuthProvider>
       </View>
     </SafeAreaProvider>

@@ -13,6 +13,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../api/client';
 import theme from '../theme';
+import { saveOfflineJapmala } from '../utils/offlineSync';
 
 // ─── Language Strings ───
 const strings = {
@@ -321,6 +322,45 @@ const JapmalaScreen = () => {
       alert(lang === 'mr' ? '✅ जपमाळा नोंद जतन झाली!' : '✅ Japmala entry saved!');
       fetchEntries();
     } catch (error) {
+      if (!error.response || error.message === 'Network Error' || error.code === 'ECONNABORTED') {
+        try {
+          const entryCount = Number(count || (Number(month1Count || 0) + Number(month2Count || 0)));
+          await saveOfflineJapmala({
+            count: entryCount,
+            date: entryMode === 'daily' ? date : fromDate,
+            note: note || (entryMode === 'range' ? `Range: ${fromDate} to ${toDate}` : ''),
+          });
+
+          // Add locally to entries view
+          const localEntry = {
+            _id: `offline_${Date.now()}`,
+            count: entryCount,
+            date: entryMode === 'daily' ? date : fromDate,
+            toDate: entryMode === 'range' ? toDate : null,
+            entryType: entryMode,
+            note: note ? `${note} (Saved Offline)` : 'Saved Offline 💾',
+            isOffline: true,
+          };
+          setEntries((prev) => [localEntry, ...prev]);
+          setSummaryTotal((prev) => prev + entryCount);
+
+          setCount('');
+          setMonth1Count('');
+          setMonth2Count('');
+          setNote('');
+          setRangePreview(null);
+
+          alert(
+            lang === 'mr'
+              ? '💾 इंटरनेट उपलब्ध नाही. नोंद फोनमध्ये सुरक्षित सेव्ह झाली आहे! इंटरनेट सुरू होताच ती आपोआप क्लाउडवर सिंक होईल.'
+              : '💾 Offline Mode: Entry saved locally on your phone! It will automatically sync to the cloud when connected.'
+          );
+          return;
+        } catch (offlineErr) {
+          console.error('Offline save failed:', offlineErr);
+        }
+      }
+
       const msg = error.response?.data?.message || 'Failed to save entry.';
       alert(msg);
     } finally {

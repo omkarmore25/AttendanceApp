@@ -12,6 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import api from '../api/client';
 import theme from '../theme';
 import { showAlert } from '../utils/dialog';
+import { saveOfflineAttendance } from '../utils/offlineSync';
 
 const ManualAttendanceScreen = () => {
   const [allUsers, setAllUsers] = useState([]);
@@ -95,6 +96,25 @@ const ManualAttendanceScreen = () => {
       }
       setAttendedUsers(newSet);
     } catch (error) {
+      if (!error.response || error.message === 'Network Error' || error.code === 'ECONNABORTED') {
+        try {
+          const userObj = allUsers.find((u) => u._id === userId);
+          await saveOfflineAttendance(
+            selectedEvent._id,
+            userId,
+            userObj?.username || userObj?.name || 'Devotee'
+          );
+
+          const newSet = new Set(attendedUsers);
+          newSet.add(userId);
+          setAttendedUsers(newSet);
+
+          showAlert('Saved Offline', '💾 Attendance recorded offline! It will automatically sync to cloud when internet returns.');
+          return;
+        } catch (offlineErr) {
+          console.error('Offline attendance save failed:', offlineErr);
+        }
+      }
       showAlert('Error', error.response?.data?.message || 'Failed to toggle attendance');
     } finally {
       setToggling(null);
