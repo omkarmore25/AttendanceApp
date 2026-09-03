@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
 
-        // Verify token with backend
+        // Verify token with backend in background
         try {
           const res = await api.get('/auth/me');
           if (res.data?.user) {
@@ -32,12 +32,17 @@ export const AuthProvider = ({ children }) => {
             await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
           }
         } catch (verifyErr) {
-          // Token invalid or user deleted from DB — clear session
-          console.warn('Stored session invalid or user deleted, resetting auth...');
-          await AsyncStorage.removeItem('token');
-          await AsyncStorage.removeItem('user');
-          setToken(null);
-          setUser(null);
+          // If server explicitly rejects token (401/403), reset session.
+          // If it's a network error (offline), keep user logged in locally!
+          if (verifyErr.response?.status === 401 || verifyErr.response?.status === 403) {
+            console.warn('Stored session expired or invalid, resetting auth...');
+            await AsyncStorage.removeItem('token');
+            await AsyncStorage.removeItem('user');
+            setToken(null);
+            setUser(null);
+          } else {
+            console.log('Backend unreachable (offline mode), maintaining local session.');
+          }
         }
       }
     } catch (error) {
