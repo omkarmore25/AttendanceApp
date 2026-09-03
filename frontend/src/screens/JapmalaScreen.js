@@ -19,6 +19,7 @@ import {
   saveOfflineJapmalaDelete,
 } from '../utils/offlineSync';
 import { useOffline } from '../context/OfflineContext';
+import { showAlert, showConfirm } from '../utils/dialog';
 
 // ─── Language Strings ───
 const strings = {
@@ -261,7 +262,8 @@ const JapmalaScreen = () => {
   const handleSave = async () => {
     // Validation: Block daily if date is inside existing range
     if (entryMode === 'daily' && coveredByRange) {
-      alert(
+      showAlert(
+        'Date Overlap',
         lang === 'mr'
           ? `⚠️ ही तारीख (${formatDateDisplay(date)}) आधीच तारीख श्रेणीमध्ये (${formatDateDisplay(coveredByRange.date)} ते ${formatDateDisplay(coveredByRange.toDate)}) येते! कृपया खालील इतिहासामधून त्या श्रेणीमध्ये बदल करा.`
           : `⚠️ This date (${formatDateDisplay(date)}) falls inside an existing Date Range (${formatDateDisplay(coveredByRange.date)} to ${formatDateDisplay(coveredRange.toDate)})! Please edit that range in History below.`
@@ -271,7 +273,8 @@ const JapmalaScreen = () => {
 
     // Validation: Block range if overlapping with another range
     if (entryMode === 'range' && overlappingRange) {
-      alert(
+      showAlert(
+        'Range Overlap',
         lang === 'mr'
           ? `⚠️ ही तारीख श्रेणी आधीच असलेल्या श्रेणीशी (${formatDateDisplay(overlappingRange.date)} ते ${formatDateDisplay(overlappingRange.toDate)}) ओव्हरलॅप होते!`
           : `⚠️ This date range overlaps with an existing range (${formatDateDisplay(overlappingRange.date)} to ${formatDateDisplay(overlappingRange.toDate)})!`
@@ -283,7 +286,7 @@ const JapmalaScreen = () => {
       setSaving(true);
       if (entryMode === 'daily') {
         if (!count || Number(count) <= 0) {
-          alert(lang === 'mr' ? 'कृपया वैध माळा संख्या प्रविष्ट करा.' : 'Please enter a valid count.');
+          showAlert('Invalid Count', lang === 'mr' ? 'कृपया वैध माळा संख्या प्रविष्ट करा.' : 'Please enter a valid count.');
           return;
         }
         await api.post('/japmala', {
@@ -294,7 +297,7 @@ const JapmalaScreen = () => {
         });
       } else if (isDifferentMonths && multiMonthMode === 'split') {
         if (!month1Count || !month2Count) {
-          alert(lang === 'mr' ? 'कृपया दोन्ही महिन्यांसाठी संख्या प्रविष्ट करा.' : 'Please enter counts for both months.');
+          showAlert('Missing Counts', lang === 'mr' ? 'कृपया दोन्ही महिन्यांसाठी संख्या प्रविष्ट करा.' : 'Please enter counts for both months.');
           return;
         }
 
@@ -314,7 +317,7 @@ const JapmalaScreen = () => {
         });
       } else {
         if (!count || Number(count) <= 0) {
-          alert(lang === 'mr' ? 'कृपया वैध माळा संख्या प्रविष्ट करा.' : 'Please enter a valid count.');
+          showAlert('Invalid Count', lang === 'mr' ? 'कृपया वैध माळा संख्या प्रविष्ट करा.' : 'Please enter a valid count.');
           return;
         }
         await api.post('/japmala', {
@@ -331,7 +334,7 @@ const JapmalaScreen = () => {
       setMonth2Count('');
       setNote('');
       setRangePreview(null);
-      alert(lang === 'mr' ? '✅ जपमाळा नोंद जतन झाली!' : '✅ Japmala entry saved!');
+      showAlert('Success', lang === 'mr' ? '✅ जपमाळा नोंद जतन झाली!' : '✅ Japmala entry saved!');
       fetchEntries();
     } catch (error) {
       if (!error.response || error.message === 'Network Error' || error.code === 'ECONNABORTED') {
@@ -360,7 +363,8 @@ const JapmalaScreen = () => {
           setNote('');
           setRangePreview(null);
 
-          alert(
+          showAlert(
+            'Saved Offline',
             lang === 'mr'
               ? '💾 इंटरनेट उपलब्ध नाही. नोंद फोनमध्ये सुरक्षित सेव्ह झाली आहे! इंटरनेट सुरू होताच ती आपोआप क्लाउडवर सिंक होईल.'
               : '💾 Offline Mode: Entry saved locally on your phone! It will automatically sync to the cloud when connected.'
@@ -372,7 +376,7 @@ const JapmalaScreen = () => {
       }
 
       const msg = error.response?.data?.message || 'Failed to save entry.';
-      alert(msg);
+      showAlert('Error', msg);
     } finally {
       setSaving(false);
     }
@@ -419,7 +423,8 @@ const JapmalaScreen = () => {
           );
 
           setEditModal(false);
-          alert(
+          showAlert(
+            'Saved Offline',
             lang === 'mr'
               ? '💾 बदल ऑफलाइन सेव्ह झाले आहेत! इंटरनेट सुरू होताच क्लाउडवर सिंक होतील.'
               : '💾 Offline Mode: Changes saved locally! Will sync to cloud when connected.'
@@ -431,41 +436,47 @@ const JapmalaScreen = () => {
       }
 
       const msg = error.response?.data?.message || 'Failed to update entry.';
-      alert(msg);
+      showAlert('Error', msg);
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm(t.confirmDelete)) return;
-    const itemId = editItem._id || editItem.id;
+  const handleDelete = () => {
+    showConfirm(
+      lang === 'mr' ? 'नोंद हटवा' : 'Delete Entry',
+      t.confirmDelete,
+      async () => {
+        const itemId = editItem._id || editItem.id;
 
-    try {
-      await api.delete(`/japmala/${itemId}`);
-      setEditModal(false);
-      fetchEntries();
-    } catch (error) {
-      if (!error.response || error.message === 'Network Error' || error.code === 'ECONNABORTED' || editItem.isOffline) {
         try {
-          await saveOfflineJapmalaDelete(itemId);
-
-          // Remove from local entries state immediately
-          setEntries((prev) => prev.filter((item) => (item._id !== itemId && item.id !== itemId)));
-          setSummaryTotal((prev) => Math.max(0, prev - Number(editItem.count || 0)));
-
+          await api.delete(`/japmala/${itemId}`);
           setEditModal(false);
-          alert(
-            lang === 'mr'
-              ? '🗑️ नोंद हटवली गेली (ऑफलाइन)! इंटरनेट सुरू होताच क्लाउडवरूनही हटवली जाईल.'
-              : '🗑️ Entry deleted locally! Will sync deletion to cloud when connected.'
-          );
-          return;
-        } catch (offlineErr) {
-          console.error('Offline delete failed:', offlineErr);
+          fetchEntries();
+        } catch (error) {
+          if (!error.response || error.message === 'Network Error' || error.code === 'ECONNABORTED' || editItem.isOffline) {
+            try {
+              await saveOfflineJapmalaDelete(itemId);
+
+              // Remove from local entries state immediately
+              setEntries((prev) => prev.filter((item) => item._id !== itemId && item.id !== itemId));
+              setSummaryTotal((prev) => Math.max(0, prev - Number(editItem.count || 0)));
+
+              setEditModal(false);
+              showAlert(
+                'Deleted Offline',
+                lang === 'mr'
+                  ? '🗑️ नोंद हटवली गेली (ऑफलाइन)! इंटरनेट सुरू होताच क्लाउडवरूनही हटवली जाईल.'
+                  : '🗑️ Entry deleted locally! Will sync deletion to cloud when connected.'
+              );
+              return;
+            } catch (offlineErr) {
+              console.error('Offline delete failed:', offlineErr);
+            }
+          }
+
+          showAlert('Error', 'Failed to delete entry.');
         }
       }
-
-      alert('Failed to delete entry.');
-    }
+    );
   };
 
   const prevMonth = () => {
