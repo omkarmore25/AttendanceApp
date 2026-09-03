@@ -18,6 +18,7 @@ import {
   saveOfflineJapmalaEdit,
   saveOfflineJapmalaDelete,
 } from '../utils/offlineSync';
+import { useOffline } from '../context/OfflineContext';
 
 // ─── Language Strings ───
 const strings = {
@@ -116,6 +117,7 @@ const dayShortNames = {
 const JapmalaScreen = () => {
   const [lang, setLang] = useState('en');
   const t = strings[lang];
+  const { lastSyncResult } = useOffline();
 
   const [entryMode, setEntryMode] = useState('daily'); // 'daily' or 'range'
   const [date, setDate] = useState(formatDateISO(new Date()));
@@ -225,6 +227,12 @@ const JapmalaScreen = () => {
     }
   }, [fromDate, toDate, entryMode]);
 
+  useEffect(() => {
+    if (lastSyncResult && lastSyncResult.totalSynced > 0) {
+      fetchEntries();
+    }
+  }, [lastSyncResult]);
+
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
@@ -329,20 +337,18 @@ const JapmalaScreen = () => {
       if (!error.response || error.message === 'Network Error' || error.code === 'ECONNABORTED') {
         try {
           const entryCount = Number(count || (Number(month1Count || 0) + Number(month2Count || 0)));
-          await saveOfflineJapmala({
-            count: entryCount,
-            date: entryMode === 'daily' ? date : fromDate,
-            note: note || (entryMode === 'range' ? `Range: ${fromDate} to ${toDate}` : ''),
-          });
-
-          // Add locally to entries view
-          const localEntry = {
-            _id: `offline_${Date.now()}`,
+          const savedEntry = await saveOfflineJapmala({
             count: entryCount,
             date: entryMode === 'daily' ? date : fromDate,
             toDate: entryMode === 'range' ? toDate : null,
             entryType: entryMode,
-            note: note ? `${note} (Saved Offline)` : 'Saved Offline 💾',
+            note: note || (entryMode === 'range' ? `Range: ${fromDate} to ${toDate}` : ''),
+          });
+
+          // Add locally to entries view with the exact matching _id
+          const localEntry = {
+            ...savedEntry,
+            _id: savedEntry.id,
             isOffline: true,
           };
           setEntries((prev) => [localEntry, ...prev]);

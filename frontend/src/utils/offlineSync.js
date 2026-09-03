@@ -53,8 +53,10 @@ export const getOfflineJapmalaActions = async () => {
 export const saveOfflineJapmala = async (entry) => {
   try {
     const queue = await getOfflineJapmalaQueue();
+    const entryId = `offline_jap_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const newEntry = {
-      id: `offline_jap_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      id: entryId,
+      _id: entryId,
       count: entry.count,
       date: entry.date || new Date().toISOString().slice(0, 10),
       toDate: entry.toDate || null,
@@ -79,7 +81,9 @@ export const saveOfflineJapmala = async (entry) => {
 export const saveOfflineJapmalaEdit = async (id, updatedFields) => {
   try {
     const queue = await getOfflineJapmalaQueue();
-    const itemIndex = queue.findIndex((item) => item.id === id || item._id === id);
+    const itemIndex = queue.findIndex(
+      (item) => item.id === id || item._id === id || (String(id).startsWith('offline_') && item.date === updatedFields.date)
+    );
 
     if (itemIndex > -1) {
       // It's a local unsynced item — update it directly in the creation queue!
@@ -87,7 +91,12 @@ export const saveOfflineJapmalaEdit = async (id, updatedFields) => {
       await AsyncStorage.setItem(JAPMALA_QUEUE_KEY, JSON.stringify(queue));
       return { local: true, updated: queue[itemIndex] };
     } else {
-      // It's a server item — queue the edit action
+      // If it's a non-server offline ID that wasn't in creation queue, don't create invalid server action
+      if (String(id).startsWith('offline_') || String(id).startsWith('local_')) {
+        return { local: true };
+      }
+
+      // It's a real server MongoDB item — queue the edit action
       const actions = await getOfflineJapmalaActions();
       const newAction = {
         actionId: `action_edit_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -96,7 +105,6 @@ export const saveOfflineJapmalaEdit = async (id, updatedFields) => {
         data: updatedFields,
         timestamp: new Date().toISOString(),
       };
-      // Remove any existing pending edits for the same targetId to prevent redundant updates
       const filtered = actions.filter((a) => !(a.targetId === id && a.type === 'edit'));
       filtered.push(newAction);
       await AsyncStorage.setItem(JAPMALA_ACTIONS_KEY, JSON.stringify(filtered));
@@ -114,15 +122,22 @@ export const saveOfflineJapmalaEdit = async (id, updatedFields) => {
 export const saveOfflineJapmalaDelete = async (id) => {
   try {
     const queue = await getOfflineJapmalaQueue();
-    const itemIndex = queue.findIndex((item) => item.id === id || item._id === id);
+    const itemIndex = queue.findIndex(
+      (item) => item.id === id || item._id === id || String(id).startsWith('offline_')
+    );
 
     if (itemIndex > -1) {
-      // It was an unsynced local creation — simply remove it from creation queue!
+      // It was an unsynced local creation — simply remove it from creation queue so it's NEVER sent to server!
       queue.splice(itemIndex, 1);
       await AsyncStorage.setItem(JAPMALA_QUEUE_KEY, JSON.stringify(queue));
       return { local: true };
     } else {
-      // It was a server item — queue the delete action
+      // If it was an offline ID, it never existed on server
+      if (String(id).startsWith('offline_') || String(id).startsWith('local_')) {
+        return { local: true };
+      }
+
+      // It was a real server MongoDB item — queue the delete action
       const actions = await getOfflineJapmalaActions();
       const newAction = {
         actionId: `action_del_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -130,7 +145,6 @@ export const saveOfflineJapmalaDelete = async (id) => {
         targetId: id,
         timestamp: new Date().toISOString(),
       };
-      // Remove any pending edits for this item since it's deleted
       const filtered = actions.filter((a) => a.targetId !== id);
       filtered.push(newAction);
       await AsyncStorage.setItem(JAPMALA_ACTIONS_KEY, JSON.stringify(filtered));
@@ -139,6 +153,21 @@ export const saveOfflineJapmalaDelete = async (id) => {
   } catch (err) {
     console.error('Error saving offline japmala delete:', err);
     throw err;
+  }
+};
+
+/**
+ * Clear any invalid or stuck pending actions
+ */
+export const clearStuckActions = async () => {
+  try {
+    const actions = await getOfflineJapmalaActions();
+    const valid = actions.filter(
+      (a) => a.targetId && !a.targetId.startsWith('offline_') && !a.targetId.startsWith('local_')
+    );
+    await AsyncStorage.setItem(JAPMALA_ACTIONS_KEY, JSON.stringify(valid));
+  } catch (e) {
+    console.error('Error clearing stuck actions:', e);
   }
 };
 
@@ -182,6 +211,7 @@ export const saveOfflineAttendance = async (event_id, user_id, user_name, status
  */
 export const getPendingCounts = async () => {
   try {
+    await clearStuckActions();
     const [japmala, actions, attendance] = await Promise.all([
       getOfflineJapmalaQueue(),
       getOfflineJapmalaActions(),
@@ -205,6 +235,9 @@ export const syncAllPending = async (apiClient) => {
   let syncedActions = 0;
   let syncedAttendance = 0;
   let errors = [];
+
+  // Clean stuck non-server actions first
+  await clearStuckActions();
 
   // 1. Sync Japmala Creations Queue
   try {
@@ -240,6 +273,12 @@ export const syncAllPending = async (apiClient) => {
     if (actionsQueue.length > 0) {
       const remainingActions = [];
       for (const action of actionsQueue) {
+        // Skip invalid non-MongoDB IDs
+        if (!action.targetId || action.targetId.startsWith('offline_') || action.targetId.startsWith('local_')) {
+          syncedActions++;
+          continue;
+        }
+
         try {
           if (action.type === 'edit') {
             await apiClient.put(`/japmala/${action.targetId}`, action.data);
@@ -249,8 +288,8 @@ export const syncAllPending = async (apiClient) => {
             syncedActions++;
           }
         } catch (err) {
-          // If server returns 404 (already deleted/not found), don't retry endlessly
-          if (err.response?.status === 404) {
+          // If server returns 404 (already deleted/not found) or 400 (invalid ID), drop the action
+          if (err.response?.status === 404 || err.response?.status === 400) {
             syncedActions++;
           } else {
             console.warn('Failed to sync japmala action:', action, err);
