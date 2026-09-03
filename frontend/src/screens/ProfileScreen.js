@@ -180,6 +180,56 @@ const ProfileScreen = ({ navigation }) => {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* ─── DPDP Act 2023 Compliance & Data Rights ─── */}
+      <View style={[styles.card, styles.privacyCard]}>
+        <Text style={styles.privacySectionTitle}>⚖️ PRIVACY & DATA RIGHTS (DPDP ACT, 2023)</Text>
+        <Text style={styles.privacySectionSubtitle}>
+          Manage your statutory privacy settings, download records, or contact the Grievance Officer.
+        </Text>
+
+        <TouchableOpacity
+          style={styles.privacyItemBtn}
+          onPress={() => navigation.navigate('PrivacyPolicy')}
+        >
+          <Text style={styles.privacyItemIcon}>🛡️</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.privacyItemTitle}>Statutory Privacy Notice</Text>
+            <Text style={styles.privacyItemDesc}>Understand how your data is collected & processed</Text>
+          </View>
+          <Text style={styles.privacyItemArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.privacyItemBtn}
+          onPress={() => navigation.navigate('DataRights')}
+        >
+          <Text style={styles.privacyItemIcon}>📥</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.privacyItemTitle}>Data Rights Portal & Portability</Text>
+            <Text style={styles.privacyItemDesc}>Download all my data (JSON), correct, or erase</Text>
+          </View>
+          <Text style={styles.privacyItemArrow}>→</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.privacyItemBtn}
+          onPress={() => navigation.navigate('Terms')}
+        >
+          <Text style={styles.privacyItemIcon}>📜</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.privacyItemTitle}>Terms of Service & DPDP Clause</Text>
+            <Text style={styles.privacyItemDesc}>View community terms & data protection commitments</Text>
+          </View>
+          <Text style={styles.privacyItemArrow}>→</Text>
+        </TouchableOpacity>
+
+        <View style={styles.grievanceFooterBox}>
+          <Text style={styles.grievanceFooterTitle}>Grievance Redressal Officer Contact:</Text>
+          <Text style={styles.grievanceFooterText}>Email: privacy@santsamagam.org · Phone: +91 98765 43210</Text>
+          <Text style={styles.grievanceFooterText}>SLA: Resolution within 30 days under DPDP Rules</Text>
+        </View>
+      </View>
     </ScrollView>
   );
 };
@@ -393,6 +443,71 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.bold,
+  },
+  privacyCard: {
+    borderColor: theme.colors.primary,
+    borderWidth: 1.5,
+    marginTop: theme.spacing.md,
+  },
+  privacySectionTitle: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.heavy,
+    color: theme.colors.primaryLight,
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  privacySectionSubtitle: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textMuted,
+    marginBottom: theme.spacing.md,
+    lineHeight: 16,
+  },
+  privacyItemBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.bgInput,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  privacyItemIcon: {
+    fontSize: 18,
+    marginRight: 10,
+  },
+  privacyItemTitle: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: 'bold',
+    color: theme.colors.textPrimary,
+  },
+  privacyItemDesc: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textMuted,
+    marginTop: 2,
+  },
+  privacyItemArrow: {
+    fontSize: 16,
+    color: theme.colors.primary,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  grievanceFooterBox: {
+    backgroundColor: theme.colors.bgElevated,
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    marginTop: 6,
+  },
+  grievanceFooterTitle: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: theme.colors.accent,
+    marginBottom: 2,
+  },
+  grievanceFooterText: {
+    fontSize: 10,
+    color: theme.colors.textSecondary,
+    lineHeight: 14,
   },
 });
 

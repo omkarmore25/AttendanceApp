@@ -22,6 +22,14 @@ import ManageUsersScreen from '../screens/ManageUsersScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import JapmalaScreen from '../screens/JapmalaScreen';
 import JapmalaReportScreen from '../screens/JapmalaReportScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+
+// DPDP Act 2023 Compliance Screens & Components
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
+import TermsScreen from '../screens/TermsScreen';
+import DataRightsScreen from '../screens/DataRightsScreen';
+import ConsentBanner from '../components/ConsentBanner';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -56,6 +64,9 @@ const UserHomeStack = () => (
   <Stack.Navigator screenOptions={screenOptions}>
     <Stack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
     <Stack.Screen name="EventDetail" component={EventDetailScreen} options={{ title: 'Event Details' }} />
+    <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: '🛡️ Privacy Notice (DPDP)' }} />
+    <Stack.Screen name="Terms" component={TermsScreen} options={{ title: '📜 Terms of Service' }} />
+    <Stack.Screen name="DataRights" component={DataRightsScreen} options={{ title: '⚖️ Data Rights Portal' }} />
   </Stack.Navigator>
 );
 
@@ -70,6 +81,19 @@ const AdminHomeStack = () => (
     <Stack.Screen name="ManualAttendance" component={ManualAttendanceScreen} options={{ title: 'Offline Attendance' }} />
     <Stack.Screen name="ManageGroups" component={ManageGroupsScreen} options={{ title: 'Groups' }} />
     <Stack.Screen name="JapmalaReport" component={JapmalaReportScreen} options={{ title: '📿 Japmala Report' }} />
+    <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: '🛡️ Privacy Notice (DPDP)' }} />
+    <Stack.Screen name="Terms" component={TermsScreen} options={{ title: '📜 Terms of Service' }} />
+    <Stack.Screen name="DataRights" component={DataRightsScreen} options={{ title: '⚖️ Data Rights Portal' }} />
+  </Stack.Navigator>
+);
+
+// ─── Profile Stack ───
+const ProfileStack = () => (
+  <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Screen name="ProfileMain" component={ProfileScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ title: '🛡️ Privacy Notice (DPDP)' }} />
+    <Stack.Screen name="Terms" component={TermsScreen} options={{ title: '📜 Terms of Service' }} />
+    <Stack.Screen name="DataRights" component={DataRightsScreen} options={{ title: '⚖️ Data Rights Portal' }} />
   </Stack.Navigator>
 );
 
@@ -117,7 +141,7 @@ const AdminTabs = () => (
     />
     <Tab.Screen
       name="ProfileTab"
-      component={ProfileScreen}
+      component={ProfileStack}
       options={{
         tabBarIcon: ({ focused }) => <TabIcon emoji="👤" label="Profile" focused={focused} />,
       }}
@@ -162,16 +186,13 @@ const UserTabs = () => (
     />
     <Tab.Screen
       name="ProfileTab"
-      component={ProfileScreen}
+      component={ProfileStack}
       options={{
         tabBarIcon: ({ focused }) => <TabIcon emoji="👤" label="Profile" focused={focused} />,
       }}
     />
   </Tab.Navigator>
 );
-
-import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
-import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 
 // ─── Auth Stack ───
 const AuthStack = () => (
@@ -181,6 +202,9 @@ const AuthStack = () => (
     <Stack.Screen name="OTP" component={OTPScreen} />
     <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
     <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+    <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} options={{ headerShown: true, title: '🛡️ Privacy Notice (DPDP)' }} />
+    <Stack.Screen name="Terms" component={TermsScreen} options={{ headerShown: true, title: '📜 Terms of Service' }} />
+    <Stack.Screen name="DataRights" component={DataRightsScreen} options={{ headerShown: true, title: '⚖️ Data Rights Portal' }} />
   </Stack.Navigator>
 );
 
@@ -206,6 +230,7 @@ const AppNavigator = () => {
       ) : (
         <UserTabs />
       )}
+      <ConsentBanner />
     </NavigationContainer>
   );
 };
