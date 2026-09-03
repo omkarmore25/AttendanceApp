@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { useAuth } from '../context/AuthContext';
 import api from '../api/client';
 import theme from '../theme';
 import { showAlert } from '../utils/dialog';
@@ -17,6 +18,7 @@ import { showAlert } from '../utils/dialog';
  * Data Rights & Grievance Portal (DPDP Act 2023 Self-Service)
  */
 const DataRightsScreen = ({ navigation }) => {
+  const { isLoggedIn, user } = useAuth();
   const [activeTab, setActiveTab] = useState('access'); // 'access' | 'request' | 'grievance'
 
   // Access / Portability State
@@ -34,8 +36,21 @@ const DataRightsScreen = ({ navigation }) => {
   const [submitting, setSubmitting] = useState(false);
   const [submissionResult, setSubmissionResult] = useState(null);
 
+  useEffect(() => {
+    if (user) {
+      setName(user.name || user.username || '');
+      setEmail(user.email || '');
+      setPhone(user.phone || '');
+    }
+  }, [user]);
+
   // Handle Download My Data (Section 11)
   const handleDownloadMyData = async () => {
+    if (!isLoggedIn) {
+      showAlert('Login Required', 'Please log in with your devotee account to generate and download your personal data dump.');
+      return;
+    }
+
     try {
       setExporting(true);
       const response = await api.get('/compliance/my-data');
@@ -63,7 +78,7 @@ const DataRightsScreen = ({ navigation }) => {
       );
     } catch (error) {
       console.error('Data export error:', error);
-      showAlert('Notice', 'Please log in to export your complete personal data archive.');
+      showAlert('Notice', error.response?.data?.message || 'Failed to generate data export.');
     } finally {
       setExporting(false);
     }
@@ -155,17 +170,42 @@ const DataRightsScreen = ({ navigation }) => {
               attendance history, Japmala records, and consent timestamps.
             </Text>
 
-            <TouchableOpacity
-              style={[styles.primaryBtn, exporting && { opacity: 0.7 }]}
-              onPress={handleDownloadMyData}
-              disabled={exporting}
-            >
-              {exporting ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.primaryBtnText}>📥 Download My Personal Data Dump (JSON)</Text>
-              )}
-            </TouchableOpacity>
+            {!isLoggedIn ? (
+              <View style={styles.loginRequiredCard}>
+                <Text style={styles.loginRequiredIcon}>🔒</Text>
+                <Text style={styles.loginRequiredTitle}>Devotee Login Required</Text>
+                <Text style={styles.loginRequiredText}>
+                  To generate and download your personal data archive (profile, attendance, and Japmala records),
+                  please log in with your registered account.
+                </Text>
+                <TouchableOpacity
+                  style={styles.loginBtn}
+                  onPress={() => navigation.navigate('Login')}
+                >
+                  <Text style={styles.loginBtnText}>🔑 Log In to Access My Data</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <View style={styles.loggedInUserBadge}>
+                  <Text style={styles.loggedInText}>
+                    Logged in as: <Text style={styles.bold}>{user?.name || user?.username}</Text> ({user?.email || user?.phone})
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.primaryBtn, exporting && { opacity: 0.7 }]}
+                  onPress={handleDownloadMyData}
+                  disabled={exporting}
+                >
+                  {exporting ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.primaryBtnText}>📥 Download My Personal Data Dump (JSON)</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
 
             {dataSummary && (
               <View style={styles.summaryBox}>
@@ -398,6 +438,55 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     lineHeight: 20,
     marginBottom: theme.spacing.lg,
+  },
+  loginRequiredCard: {
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.lg,
+    alignItems: 'center',
+    marginVertical: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  loginRequiredIcon: {
+    fontSize: 36,
+    marginBottom: 8,
+  },
+  loginRequiredTitle: {
+    fontSize: theme.fontSize.md,
+    fontWeight: 'bold',
+    color: theme.colors.textPrimary,
+    marginBottom: 6,
+  },
+  loginRequiredText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  loginBtn: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: theme.borderRadius.md,
+  },
+  loginBtnText: {
+    color: '#fff',
+    fontSize: theme.fontSize.sm,
+    fontWeight: 'bold',
+  },
+  loggedInUserBadge: {
+    backgroundColor: theme.colors.primary + '18',
+    borderColor: theme.colors.primary,
+    borderWidth: 1,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  loggedInText: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textPrimary,
   },
   primaryBtn: {
     backgroundColor: theme.colors.primary,
