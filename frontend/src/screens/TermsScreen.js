@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,11 @@ import {
 import theme from '../theme';
 
 /**
- * Bilingual (English + Marathi) Clean Terms of Service for Sant Samagam
+ * Terms of Service Screen with English / Marathi Toggle
  */
 const TermsScreen = () => {
+  const [lang, setLang] = useState('en'); // 'en' | 'mr'
+
   const handleEmailSupport = () => {
     Linking.openURL('mailto:omkarmore5178@gmail.com?subject=Sant%20Samagam%20App%20Terms%20Inquiry');
   };
@@ -20,120 +22,150 @@ const TermsScreen = () => {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Header */}
+        {/* Header with Language Toggle */}
         <View style={styles.header}>
-          <Text style={styles.title}>📜 Terms of Service</Text>
-          <Text style={styles.titleMarathi}>नियम व अटी</Text>
-          <Text style={styles.subtitle}>
-            Simple guidelines to ensure a respectful, harmonious community experience.
-          </Text>
-          <Text style={styles.subtitleMarathi}>
-            संत समागम समुदायामध्ये आदरयुक्त आणि सुलभ अनुभव मिळण्यासाठी साधे नियम.
-          </Text>
-        </View>
-
-        {/* Section 1 */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>🌸 1. Purpose of the Application (ॲपचा उद्देश)</Text>
-          <Text style={styles.paragraph}>
-            This application is created solely for the Sant Samagam spiritual community to:
-          </Text>
-          <Text style={styles.paragraphMarathi}>
-            हे ॲप केवळ संत समागम आध्यात्मिक समुदायासाठी खालील उद्देशांसाठी बनवले आहे:
-          </Text>
-
-          <View style={styles.bulletItem}>
-            <Text style={styles.bulletPoint}>•</Text>
+          <View style={styles.headerTop}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.bulletText}>Organize & attend Satsang/Samagam events.</Text>
-              <Text style={styles.bulletMarathi}>सत्संग व समागम कार्यक्रमांचे सुलभ नियोजन व हजेरी.</Text>
-            </View>
-          </View>
-
-          <View style={styles.bulletItem}>
-            <Text style={styles.bulletPoint}>•</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bulletText}>Record daily and monthly Japmala counts.</Text>
-              <Text style={styles.bulletMarathi}>दैनंदिन व मासिक जपमाळा मोजणे व जपाची नोंद ठेवणे.</Text>
-            </View>
-          </View>
-
-          <View style={styles.bulletItem}>
-            <Text style={styles.bulletPoint}>•</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bulletText}>Facilitate smooth event coordination among devotees.</Text>
-              <Text style={styles.bulletMarathi}>भक्त आणि आयोजक यांच्यात योग्य समन्वय साधणे.</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Section 2 */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>🤝 2. Community Guidelines (समूह नियमावली)</Text>
-          
-          <View style={styles.bulletItem}>
-            <Text style={styles.bulletPoint}>•</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bulletText}>
-                <Text style={styles.bold}>Accurate Information (योग्य माहिती):</Text> Please provide your genuine name and contact number for Satsang coordination.
+              <Text style={styles.title}>
+                {lang === 'en' ? '📜 Terms of Service' : '📜 नियम व अटी'}
               </Text>
-              <Text style={styles.bulletMarathi}>आयोजकांना संपर्क साधता यावा म्हणून कृपया आपले खरे नाव व फोन नंबर द्यावा.</Text>
-            </View>
-          </View>
-
-          <View style={styles.bulletItem}>
-            <Text style={styles.bulletPoint}>•</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bulletText}>
-                <Text style={styles.bold}>Respectful Use (आदरयुक्त वापर):</Text> Contact details of fellow devotees must never be used for commercial or advertising purposes.
+              <Text style={styles.subtitle}>
+                {lang === 'en'
+                  ? 'Simple guidelines to ensure a respectful, harmonious community experience.'
+                  : 'संत समागम समुदायामध्ये आदरयुक्त आणि सुलभ अनुभव मिळण्यासाठी साधे नियम.'}
               </Text>
-              <Text style={styles.bulletMarathi}>भक्तांच्या संपर्क क्रमांकाचा वापर कोणत्याही जाहिराती किंवा गैरवापरासाठी करू नये.</Text>
             </View>
+          </View>
+
+          {/* Language Toggle Buttons */}
+          <View style={styles.langToggleContainer}>
+            <TouchableOpacity
+              style={[styles.langBtn, lang === 'en' && styles.langBtnActive]}
+              onPress={() => setLang('en')}
+            >
+              <Text style={[styles.langBtnText, lang === 'en' && styles.langBtnTextActive]}>
+                🇬🇧 English
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.langBtn, lang === 'mr' && styles.langBtnActive]}
+              onPress={() => setLang('mr')}
+            >
+              <Text style={[styles.langBtnText, lang === 'mr' && styles.langBtnTextActive]}>
+                🇮🇳 मराठी
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Section 3 */}
-        <View style={[styles.card, styles.cardHighlight]}>
-          <Text style={styles.cardTitleHighlight}>🔒 3. Data Protection & Peace of Mind (सुरक्षितता व खात्री)</Text>
-          
-          <View style={styles.bulletItem}>
-            <Text style={styles.bulletPoint}>•</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bulletText}>We operate strictly for non-profit spiritual coordination.</Text>
-              <Text style={styles.bulletMarathi}>हे ॲप पूर्णपणे विनामूल्य व आध्यात्मिक सेवेसाठी आहे.</Text>
+        {lang === 'en' ? (
+          /* ─── ENGLISH CONTENT ─── */
+          <>
+            {/* Section 1 */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>🌸 1. Purpose of the Application</Text>
+              <Text style={styles.paragraph}>
+                This application is created solely for the Sant Samagam spiritual community to:
+              </Text>
+              <Text style={styles.bulletText}>• Schedule, organize, and attend Satsang/Samagam events.</Text>
+              <Text style={styles.bulletText}>• Enable devotees to record daily and monthly Japmala counts.</Text>
+              <Text style={styles.bulletText}>• Facilitate smooth event coordination among organizers and attendees.</Text>
             </View>
-          </View>
 
-          <View style={styles.bulletItem}>
-            <Text style={styles.bulletPoint}>•</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bulletText}>We do not sell data or track you in the background.</Text>
-              <Text style={styles.bulletMarathi}>आम्ही कोणतीही माहिती विकत नाही किंवा बॅकग्राउंड ट्रॅकिंग करत नाही.</Text>
+            {/* Section 2 */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>🤝 2. Community Guidelines</Text>
+              <Text style={styles.bulletText}>
+                • <Text style={styles.bold}>Accurate Information:</Text> Please provide your genuine name and contact number so organizers can coordinate with you.
+              </Text>
+              <Text style={styles.bulletText}>
+                • <Text style={styles.bold}>Respectful Use:</Text> Contact information of fellow devotees must never be used for commercial, advertising, or inappropriate purposes.
+              </Text>
             </View>
-          </View>
 
-          <View style={styles.bulletItem}>
-            <Text style={styles.bulletPoint}>•</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bulletText}>You have the complete freedom to delete your account anytime.</Text>
-              <Text style={styles.bulletMarathi}>तुम्हाला तुमचे खाते व नोंदी कधीही कायमस्वरूपी हटवण्याचे पूर्ण स्वातंत्र्य आहे.</Text>
+            {/* Section 3 */}
+            <View style={[styles.card, styles.cardHighlight]}>
+              <Text style={styles.cardTitleHighlight}>🔒 3. Data Protection & Peace of Mind</Text>
+              <Text style={styles.paragraph}>
+                • We operate strictly for non-profit spiritual coordination.
+              </Text>
+              <Text style={styles.paragraph}>
+                • We do not sell data, track you in the background, or share your details with advertisers.
+              </Text>
+              <Text style={styles.paragraph}>
+                • You have the complete freedom to update your information or delete your profile permanently at any time.
+              </Text>
             </View>
-          </View>
-        </View>
 
-        {/* Section 4 */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>📞 Contact (संपर्क)</Text>
-          <Text style={styles.paragraph}>
-            For any queries regarding these terms, contact us at:
-          </Text>
-          <View style={styles.contactBox}>
-            <Text style={styles.contactText}>📧 Email: <Text style={styles.bold}>omkarmore5178@gmail.com</Text></Text>
-          </View>
-          <TouchableOpacity style={styles.contactBtn} onPress={handleEmailSupport}>
-            <Text style={styles.contactBtnText}>✉️ Send Email (ईमेल पाठवा)</Text>
-          </TouchableOpacity>
-        </View>
+            {/* Section 4 */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>📞 Contact</Text>
+              <Text style={styles.paragraph}>
+                For any queries regarding these terms, contact us at:
+              </Text>
+              <View style={styles.contactBox}>
+                <Text style={styles.contactText}>📧 Email: <Text style={styles.bold}>omkarmore5178@gmail.com</Text></Text>
+              </View>
+              <TouchableOpacity style={styles.contactBtn} onPress={handleEmailSupport}>
+                <Text style={styles.contactBtnText}>✉️ Send Email</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          /* ─── MARATHI CONTENT ─── */
+          <>
+            {/* Section 1 */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>🌸 १. ॲपचा मुख्य उद्देश</Text>
+              <Text style={styles.paragraph}>
+                हे ॲप केवळ संत समागम आध्यात्मिक समुदायासाठी खालील उद्देशांसाठी बनवले आहे:
+              </Text>
+              <Text style={styles.bulletText}>• सत्संग व समागम कार्यक्रमांचे सुलभ आयोजन व हजेरी.</Text>
+              <Text style={styles.bulletText}>• दैनंदिन व मासिक जपमाळा मोजणे व जपाची नोंद ठेवणे.</Text>
+              <Text style={styles.bulletText}>• भक्त आणि आयोजक यांच्यात योग्य समन्वय साधणे.</Text>
+            </View>
+
+            {/* Section 2 */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>🤝 २. समूह नियमावली</Text>
+              <Text style={styles.bulletText}>
+                • <Text style={styles.bold}>योग्य माहिती:</Text> आयोजकांना संपर्क साधता यावा म्हणून कृपया आपले खरे नाव व फोन नंबर द्यावा.
+              </Text>
+              <Text style={styles.bulletText}>
+                • <Text style={styles.bold}>आदरयुक्त वापर:</Text> भक्तांच्या संपर्क क्रमांकाचा वापर कोणत्याही जाहिराती किंवा गैरवापरासाठी करू नये.
+              </Text>
+            </View>
+
+            {/* Section 3 */}
+            <View style={[styles.card, styles.cardHighlight]}>
+              <Text style={styles.cardTitleHighlight}>🔒 ३. सुरक्षितता व खात्री</Text>
+              <Text style={styles.paragraph}>
+                • हे ॲप पूर्णपणे विनामूल्य व आध्यात्मिक सेवेसाठी आहे.
+              </Text>
+              <Text style={styles.paragraph}>
+                • आम्ही कोणतीही माहिती विकत नाही किंवा बॅकग्राउंड ट्रॅकिंग करत नाही.
+              </Text>
+              <Text style={styles.paragraph}>
+                • तुम्हाला तुमचे खाते व नोंदी कधीही कायमस्वरूपी हटवण्याचे पूर्ण स्वातंत्र्य आहे.
+              </Text>
+            </View>
+
+            {/* Section 4 */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>📞 संपर्क</Text>
+              <Text style={styles.paragraph}>
+                या नियमांबद्दल काही प्रश्न असल्यास, आपण आमच्याशी संपर्क साधू शकता:
+              </Text>
+              <View style={styles.contactBox}>
+                <Text style={styles.contactText}>📧 ईमेल: <Text style={styles.bold}>omkarmore5178@gmail.com</Text></Text>
+              </View>
+              <TouchableOpacity style={styles.contactBtn} onPress={handleEmailSupport}>
+                <Text style={styles.contactBtnText}>✉️ ईमेल पाठवा</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
         {/* Footer */}
         <View style={styles.footer}>
@@ -148,19 +180,16 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.bg },
   content: { padding: theme.spacing.lg, paddingBottom: 60 },
   header: {
-    marginBottom: theme.spacing.xl,
-    paddingTop: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+    paddingTop: theme.spacing.xs,
+  },
+  headerTop: {
+    marginBottom: theme.spacing.md,
   },
   title: {
     fontSize: theme.fontSize.xxl,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.textPrimary,
-  },
-  titleMarathi: {
-    fontSize: theme.fontSize.md,
-    fontWeight: 'bold',
-    color: theme.colors.accent,
-    marginTop: 2,
   },
   subtitle: {
     fontSize: theme.fontSize.sm,
@@ -168,11 +197,32 @@ const styles = StyleSheet.create({
     marginTop: 6,
     lineHeight: 20,
   },
-  subtitleMarathi: {
+  langToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.bgCard,
+    borderRadius: theme.borderRadius.md,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignSelf: 'flex-start',
+    gap: 6,
+  },
+  langBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: theme.borderRadius.sm,
+  },
+  langBtnActive: {
+    backgroundColor: theme.colors.primary,
+  },
+  langBtnText: {
     fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    marginTop: 2,
-    lineHeight: 18,
+    color: theme.colors.textSecondary,
+    fontWeight: '600',
+  },
+  langBtnTextActive: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   card: {
     backgroundColor: theme.colors.bgCard,
@@ -199,39 +249,17 @@ const styles = StyleSheet.create({
     color: theme.colors.primaryLight,
     marginBottom: theme.spacing.sm,
   },
-  bulletItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  bulletPoint: {
-    color: theme.colors.primary,
-    fontSize: 16,
-    marginRight: 8,
-    marginTop: -2,
-  },
   bulletText: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.textPrimary,
-    lineHeight: 20,
-  },
-  bulletMarathi: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    lineHeight: 18,
-    marginTop: 2,
+    lineHeight: 22,
+    marginBottom: 6,
   },
   paragraph: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: 2,
-  },
-  paragraphMarathi: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    lineHeight: 18,
-    marginBottom: 8,
+    lineHeight: 22,
+    marginBottom: 6,
   },
   bold: {
     fontWeight: '700',

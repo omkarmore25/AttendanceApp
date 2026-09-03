@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,151 +10,218 @@ import {
 import theme from '../theme';
 
 /**
- * Bilingual (English + Marathi) Clean Privacy Policy Screen
+ * Privacy Policy Screen with English / Marathi Toggle
  */
 const PrivacyPolicyScreen = () => {
+  const [lang, setLang] = useState('en'); // 'en' | 'mr'
+
   const handleEmailSupport = () => {
-    Linking.openURL('mailto:omkarmore5178@gmail.com?subject=Sant%20Samagam%20App%20Inquiry');
+    Linking.openURL('mailto:omkarmore5178@gmail.com?subject=Sant%20Samagam%20App%20Privacy%20Inquiry');
   };
 
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Header */}
+        {/* Header with Language Toggle */}
         <View style={styles.header}>
-          <Text style={styles.title}>🛡️ Privacy Policy</Text>
-          <Text style={styles.titleMarathi}>गोपनीयता धोरण</Text>
-          <Text style={styles.subtitle}>
-            Your privacy is sacred to us. We keep your data simple, transparent, and secure.
-          </Text>
-          <Text style={styles.subtitleMarathi}>
-            तुमची गोपनीयता आमच्यासाठी अत्यंत महत्त्वाची आहे. आम्ही तुमची माहिती सुरक्षित व पारदर्शक ठेवतो.
-          </Text>
-        </View>
-
-        {/* 1. What Data We Collect */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>🌸 What Information We Collect (आम्ही कोणती माहिती गोळा करतो)</Text>
-          
-          <View style={styles.itemRow}>
-            <Text style={styles.itemIcon}>👤</Text>
+          <View style={styles.headerTop}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.itemHeading}>Name & Mobile Number (नाव आणि मोबाईल नंबर)</Text>
-              <Text style={styles.itemDesc}>
-                To identify you in the community roster and enable organizers to coordinate Satsang events.
+              <Text style={styles.title}>
+                {lang === 'en' ? '🛡️ Privacy Policy' : '🛡️ गोपनीयता धोरण'}
               </Text>
-              <Text style={styles.itemDescMarathi}>
-                सत्संग कार्यक्रमांचे नियोजन आणि भक्तांची ओळख पटवण्यासाठी तुमचे नाव व मोबाईल नंबर वापरला जातो.
+              <Text style={styles.subtitle}>
+                {lang === 'en'
+                  ? 'Your privacy is sacred to us. We keep your data simple, transparent, and secure.'
+                  : 'तुमची गोपनीयता आमच्यासाठी अत्यंत महत्त्वाची आहे. आम्ही तुमची माहिती सुरक्षित व पारदर्शक ठेवतो.'}
               </Text>
             </View>
           </View>
 
-          <View style={styles.itemRow}>
-            <Text style={styles.itemIcon}>📍</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.itemHeading}>Location - Attendance Only (स्थान - फक्त हजेरीसाठी)</Text>
-              <Text style={styles.itemDesc}>
-                Checked on-demand only when you tap "Mark Attendance" to verify you are at the Satsang venue. We <Text style={styles.bold}>never</Text> track your location in the background.
+          {/* Language Toggle Buttons */}
+          <View style={styles.langToggleContainer}>
+            <TouchableOpacity
+              style={[styles.langBtn, lang === 'en' && styles.langBtnActive]}
+              onPress={() => setLang('en')}
+            >
+              <Text style={[styles.langBtnText, lang === 'en' && styles.langBtnTextActive]}>
+                🇬🇧 English
               </Text>
-              <Text style={styles.itemDescMarathi}>
-                जेव्हा तुम्ही हजेरी नोंदवता, तेव्हा तुम्ही सत्संगाच्या ठिकाणी उपस्थित आहात याची खात्री करण्यासाठी GPS स्थान तपासले जाते. बॅकग्राउंडमध्ये स्थान ट्रॅक केले जात नाही.
-              </Text>
-            </View>
-          </View>
+            </TouchableOpacity>
 
-          <View style={styles.itemRow}>
-            <Text style={styles.itemIcon}>📿</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.itemHeading}>Japmala Records (जपमाळा नोंदी)</Text>
-              <Text style={styles.itemDesc}>
-                To track your personal chanting progress and display community totals.
+            <TouchableOpacity
+              style={[styles.langBtn, lang === 'mr' && styles.langBtnActive]}
+              onPress={() => setLang('mr')}
+            >
+              <Text style={[styles.langBtnText, lang === 'mr' && styles.langBtnTextActive]}>
+                🇮🇳 मराठी
               </Text>
-              <Text style={styles.itemDescMarathi}>
-                तुमच्या दैनंदिन जपाची नोंद ठेवण्यासाठी आणि समूहातील एकूण जप प्रगती पाहण्यासाठी.
-              </Text>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* 2. What We Never Do */}
-        <View style={[styles.card, styles.cardHighlight]}>
-          <Text style={styles.cardTitleHighlight}>🔒 Our Commitment to You (आमचे वचन)</Text>
-          
-          <View style={styles.bulletItem}>
-            <Text style={styles.bulletPoint}>•</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bulletText}>
-                <Text style={styles.bold}>Zero Ads (कोणत्याही जाहिराती नाहीत):</Text> We do not show any advertisements.
-              </Text>
-              <Text style={styles.bulletMarathi}>या ॲपमध्ये कोणत्याही व्यावसायिक जाहिराती दाखवल्या जात नाहीत.</Text>
+        {lang === 'en' ? (
+          /* ─── ENGLISH CONTENT ─── */
+          <>
+            {/* 1. What Data We Collect */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>🌸 What Information We Collect</Text>
+              
+              <View style={styles.itemRow}>
+                <Text style={styles.itemIcon}>👤</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemHeading}>Name & Mobile Number</Text>
+                  <Text style={styles.itemDesc}>
+                    To identify you in the community roster and enable organizers to coordinate Satsang events.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.itemRow}>
+                <Text style={styles.itemIcon}>📍</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemHeading}>Location (Event Attendance Only)</Text>
+                  <Text style={styles.itemDesc}>
+                    Checked on-demand only when you tap "Mark Attendance" to verify you are at the Satsang venue. We <Text style={styles.bold}>never</Text> track your location in the background.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.itemRow}>
+                <Text style={styles.itemIcon}>📿</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemHeading}>Japmala Chanting Records</Text>
+                  <Text style={styles.itemDesc}>
+                    To track your personal chanting progress and display community aggregate totals.
+                  </Text>
+                </View>
+              </View>
             </View>
-          </View>
 
-          <View style={styles.bulletItem}>
-            <Text style={styles.bulletPoint}>•</Text>
-            <View style={{ flex: 1 }}>
+            {/* 2. What We Never Do */}
+            <View style={[styles.card, styles.cardHighlight]}>
+              <Text style={styles.cardTitleHighlight}>🔒 Our Commitment to You</Text>
+              
               <Text style={styles.bulletText}>
-                <Text style={styles.bold}>No Data Selling (माहिती विकली जात नाही):</Text> We <Text style={styles.bold}>never</Text> sell or share your contact details with any third parties or marketers.
+                • <Text style={styles.bold}>Zero Ads:</Text> We do not show any advertisements.
               </Text>
-              <Text style={styles.bulletMarathi}>आम्ही तुमची वैयक्तिक माहिती किंवा फोन नंबर कोणालाही विकत नाही किंवा शेअर करत नाही.</Text>
-            </View>
-          </View>
-
-          <View style={styles.bulletItem}>
-            <Text style={styles.bulletPoint}>•</Text>
-            <View style={{ flex: 1 }}>
               <Text style={styles.bulletText}>
-                <Text style={styles.bold}>Encrypted Security (सुरक्षित साठवणूक):</Text> All passwords and data are safely encrypted.
+                • <Text style={styles.bold}>No Data Selling:</Text> We <Text style={styles.bold}>never</Text> sell, rent, or share your contact details with any third parties or marketers.
               </Text>
-              <Text style={styles.bulletMarathi}>तुमचा पासवर्ड आणि सर्व डेटा सुरक्षितपणे एन्क्रिप्ट केलेला असतो.</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* 3. Your Full Control */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>✨ Your Full Control (तुमचे पूर्ण नियंत्रण)</Text>
-          
-          <View style={styles.bulletItem}>
-            <Text style={styles.bulletPoint}>•</Text>
-            <View style={{ flex: 1 }}>
               <Text style={styles.bulletText}>
-                <Text style={styles.bold}>Edit Anytime (कधीही बदल करा):</Text> You can update your name or phone number anytime in Profile.
+                • <Text style={styles.bold}>Encrypted Security:</Text> All your passwords and data are safely encrypted with industry-standard security.
               </Text>
-              <Text style={styles.bulletMarathi}>तुम्ही प्रोफाइलमधून तुमचे नाव आणि मोबाईल नंबर कधीही बदलू शकता.</Text>
             </View>
-          </View>
 
-          <View style={styles.bulletItem}>
-            <Text style={styles.bulletPoint}>•</Text>
-            <View style={{ flex: 1 }}>
+            {/* 3. Your Full Control */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>✨ You Are in Control</Text>
+              <Text style={styles.paragraph}>
+                • <Text style={styles.bold}>Edit Anytime:</Text> You can update your name or phone number whenever you want from the Profile tab.
+              </Text>
+              <Text style={styles.paragraph}>
+                • <Text style={styles.bold}>Delete Account:</Text> You can permanently delete your account and all records with a single tap in your Profile settings.
+              </Text>
+            </View>
+
+            {/* 4. Contact Us */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>📞 Questions or Support?</Text>
+              <Text style={styles.paragraph}>
+                If you ever have questions or need assistance with your account, feel free to reach out to our team:
+              </Text>
+
+              <View style={styles.contactBox}>
+                <Text style={styles.contactText}>📧 Email: <Text style={styles.bold}>omkarmore5178@gmail.com</Text></Text>
+                <Text style={styles.contactText}>📍 Organization: <Text style={styles.bold}>Sant Samagam Community</Text></Text>
+              </View>
+
+              <TouchableOpacity style={styles.contactBtn} onPress={handleEmailSupport}>
+                <Text style={styles.contactBtnText}>✉️ Contact Support Team</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          /* ─── MARATHI CONTENT ─── */
+          <>
+            {/* 1. माहिती संकलन */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>🌸 आम्ही कोणती माहिती गोळा करतो</Text>
+              
+              <View style={styles.itemRow}>
+                <Text style={styles.itemIcon}>👤</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemHeading}>नाव आणि मोबाईल नंबर</Text>
+                  <Text style={styles.itemDesc}>
+                    सत्संग कार्यक्रमांचे नियोजन आणि भक्तांची ओळख पटवण्यासाठी तुमचे नाव व फोन नंबर वापरला जातो.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.itemRow}>
+                <Text style={styles.itemIcon}>📍</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemHeading}>स्थान (फक्त कार्यक्रमातील हजेरीसाठी)</Text>
+                  <Text style={styles.itemDesc}>
+                    जेव्हा तुम्ही "Mark Attendance" दाबता, तेव्हा तुम्ही प्रत्यक्ष सत्संग ठिकाणी उपस्थित आहात याची खात्री करण्यासाठी GPS स्थान तपासले जाते. बॅकग्राउंडमध्ये कधीही ट्रॅक केले जात नाही.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.itemRow}>
+                <Text style={styles.itemIcon}>📿</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemHeading}>जपमाळा नोंदी</Text>
+                  <Text style={styles.itemDesc}>
+                    तुमच्या वैयक्तिक जपाची नोंद ठेवण्यासाठी आणि समूहातील एकूण जप प्रगती पाहण्यासाठी.
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 2. आमचे वचन */}
+            <View style={[styles.card, styles.cardHighlight]}>
+              <Text style={styles.cardTitleHighlight}>🔒 भक्तांच्या सुरक्षेसाठी आमचे वचन</Text>
+              
               <Text style={styles.bulletText}>
-                <Text style={styles.bold}>Delete Account (खाते हटवा):</Text> You can permanently delete your account and records in 1 tap.
+                • <Text style={styles.bold}>कोणत्याही जाहिराती नाहीत:</Text> या ॲपमध्ये कोणत्याही प्रकारच्या जाहिराती दाखवल्या जात नाहीत.
               </Text>
-              <Text style={styles.bulletMarathi}>तुम्ही प्रोफाइल सेटिंग्जमधून तुमचे खाते आणि सर्व नोंदी कधीही कायमस्वरूपी हटवू शकता.</Text>
+              <Text style={styles.bulletText}>
+                • <Text style={styles.bold}>माहितीची विक्री नाही:</Text> आम्ही तुमची वैयक्तिक माहिती किंवा फोन नंबर कोणालाही विकत नाही किंवा शेअर करत नाही.
+              </Text>
+              <Text style={styles.bulletText}>
+                • <Text style={styles.bold}>सुरक्षित साठवणूक:</Text> तुमचे पासवर्ड आणि डेटा आधुनिक एन्क्रिप्शनद्वारे सुरक्षित ठेवले जातात.
+              </Text>
             </View>
-          </View>
-        </View>
 
-        {/* 4. Contact Us */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>📞 Questions or Support? (संपर्क व मदत)</Text>
-          <Text style={styles.paragraph}>
-            If you have any questions or need assistance with your account, feel free to contact us:
-          </Text>
-          <Text style={styles.paragraphMarathi}>
-            आपल्याला ॲपबद्दल काही प्रश्न असल्यास किंवा मदतीची गरज असल्यास आपण संपर्क साधू शकता:
-          </Text>
+            {/* 3. तुमचे पूर्ण नियंत्रण */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>✨ तुमचे पूर्ण नियंत्रण</Text>
+              <Text style={styles.paragraph}>
+                • <Text style={styles.bold}>कधीही बदल करा:</Text> तुम्ही प्रोफाइलमधून तुमचे नाव आणि मोबाईल नंबर कधीही बदलू शकता.
+              </Text>
+              <Text style={styles.paragraph}>
+                • <Text style={styles.bold}>खाते कायमचे हटवा:</Text> तुम्ही प्रोफाइल सेटिंग्जमधून तुमचे खाते आणि सर्व नोंदी कधीही एका क्लिकवर हटवू शकता.
+              </Text>
+            </View>
 
-          <View style={styles.contactBox}>
-            <Text style={styles.contactText}>📧 Email: <Text style={styles.bold}>omkarmore5178@gmail.com</Text></Text>
-            <Text style={styles.contactText}>📍 Community: <Text style={styles.bold}>Sant Samagam (संत समागम)</Text></Text>
-          </View>
+            {/* 4. संपर्क */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>📞 मदत किंवा संपर्क</Text>
+              <Text style={styles.paragraph}>
+                आपल्याला ॲपबद्दल काही अडचण किंवा प्रश्न असल्यास, आपण थेट आमच्याशी संपर्क साधू शकता:
+              </Text>
 
-          <TouchableOpacity style={styles.contactBtn} onPress={handleEmailSupport}>
-            <Text style={styles.contactBtnText}>✉️ Contact Support (ईमेल पाठवा)</Text>
-          </TouchableOpacity>
-        </View>
+              <View style={styles.contactBox}>
+                <Text style={styles.contactText}>📧 ईमेल: <Text style={styles.bold}>omkarmore5178@gmail.com</Text></Text>
+                <Text style={styles.contactText}>📍 समुदाय: <Text style={styles.bold}>संत समागम परिवार</Text></Text>
+              </View>
+
+              <TouchableOpacity style={styles.contactBtn} onPress={handleEmailSupport}>
+                <Text style={styles.contactBtnText}>✉️ मदत मिळवण्यासाठी ईमेल करा</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
 
         {/* Footer */}
         <View style={styles.footer}>
@@ -169,19 +236,16 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.bg },
   content: { padding: theme.spacing.lg, paddingBottom: 60 },
   header: {
-    marginBottom: theme.spacing.xl,
-    paddingTop: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+    paddingTop: theme.spacing.xs,
+  },
+  headerTop: {
+    marginBottom: theme.spacing.md,
   },
   title: {
     fontSize: theme.fontSize.xxl,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.textPrimary,
-  },
-  titleMarathi: {
-    fontSize: theme.fontSize.md,
-    fontWeight: 'bold',
-    color: theme.colors.accent,
-    marginTop: 2,
   },
   subtitle: {
     fontSize: theme.fontSize.sm,
@@ -189,11 +253,32 @@ const styles = StyleSheet.create({
     marginTop: 6,
     lineHeight: 20,
   },
-  subtitleMarathi: {
+  langToggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.bgCard,
+    borderRadius: theme.borderRadius.md,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignSelf: 'flex-start',
+    gap: 6,
+  },
+  langBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: theme.borderRadius.sm,
+  },
+  langBtnActive: {
+    backgroundColor: theme.colors.primary,
+  },
+  langBtnText: {
     fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    marginTop: 2,
-    lineHeight: 18,
+    color: theme.colors.textSecondary,
+    fontWeight: '600',
+  },
+  langBtnTextActive: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   card: {
     backgroundColor: theme.colors.bgCard,
@@ -234,51 +319,23 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     fontWeight: 'bold',
     color: theme.colors.textPrimary,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   itemDesc: {
     fontSize: theme.fontSize.xs,
     color: theme.colors.textSecondary,
     lineHeight: 18,
   },
-  itemDescMarathi: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    lineHeight: 18,
-    marginTop: 2,
-  },
-  bulletItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  bulletPoint: {
-    color: theme.colors.primary,
-    fontSize: 16,
-    marginRight: 8,
-    marginTop: -2,
-  },
   bulletText: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.textPrimary,
-    lineHeight: 20,
-  },
-  bulletMarathi: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    lineHeight: 18,
-    marginTop: 2,
+    lineHeight: 22,
+    marginBottom: 8,
   },
   paragraph: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
-    lineHeight: 20,
-  },
-  paragraphMarathi: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    lineHeight: 18,
-    marginTop: 2,
+    lineHeight: 22,
     marginBottom: 8,
   },
   bold: {
