@@ -6,17 +6,25 @@ import {
   StyleSheet,
   TouchableOpacity,
   Linking,
+  Platform,
 } from 'react-native';
 import theme from '../theme';
 
 /**
- * Terms of Service Screen with English / Marathi Toggle
+ * Terms of Service Screen with English / Marathi Toggle & Universal Email Handler
  */
 const TermsScreen = () => {
   const [lang, setLang] = useState('en'); // 'en' | 'mr'
 
-  const handleEmailSupport = () => {
-    Linking.openURL('mailto:omkarmore5178@gmail.com?subject=Sant%20Samagam%20App%20Terms%20Inquiry');
+  const handleEmailSupport = async () => {
+    const emailUrl = 'mailto:omkarmore5178@gmail.com?subject=Sant%20Samagam%20App%20Terms%20Inquiry';
+    if (Platform.OS === 'web') {
+      window.location.href = emailUrl;
+    } else {
+      Linking.openURL(emailUrl).catch((err) => {
+        console.warn('Could not open email client', err);
+      });
+    }
   };
 
   return (
@@ -37,23 +45,25 @@ const TermsScreen = () => {
             </View>
           </View>
 
-          {/* Language Toggle Buttons */}
+          {/* Clean Language Toggle Buttons */}
           <View style={styles.langToggleContainer}>
             <TouchableOpacity
               style={[styles.langBtn, lang === 'en' && styles.langBtnActive]}
               onPress={() => setLang('en')}
+              activeOpacity={0.7}
             >
               <Text style={[styles.langBtnText, lang === 'en' && styles.langBtnTextActive]}>
-                🇬🇧 English
+                English
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.langBtn, lang === 'mr' && styles.langBtnActive]}
               onPress={() => setLang('mr')}
+              activeOpacity={0.7}
             >
               <Text style={[styles.langBtnText, lang === 'mr' && styles.langBtnTextActive]}>
-                🇮🇳 मराठी
+                मराठी
               </Text>
             </TouchableOpacity>
           </View>
@@ -102,12 +112,12 @@ const TermsScreen = () => {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>📞 Contact</Text>
               <Text style={styles.paragraph}>
-                For any queries regarding these terms, contact us at:
+                For any queries regarding these terms, feel free to contact us:
               </Text>
               <View style={styles.contactBox}>
                 <Text style={styles.contactText}>📧 Email: <Text style={styles.bold}>omkarmore5178@gmail.com</Text></Text>
               </View>
-              <TouchableOpacity style={styles.contactBtn} onPress={handleEmailSupport}>
+              <TouchableOpacity style={styles.contactBtn} onPress={handleEmailSupport} activeOpacity={0.85}>
                 <Text style={styles.contactBtnText}>✉️ Send Email</Text>
               </TouchableOpacity>
             </View>
@@ -160,7 +170,7 @@ const TermsScreen = () => {
               <View style={styles.contactBox}>
                 <Text style={styles.contactText}>📧 ईमेल: <Text style={styles.bold}>omkarmore5178@gmail.com</Text></Text>
               </View>
-              <TouchableOpacity style={styles.contactBtn} onPress={handleEmailSupport}>
+              <TouchableOpacity style={styles.contactBtn} onPress={handleEmailSupport} activeOpacity={0.85}>
                 <Text style={styles.contactBtnText}>✉️ ईमेल पाठवा</Text>
               </TouchableOpacity>
             </View>
@@ -209,7 +219,7 @@ const styles = StyleSheet.create({
   },
   langBtn: {
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     borderRadius: theme.borderRadius.sm,
   },
   langBtnActive: {
