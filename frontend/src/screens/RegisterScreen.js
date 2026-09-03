@@ -25,15 +25,10 @@ const RegisterScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
-
-  // DPDP Act 2023 Opt-In Consent States (Unticked by default per Section 6)
-  const [consentEssential, setConsentEssential] = useState(false);
-  const [consentLocation, setConsentLocation] = useState(false);
-  const [consentJapmala, setConsentJapmala] = useState(false);
-  const [consentAge, setConsentAge] = useState(false);
 
   const handleSignUp = async () => {
     if (!username.trim() || !email.trim() || !phone.trim() || !password.trim()) {
@@ -56,22 +51,6 @@ const RegisterScreen = ({ navigation }) => {
       return;
     }
 
-    if (!consentEssential) {
-      showAlert(
-        'Statutory Consent Required',
-        'Please consent to the essential processing of your account data under the DPDP Act 2023 to proceed with registration.'
-      );
-      return;
-    }
-
-    if (!consentAge) {
-      showAlert(
-        'Age Declaration Required',
-        'Please confirm you are 18 years or older (or have parental consent) as required under Section 9 of the DPDP Act.'
-      );
-      return;
-    }
-
     setLoading(true);
     const result = await sendOTP(username.trim(), email.trim(), phone.trim(), password);
     setLoading(false);
@@ -83,12 +62,6 @@ const RegisterScreen = ({ navigation }) => {
         username: username.trim(),
         phone: phone.trim(),
         password,
-        consent: {
-          essential_account: consentEssential,
-          location_attendance: consentLocation,
-          japmala_community: consentJapmala,
-          age_confirmed: consentAge,
-        },
       });
     } else {
       showAlert('Registration Failed', result.message);
@@ -254,75 +227,19 @@ const RegisterScreen = ({ navigation }) => {
               />
             </View>
 
-            {/* ─── DPDP Act 2023 Opt-In Consent Section (Unbundled & Unticked) ─── */}
-            <View style={styles.consentSection}>
-              <Text style={styles.consentSectionTitle}>⚖️ STATUTORY CONSENT (DPDP ACT 2023)</Text>
-
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                onPress={() => setConsentEssential(!consentEssential)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.checkbox, consentEssential && styles.checkboxChecked]}>
-                  {consentEssential && <Text style={styles.checkmark}>✓</Text>}
-                </View>
-                <Text style={styles.checkboxLabel}>
-                  <Text style={styles.consentRequiredText}>* Essential Processing: </Text>
-                  I consent to processing my name, email, and phone for devotee account management & security.
+            {/* Subtle Terms Notice */}
+            <View style={styles.termsNoticeBox}>
+              <Text style={styles.termsNoticeText}>
+                By signing up, you agree to our{' '}
+                <Text style={styles.termsNoticeLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
+                  Privacy Policy
                 </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                onPress={() => setConsentLocation(!consentLocation)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.checkbox, consentLocation && styles.checkboxChecked]}>
-                  {consentLocation && <Text style={styles.checkmark}>✓</Text>}
-                </View>
-                <Text style={styles.checkboxLabel}>
-                  <Text style={styles.consentBoldText}>Location Verification: </Text>
-                  I consent to on-demand GPS location access solely during event check-ins to verify physical proximity.
+                {' '}and{' '}
+                <Text style={styles.termsNoticeLink} onPress={() => navigation.navigate('Terms')}>
+                  Terms of Service
                 </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                onPress={() => setConsentJapmala(!consentJapmala)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.checkbox, consentJapmala && styles.checkboxChecked]}>
-                  {consentJapmala && <Text style={styles.checkmark}>✓</Text>}
-                </View>
-                <Text style={styles.checkboxLabel}>
-                  <Text style={styles.consentBoldText}>Japmala Records: </Text>
-                  I consent to logging my Jap counts and displaying totals in community standings.
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.checkboxRow}
-                onPress={() => setConsentAge(!consentAge)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.checkbox, consentAge && styles.checkboxChecked]}>
-                  {consentAge && <Text style={styles.checkmark}>✓</Text>}
-                </View>
-                <Text style={styles.checkboxLabel}>
-                  <Text style={styles.consentRequiredText}>* Age Declaration (Sec 9): </Text>
-                  I confirm I am 18 years or older (or have verifiable parental consent).
-                </Text>
-              </TouchableOpacity>
-
-              <View style={styles.legalLinksRow}>
-                <TouchableOpacity onPress={() => navigation.navigate('PrivacyPolicy')}>
-                  <Text style={styles.legalLink}>Read Privacy Notice</Text>
-                </TouchableOpacity>
-                <Text style={styles.legalDivider}>•</Text>
-                <TouchableOpacity onPress={() => navigation.navigate('Terms')}>
-                  <Text style={styles.legalLink}>Terms of Service</Text>
-                </TouchableOpacity>
-              </View>
+                .
+              </Text>
             </View>
 
             {/* Sign Up Button */}
@@ -496,80 +413,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-  consentSection: {
-    backgroundColor: '#161e31',
-    borderColor: '#334155',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
-    marginVertical: 12,
-  },
-  consentSectionTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: '#f97316',
-    letterSpacing: 0.5,
-    marginBottom: 10,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 1.5,
-    borderColor: '#64748b',
-    backgroundColor: '#0f172a',
-    justifyContent: 'center',
+  termsNoticeBox: {
+    marginVertical: 10,
     alignItems: 'center',
-    marginRight: 10,
-    marginTop: 2,
+    paddingHorizontal: 8,
   },
-  checkboxChecked: {
-    backgroundColor: '#ff6b00',
-    borderColor: '#ff6b00',
-  },
-  checkmark: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  checkboxLabel: {
-    flex: 1,
+  termsNoticeText: {
     fontSize: 12,
     color: '#94a3b8',
-    lineHeight: 17,
+    textAlign: 'center',
+    lineHeight: 18,
   },
-  consentRequiredText: {
-    fontWeight: '700',
-    color: '#f1f5f9',
-  },
-  consentBoldText: {
-    fontWeight: '700',
-    color: '#cbd5e1',
-  },
-  legalLinksRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 6,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
-  },
-  legalLink: {
+  termsNoticeLink: {
     color: '#ff6b00',
-    fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     textDecorationLine: 'underline',
-  },
-  legalDivider: {
-    color: '#64748b',
-    fontSize: 12,
   },
 });
 

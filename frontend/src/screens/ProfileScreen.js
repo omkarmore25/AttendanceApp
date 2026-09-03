@@ -190,10 +190,6 @@ const ProfileScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.navigate('Terms')}>
           <Text style={styles.subtleLegalLink}>Terms of Service</Text>
         </TouchableOpacity>
-        <Text style={styles.subtleDot}>•</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('DataRights')}>
-          <Text style={styles.subtleLegalLink}>Data Rights</Text>
-        </TouchableOpacity>
       </View>
     </ScrollView>
   );
