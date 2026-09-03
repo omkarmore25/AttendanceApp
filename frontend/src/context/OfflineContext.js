@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import api from '../api/client';
 import {
   checkIsOnline,
@@ -38,11 +38,22 @@ export const OfflineProvider = ({ children }) => {
         window.removeEventListener('offline', handleOffline);
       };
     } else {
-      // 2. Mobile periodic heartbeat check every 15s
+      // 2. Mobile fast heartbeat check every 5s + AppState change
       const interval = setInterval(() => {
         updateOnlineStatus();
-      }, 15000);
-      return () => clearInterval(interval);
+      }, 5000);
+
+      const sub = AppState.addEventListener('change', (nextState) => {
+        if (nextState === 'active') {
+          updateOnlineStatus();
+          updatePendingCounts();
+        }
+      });
+
+      return () => {
+        clearInterval(interval);
+        sub.remove();
+      };
     }
   }, []);
 
@@ -51,8 +62,12 @@ export const OfflineProvider = ({ children }) => {
     try {
       const online = await checkIsOnline();
       setIsOnline(online);
-      if (online && pendingCount > 0) {
-        triggerAutoSync();
+      if (online) {
+        const counts = await getPendingCounts();
+        setPendingCount(counts.totalCount);
+        if (counts.totalCount > 0 && !isSyncing) {
+          syncNow();
+        }
       }
     } catch {
       setIsOnline(false);

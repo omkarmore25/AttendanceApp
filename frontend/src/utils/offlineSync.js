@@ -13,11 +13,15 @@ export const checkIsOnline = async () => {
     return typeof navigator !== 'undefined' ? navigator.onLine : true;
   }
   try {
-    const res = await fetch('https://www.google.com/favicon.ico', {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const res = await fetch('https://www.google.com/generate_204', {
       method: 'HEAD',
+      signal: controller.signal,
       cache: 'no-cache',
     });
-    return res.status === 200;
+    clearTimeout(timeoutId);
+    return res.status === 204 || res.status === 200;
   } catch {
     return false;
   }
