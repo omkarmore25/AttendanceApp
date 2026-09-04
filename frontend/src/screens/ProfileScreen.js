@@ -110,18 +110,48 @@ const ProfileScreen = ({ navigation }) => {
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchJapmalaStats();
-      if (user) {
-        setName(user.name || user.username || '');
-        setPhone(user.phone || '');
-        if (user.age !== undefined && user.age !== null) {
-          setAge(String(user.age));
+  const fetchFreshProfile = async () => {
+    try {
+      const res = await api.get('/auth/me');
+      if (res.data?.user) {
+        const u = res.data.user;
+        if (updateUserProfile) {
+          updateUserProfile(u);
+        }
+        if (u.name || u.username) setName(u.name || u.username);
+        if (u.phone !== undefined) setPhone(u.phone || '');
+        if (u.age !== undefined && u.age !== null) {
+          setAge(String(u.age));
         }
       }
-    }, [user])
+    } catch (err) {
+      console.error('Error fetching fresh profile:', err);
+    }
+  };
+
+  // Sync state whenever user object in AuthContext changes
+  useEffect(() => {
+    if (user) {
+      setName(user.name || user.username || '');
+      setPhone(user.phone || '');
+      if (user.age !== undefined && user.age !== null) {
+        setAge(String(user.age));
+      }
+    }
+  }, [user]);
+
+  // Initial fetch on mount and on screen focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchFreshProfile();
+      fetchJapmalaStats();
+    }, [])
   );
+
+  useEffect(() => {
+    fetchFreshProfile();
+    fetchJapmalaStats();
+  }, []);
 
   const handleTransliterateName = () => {
     if (!name.trim()) return;
