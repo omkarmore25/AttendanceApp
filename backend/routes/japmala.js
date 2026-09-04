@@ -251,19 +251,19 @@ router.get('/my', auth, async (req, res) => {
     const { month, from, to, year } = req.query;
     const filter = { user: req.user._id };
 
-    if (month) {
-      const [y, m] = month.split('-').map(Number);
-      const start = new Date(Date.UTC(y, m - 1, 1));
-      const end = new Date(Date.UTC(y, m, 0, 23, 59, 59));
+    if (year) {
+      const y = Number(year);
+      const start = new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0));
+      const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
       filter.$or = [
         { date: { $gte: start, $lte: end } },
         { toDate: { $gte: start, $lte: end } },
         { date: { $lte: start }, toDate: { $gte: end } },
       ];
-    } else if (year) {
-      const y = Number(year);
-      const start = new Date(Date.UTC(y, 0, 1));
-      const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59));
+    } else if (month) {
+      const [y, m] = month.split('-').map(Number);
+      const start = new Date(Date.UTC(y, m - 1, 1));
+      const end = new Date(Date.UTC(y, m, 0, 23, 59, 59));
       filter.$or = [
         { date: { $gte: start, $lte: end } },
         { toDate: { $gte: start, $lte: end } },
@@ -361,19 +361,19 @@ router.get('/report', auth, adminOnly, async (req, res) => {
     const { month, from, to, year } = req.query;
     const matchFilter = {};
 
-    if (month) {
-      const [y, m] = month.split('-').map(Number);
-      const start = new Date(Date.UTC(y, m - 1, 1));
-      const end = new Date(Date.UTC(y, m, 0, 23, 59, 59));
+    if (year) {
+      const y = Number(year);
+      const start = new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0));
+      const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
       matchFilter.$or = [
         { date: { $gte: start, $lte: end } },
         { toDate: { $gte: start, $lte: end } },
         { date: { $lte: start }, toDate: { $gte: end } },
       ];
-    } else if (year) {
-      const y = Number(year);
-      const start = new Date(Date.UTC(y, 0, 1));
-      const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59));
+    } else if (month) {
+      const [y, m] = month.split('-').map(Number);
+      const start = new Date(Date.UTC(y, m - 1, 1));
+      const end = new Date(Date.UTC(y, m, 0, 23, 59, 59));
       matchFilter.$or = [
         { date: { $gte: start, $lte: end } },
         { toDate: { $gte: start, $lte: end } },
@@ -446,19 +446,19 @@ router.get('/user/:userId', auth, adminOnly, async (req, res) => {
     const { month, from, to, year } = req.query;
     const filter = { user: req.params.userId };
 
-    if (month) {
-      const [y, m] = month.split('-').map(Number);
-      const start = new Date(Date.UTC(y, m - 1, 1));
-      const end = new Date(Date.UTC(y, m, 0, 23, 59, 59));
+    if (year) {
+      const y = Number(year);
+      const start = new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0));
+      const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
       filter.$or = [
         { date: { $gte: start, $lte: end } },
         { toDate: { $gte: start, $lte: end } },
         { date: { $lte: start }, toDate: { $gte: end } },
       ];
-    } else if (year) {
-      const y = Number(year);
-      const start = new Date(Date.UTC(y, 0, 1));
-      const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59));
+    } else if (month) {
+      const [y, m] = month.split('-').map(Number);
+      const start = new Date(Date.UTC(y, m - 1, 1));
+      const end = new Date(Date.UTC(y, m, 0, 23, 59, 59));
       filter.$or = [
         { date: { $gte: start, $lte: end } },
         { toDate: { $gte: start, $lte: end } },
@@ -527,7 +527,17 @@ router.get('/export', auth, adminOnly, async (req, res) => {
     const matchFilter = {};
     let periodLabel = 'All Time';
 
-    if (month) {
+    if (year) {
+      const y = Number(year);
+      const start = new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0));
+      const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
+      matchFilter.$or = [
+        { date: { $gte: start, $lte: end } },
+        { toDate: { $gte: start, $lte: end } },
+        { date: { $lte: start }, toDate: { $gte: end } },
+      ];
+      periodLabel = `Year ${year}`;
+    } else if (month) {
       const [y, m] = month.split('-').map(Number);
       const start = new Date(Date.UTC(y, m - 1, 1));
       const end = new Date(Date.UTC(y, m, 0, 23, 59, 59));
@@ -538,16 +548,6 @@ router.get('/export', auth, adminOnly, async (req, res) => {
       ];
       const monthNamesArr = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
       periodLabel = `${monthNamesArr[m]} ${y}`;
-    } else if (year) {
-      const y = Number(year);
-      const start = new Date(Date.UTC(y, 0, 1));
-      const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59));
-      matchFilter.$or = [
-        { date: { $gte: start, $lte: end } },
-        { toDate: { $gte: start, $lte: end } },
-        { date: { $lte: start }, toDate: { $gte: end } },
-      ];
-      periodLabel = `Year ${year}`;
     } else if (from && to) {
       const start = new Date(from);
       start.setUTCHours(0, 0, 0, 0);

@@ -239,7 +239,7 @@ const JapmalaReportScreen = () => {
     } else if (filterMode === 'month') {
       return `?month=${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
     } else if (filterMode === 'year') {
-      return `?year=${filterYear}`;
+      return `?year=${filterYear}&from=${filterYear}-01-01&to=${filterYear}-12-31`;
     } else if (filterMode === 'range' && fromDate && toDate) {
       return `?from=${fromDate}&to=${toDate}`;
     }
@@ -763,7 +763,10 @@ const JapmalaReportScreen = () => {
       const generatePdf = async () => {
         try {
           const response = await api.get(`/japmala/export${params}`);
-          const htmlContent = response.data;
+          let htmlContent = response.data;
+          if (filterMode === 'year' && typeof htmlContent === 'string') {
+            htmlContent = htmlContent.replace(/Japmala Report — [^<]+/g, `Japmala Report — Year ${filterYear}`);
+          }
 
           const container = document.createElement('div');
           container.innerHTML = htmlContent;

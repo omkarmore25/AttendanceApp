@@ -235,7 +235,7 @@ const JapmalaScreen = () => {
         const monthStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
         url += `?month=${monthStr}`;
       } else if (filterMode === 'year') {
-        url += `?year=${filterYear}`;
+        url += `?year=${filterYear}&from=${filterYear}-01-01&to=${filterYear}-12-31`;
       }
       const response = await api.get(url);
       setEntries(response.data.entries || []);
