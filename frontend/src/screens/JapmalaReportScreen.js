@@ -145,11 +145,12 @@ function matchUserByName(rawName, users) {
 }
 
 const JapmalaReportScreen = () => {
-  // 🌟 Filter Modes: 'all' (Default), 'month', 'range'
+  // 🌟 Filter Modes: 'all' (Default), 'month', 'year', 'range'
   const [filterMode, setFilterMode] = useState('all');
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [filterYear, setFilterYear] = useState(now.getFullYear());
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
 
@@ -237,6 +238,8 @@ const JapmalaReportScreen = () => {
       return '';
     } else if (filterMode === 'month') {
       return `?month=${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
+    } else if (filterMode === 'year') {
+      return `?year=${filterYear}`;
     } else if (filterMode === 'range' && fromDate && toDate) {
       return `?from=${fromDate}&to=${toDate}`;
     }
@@ -290,7 +293,7 @@ const JapmalaReportScreen = () => {
     useCallback(() => {
       fetchReport();
       fetchAllUsers();
-    }, [filterMode, selectedMonth, selectedYear])
+    }, [filterMode, selectedMonth, selectedYear, filterYear])
   );
 
   const openMemberDetail = async (member) => {
@@ -580,6 +583,8 @@ const JapmalaReportScreen = () => {
         ? 'सर्व काळ (All Time)'
         : filterMode === 'month'
         ? `${monthNames[selectedMonth]} ${selectedYear}`
+        : filterMode === 'year'
+        ? `वर्ष (Year) ${filterYear}`
         : `${formatDateDisplay(fromDate)} ते ${formatDateDisplay(toDate)}`;
 
     let msg = `📿 *श्री गुरुदेव दत्त - जपमाळा अहवाल* 📿\n`;
@@ -763,6 +768,8 @@ const JapmalaReportScreen = () => {
           let period = 'All_Time';
           if (filterMode === 'month') {
             period = `${monthNames[selectedMonth]}_${selectedYear}`;
+          } else if (filterMode === 'year') {
+            period = `Year_${filterYear}`;
           } else if (filterMode === 'range' && fromDate && toDate) {
             period = `${fromDate}_to_${toDate}`;
           }
@@ -910,7 +917,7 @@ const JapmalaReportScreen = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Filter Card with 3 Tabs */}
+            {/* Filter Card with 4 Tabs */}
             <View style={styles.card}>
               <View style={styles.toggleRow}>
                 <TouchableOpacity
@@ -927,6 +934,14 @@ const JapmalaReportScreen = () => {
                 >
                   <Text style={[styles.toggleText, filterMode === 'month' && styles.toggleTextActive]}>
                     📅 By Month
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, filterMode === 'year' && styles.toggleBtnActive]}
+                  onPress={() => setFilterMode('year')}
+                >
+                  <Text style={[styles.toggleText, filterMode === 'year' && styles.toggleTextActive]}>
+                    🗓️ By Year
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -962,7 +977,20 @@ const JapmalaReportScreen = () => {
                 </View>
               )}
 
-              {/* Mode 3: Custom Date Range Selector */}
+              {/* Mode 3: Year Selector */}
+              {filterMode === 'year' && (
+                <View style={styles.monthNav}>
+                  <TouchableOpacity onPress={() => setFilterYear(filterYear - 1)} style={styles.navArrow}>
+                    <Text style={styles.monthNavText}>← {filterYear - 1}</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.monthTitle}>🗓️ Year {filterYear}</Text>
+                  <TouchableOpacity onPress={() => setFilterYear(filterYear + 1)} style={styles.navArrow}>
+                    <Text style={styles.monthNavText}>{filterYear + 1} →</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Mode 4: Custom Date Range Selector */}
               {filterMode === 'range' && (
                 <View>
                   <View style={styles.dateRangeRow}>
@@ -1021,6 +1049,8 @@ const JapmalaReportScreen = () => {
                       ? '📄 Official PDF Report'
                       : filterMode === 'month'
                       ? `📄 PDF (${monthNames[selectedMonth].substring(0, 3)} ${selectedYear})`
+                      : filterMode === 'year'
+                      ? `📄 PDF (${filterYear} Annual)`
                       : `📄 PDF Range Report`}
                   </Text>
                 </TouchableOpacity>

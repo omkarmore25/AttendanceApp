@@ -248,13 +248,22 @@ function deduplicateEntries(rawEntries) {
 // ═══════════════════════════════════════════════════════
 router.get('/my', auth, async (req, res) => {
   try {
-    const { month, from, to } = req.query;
+    const { month, from, to, year } = req.query;
     const filter = { user: req.user._id };
 
     if (month) {
-      const [year, m] = month.split('-').map(Number);
-      const start = new Date(Date.UTC(year, m - 1, 1));
-      const end = new Date(Date.UTC(year, m, 0, 23, 59, 59));
+      const [y, m] = month.split('-').map(Number);
+      const start = new Date(Date.UTC(y, m - 1, 1));
+      const end = new Date(Date.UTC(y, m, 0, 23, 59, 59));
+      filter.$or = [
+        { date: { $gte: start, $lte: end } },
+        { toDate: { $gte: start, $lte: end } },
+        { date: { $lte: start }, toDate: { $gte: end } },
+      ];
+    } else if (year) {
+      const y = Number(year);
+      const start = new Date(Date.UTC(y, 0, 1));
+      const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59));
       filter.$or = [
         { date: { $gte: start, $lte: end } },
         { toDate: { $gte: start, $lte: end } },
@@ -349,13 +358,22 @@ router.get('/my/summary', auth, async (req, res) => {
 // ═══════════════════════════════════════════════════════
 router.get('/report', auth, adminOnly, async (req, res) => {
   try {
-    const { month, from, to } = req.query;
+    const { month, from, to, year } = req.query;
     const matchFilter = {};
 
     if (month) {
-      const [year, m] = month.split('-').map(Number);
-      const start = new Date(Date.UTC(year, m - 1, 1));
-      const end = new Date(Date.UTC(year, m, 0, 23, 59, 59));
+      const [y, m] = month.split('-').map(Number);
+      const start = new Date(Date.UTC(y, m - 1, 1));
+      const end = new Date(Date.UTC(y, m, 0, 23, 59, 59));
+      matchFilter.$or = [
+        { date: { $gte: start, $lte: end } },
+        { toDate: { $gte: start, $lte: end } },
+        { date: { $lte: start }, toDate: { $gte: end } },
+      ];
+    } else if (year) {
+      const y = Number(year);
+      const start = new Date(Date.UTC(y, 0, 1));
+      const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59));
       matchFilter.$or = [
         { date: { $gte: start, $lte: end } },
         { toDate: { $gte: start, $lte: end } },
@@ -425,13 +443,22 @@ router.get('/report', auth, adminOnly, async (req, res) => {
 // ═══════════════════════════════════════════════════════
 router.get('/user/:userId', auth, adminOnly, async (req, res) => {
   try {
-    const { month, from, to } = req.query;
+    const { month, from, to, year } = req.query;
     const filter = { user: req.params.userId };
 
     if (month) {
-      const [year, m] = month.split('-').map(Number);
-      const start = new Date(Date.UTC(year, m - 1, 1));
-      const end = new Date(Date.UTC(year, m, 0, 23, 59, 59));
+      const [y, m] = month.split('-').map(Number);
+      const start = new Date(Date.UTC(y, m - 1, 1));
+      const end = new Date(Date.UTC(y, m, 0, 23, 59, 59));
+      filter.$or = [
+        { date: { $gte: start, $lte: end } },
+        { toDate: { $gte: start, $lte: end } },
+        { date: { $lte: start }, toDate: { $gte: end } },
+      ];
+    } else if (year) {
+      const y = Number(year);
+      const start = new Date(Date.UTC(y, 0, 1));
+      const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59));
       filter.$or = [
         { date: { $gte: start, $lte: end } },
         { toDate: { $gte: start, $lte: end } },
@@ -496,21 +523,31 @@ router.get('/users-list', auth, adminOnly, async (req, res) => {
 // ═══════════════════════════════════════════════════════
 router.get('/export', auth, adminOnly, async (req, res) => {
   try {
-    const { month, from, to } = req.query;
+    const { month, from, to, year } = req.query;
     const matchFilter = {};
     let periodLabel = 'All Time';
 
     if (month) {
-      const [year, m] = month.split('-').map(Number);
-      const start = new Date(Date.UTC(year, m - 1, 1));
-      const end = new Date(Date.UTC(year, m, 0, 23, 59, 59));
+      const [y, m] = month.split('-').map(Number);
+      const start = new Date(Date.UTC(y, m - 1, 1));
+      const end = new Date(Date.UTC(y, m, 0, 23, 59, 59));
       matchFilter.$or = [
         { date: { $gte: start, $lte: end } },
         { toDate: { $gte: start, $lte: end } },
         { date: { $lte: start }, toDate: { $gte: end } },
       ];
       const monthNamesArr = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      periodLabel = `${monthNamesArr[m]} ${year}`;
+      periodLabel = `${monthNamesArr[m]} ${y}`;
+    } else if (year) {
+      const y = Number(year);
+      const start = new Date(Date.UTC(y, 0, 1));
+      const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59));
+      matchFilter.$or = [
+        { date: { $gte: start, $lte: end } },
+        { toDate: { $gte: start, $lte: end } },
+        { date: { $lte: start }, toDate: { $gte: end } },
+      ];
+      periodLabel = `Year ${year}`;
     } else if (from && to) {
       const start = new Date(from);
       start.setUTCHours(0, 0, 0, 0);

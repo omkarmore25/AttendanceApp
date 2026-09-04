@@ -41,6 +41,7 @@ const strings = {
     monthSummary: 'Monthly Summary',
     filterAll: '🌟 All Time',
     filterMonth: '📅 By Month',
+    filterYear: '🗓️ By Year',
     totalMala: 'Total Mala',
     days: 'Days',
     history: 'History',
@@ -83,7 +84,8 @@ const strings = {
     allTimeSummary: 'एकूण सर्व सारांश',
     monthSummary: 'मासिक सारांश',
     filterAll: '🌟 सर्व नोंदी',
-    filterMonth: '📅 महिना निवडा',
+    filterMonth: '📅 महिना',
+    filterYear: '🗓️ वर्ष',
     totalMala: 'एकूण माळा',
     days: 'दिवस',
     history: 'इतिहास',
@@ -173,11 +175,12 @@ const JapmalaScreen = () => {
   // Range preview for auto-merge
   const [rangePreview, setRangePreview] = useState(null);
 
-  // Filter mode: 'all' (default, no artificial split) or 'month'
+  // Filter mode: 'all' (default, no artificial split), 'month', or 'year'
   const [filterMode, setFilterMode] = useState('all');
 
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [filterYear, setFilterYear] = useState(now.getFullYear());
 
   const [entries, setEntries] = useState([]);
   const [summaryTotal, setSummaryTotal] = useState(0);
@@ -231,6 +234,8 @@ const JapmalaScreen = () => {
       if (filterMode === 'month') {
         const monthStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
         url += `?month=${monthStr}`;
+      } else if (filterMode === 'year') {
+        url += `?year=${filterYear}`;
       }
       const response = await api.get(url);
       setEntries(response.data.entries || []);
@@ -268,7 +273,7 @@ const JapmalaScreen = () => {
     useCallback(() => {
       setLoading(true);
       fetchEntries();
-    }, [filterMode, selectedMonth, selectedYear])
+    }, [filterMode, selectedMonth, selectedYear, filterYear])
   );
 
   // ─── VALIDATION CHECKS ───
@@ -1040,7 +1045,7 @@ const JapmalaScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Filter Card: All Time vs By Month */}
+        {/* Filter Card: All Time, By Month, By Year */}
         <View style={styles.card}>
           <View style={styles.toggleRow}>
             <TouchableOpacity
@@ -1054,6 +1059,12 @@ const JapmalaScreen = () => {
               onPress={() => setFilterMode('month')}
             >
               <Text style={[styles.toggleText, filterMode === 'month' && styles.toggleTextActive]}>{t.filterMonth}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, filterMode === 'year' && styles.toggleBtnActive]}
+              onPress={() => setFilterMode('year')}
+            >
+              <Text style={[styles.toggleText, filterMode === 'year' && styles.toggleTextActive]}>{t.filterYear}</Text>
             </TouchableOpacity>
           </View>
 
@@ -1071,12 +1082,31 @@ const JapmalaScreen = () => {
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Year Selector in Filter Mode */}
+          {filterMode === 'year' && (
+            <View style={styles.monthNav}>
+              <TouchableOpacity onPress={() => setFilterYear(filterYear - 1)} style={styles.navArrow}>
+                <Text style={styles.monthNavText}>← {filterYear - 1}</Text>
+              </TouchableOpacity>
+              <Text style={styles.monthTitle}>
+                🗓️ {lang === 'mr' ? 'वर्ष' : 'Year'} {filterYear}
+              </Text>
+              <TouchableOpacity onPress={() => setFilterYear(filterYear + 1)} style={styles.navArrow}>
+                <Text style={styles.monthNavText}>{filterYear + 1} →</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* Summary Card */}
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>
-            {filterMode === 'all' ? `🌟 ${t.allTimeSummary}` : `📅 ${monthNames[lang][selectedMonth]} ${selectedYear}`}
+            {filterMode === 'all'
+              ? `🌟 ${t.allTimeSummary}`
+              : filterMode === 'year'
+              ? `🗓️ ${lang === 'mr' ? 'वार्षिक सारांश' : 'Annual Summary'} — ${filterYear}`
+              : `📅 ${monthNames[lang][selectedMonth]} ${selectedYear}`}
           </Text>
           <View style={styles.summaryStats}>
             <View style={styles.summaryStatItem}>
