@@ -11,6 +11,7 @@ import {
   ScrollView,
   FlatList,
   Platform,
+  Share,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,7 +24,105 @@ const monthNames = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+const marathiMonthNames = [
+  'जानेवारी', 'फेब्रुवारी', 'मार्च', 'एप्रिल', 'मे', 'जून',
+  'जुलै', 'ऑगस्ट', 'सप्टेंबर', 'ऑक्टोबर', 'नोव्हेंबर', 'डिसेंबर'
+];
+
 const dayShortNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+const MARATHI_MONTHS_MAP = [
+  { index: 0, marathi: 'जानेवारी', english: 'Jan', keywords: ['जानेवारी', 'जाने', 'january', 'jan'] },
+  { index: 1, marathi: 'फेब्रुवारी', english: 'Feb', keywords: ['फेब्रुवारी', 'फेब्रु', 'february', 'feb'] },
+  { index: 2, marathi: 'मार्च', english: 'Mar', keywords: ['मार्च', 'march', 'mar'] },
+  { index: 3, marathi: 'एप्रिल', english: 'Apr', keywords: ['एप्रिल', 'april', 'apr'] },
+  { index: 4, marathi: 'मे', english: 'May', keywords: ['मे', 'may'] },
+  { index: 5, marathi: 'जून', english: 'Jun', keywords: ['जून', 'june', 'jun'] },
+  { index: 6, marathi: 'जुलै', english: 'Jul', keywords: ['जुलै', 'july', 'jul'] },
+  { index: 7, marathi: 'ऑगस्ट', english: 'Aug', keywords: ['ऑगस्ट', 'आगस्ट', 'ऑगष्ट', 'august', 'aug'] },
+  { index: 8, marathi: 'सप्टेंबर', english: 'Sep', keywords: ['सप्टेंबर', 'सप्टें', 'सप्टे', 'september', 'sep', 'sept'] },
+  { index: 9, marathi: 'ऑक्टोबर', english: 'Oct', keywords: ['ऑक्टोबर', 'ऑक्टो', 'october', 'oct'] },
+  { index: 10, marathi: 'नोव्हेंबर', english: 'Nov', keywords: ['नोव्हेंबर', 'नोव्हे', 'november', 'nov'] },
+  { index: 11, marathi: 'डिसेंबर', english: 'Dec', keywords: ['डिसेंबर', 'डिसे', 'december', 'dec'] },
+];
+
+function convertDevanagariDigits(str) {
+  if (!str) return '';
+  const devDigits = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
+  return str.replace(/[०-९]/g, (d) => {
+    const idx = devDigits.indexOf(d);
+    return idx >= 0 ? idx.toString() : d;
+  });
+}
+
+function getMonthRangeISO(year, monthIndex) {
+  const s = new Date(Date.UTC(year, monthIndex, 1));
+  const e = new Date(Date.UTC(year, monthIndex + 1, 0));
+  const sStr = `${s.getUTCFullYear()}-${String(s.getUTCMonth() + 1).padStart(2, '0')}-01`;
+  const eStr = `${e.getUTCFullYear()}-${String(e.getUTCMonth() + 1).padStart(2, '0')}-${String(e.getUTCDate()).padStart(2, '0')}`;
+  return { from: sStr, to: eStr };
+}
+
+const NAME_TRANSLIT_MAP = {
+  'गणेश': 'ganesh',
+  'गावकर': 'gavkar',
+  'गांवकर': 'gavkar',
+  'संगीता': 'sangeeta',
+  'संगिता': 'sangita',
+  'मोरे': 'more',
+  'आबासाहेब': 'abasaheb',
+  'ओमकार': 'omkar',
+  'साक्षी': 'sakshi',
+  'नितीन': 'nitin',
+  'प्रशांत': 'prashant',
+  'सचिन': 'sachin',
+  'विकास': 'vikas',
+  'सुनील': 'sunil',
+  'अमित': 'amit',
+  'राहुल': 'rahul',
+};
+
+function matchUserByName(rawName, users) {
+  if (!rawName || !users || users.length === 0) return null;
+  const clean = rawName.toLowerCase().replace(/[^\u0900-\u097Fa-z0-9\s]/g, '').trim();
+  if (!clean) return null;
+
+  // 1. Direct match
+  const exact = users.find(u => u.name && u.name.toLowerCase().trim() === clean);
+  if (exact) return exact;
+
+  // 2. Substring match
+  const sub = users.find(u => u.name && (u.name.toLowerCase().includes(clean) || clean.includes(u.name.toLowerCase())));
+  if (sub) return sub;
+
+  // 3. Phonetic / Transliteration match
+  const rawTokens = clean.split(/\s+/).filter(Boolean);
+  let bestScore = 0;
+  let bestUser = null;
+
+  users.forEach(u => {
+    if (!u.name) return;
+    const uLower = u.name.toLowerCase();
+    const uTokens = uLower.split(/\s+/).filter(Boolean);
+    let score = 0;
+
+    rawTokens.forEach(rt => {
+      const trans = NAME_TRANSLIT_MAP[rt] || rt;
+      if (uLower.includes(trans)) score += 2;
+      uTokens.forEach(ut => {
+        if (ut.includes(trans) || trans.includes(ut)) score += 1;
+      });
+    });
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestUser = u;
+    }
+  });
+
+  if (bestScore >= 2) return bestUser;
+  return null;
+}
 
 const JapmalaReportScreen = () => {
   // 🌟 Filter Modes: 'all' (Default), 'month', 'range'
@@ -47,13 +146,28 @@ const JapmalaReportScreen = () => {
   const [allUsers, setAllUsers] = useState([]);
   const [userSearch, setUserSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
-  const [entryType, setEntryType] = useState('daily'); // 'daily' or 'range'
+  const [entryType, setEntryType] = useState('daily'); // 'daily', 'range', or 'monthly_grid'
   const [entryDate, setEntryDate] = useState(formatDateISO(new Date()));
   const [entryFrom, setEntryFrom] = useState(formatDateISO(new Date()));
   const [entryTo, setEntryTo] = useState(formatDateISO(new Date()));
   const [entryCount, setEntryCount] = useState('');
   const [entryNote, setEntryNote] = useState('Added by Admin (Phone Call)');
   const [submitting, setSubmitting] = useState(false);
+
+  // 12-Month Grid Entry State
+  const [gridYear, setGridYear] = useState(now.getFullYear());
+  const [monthlyGridCounts, setMonthlyGridCounts] = useState({
+    0: '', 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '', 9: '', 10: '', 11: ''
+  });
+
+  // WhatsApp Smart Parser State
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [whatsAppText, setWhatsAppText] = useState('');
+  const [parsedDevotees, setParsedDevotees] = useState([]);
+  const [whatsAppYear, setWhatsAppYear] = useState(now.getFullYear());
+  const [activePickerDevoteeId, setActivePickerDevoteeId] = useState(null);
+  const [devoteePickerSearch, setDevoteePickerSearch] = useState('');
+  const [isSubmittingWhatsApp, setIsSubmittingWhatsApp] = useState(false);
 
   // Member Detail / Edit Modal State
   const [selectedMember, setSelectedMember] = useState(null);
@@ -176,14 +290,43 @@ const JapmalaReportScreen = () => {
       showAlert('Required', 'Please select a member first.');
       return;
     }
-    if (!entryCount || Number(entryCount) <= 0) {
-      showAlert('Required', 'Please enter a valid count of माळा.');
-      return;
-    }
 
     try {
       setSubmitting(true);
-      if (entryType === 'daily') {
+
+      if (entryType === 'monthly_grid') {
+        const breakdown = [];
+        Object.keys(monthlyGridCounts).forEach(mIdx => {
+          const val = monthlyGridCounts[mIdx];
+          if (val && Number(val) > 0) {
+            const range = getMonthRangeISO(gridYear, Number(mIdx));
+            breakdown.push({
+              from: range.from,
+              to: range.to,
+              count: Number(val),
+            });
+          }
+        });
+
+        if (breakdown.length === 0) {
+          showAlert('Required', 'Please enter counts for at least one month.');
+          setSubmitting(false);
+          return;
+        }
+
+        await api.post('/japmala', {
+          userId: selectedUser._id,
+          monthlyBreakdown: breakdown,
+          note: `Monthly breakdown for ${gridYear}`,
+        });
+
+        showAlert('✅ Success', `Saved ${breakdown.length} months of Japmala for ${selectedUser.name}!`);
+      } else if (entryType === 'daily') {
+        if (!entryCount || Number(entryCount) <= 0) {
+          showAlert('Required', 'Please enter a valid count of माळा.');
+          setSubmitting(false);
+          return;
+        }
         await api.post('/japmala', {
           userId: selectedUser._id,
           entryType: 'daily',
@@ -191,7 +334,13 @@ const JapmalaReportScreen = () => {
           count: Number(entryCount),
           note: entryNote,
         });
+        showAlert('✅ Success', `Saved ${entryCount} माळा for ${selectedUser.name}!`);
       } else {
+        if (!entryCount || Number(entryCount) <= 0) {
+          showAlert('Required', 'Please enter a valid count of माळा.');
+          setSubmitting(false);
+          return;
+        }
         await api.post('/japmala', {
           userId: selectedUser._id,
           entryType: 'range',
@@ -200,12 +349,15 @@ const JapmalaReportScreen = () => {
           count: Number(entryCount),
           note: entryNote,
         });
+        showAlert('✅ Success', `Saved ${entryCount} माळा for ${selectedUser.name}!`);
       }
 
-      showAlert('✅ Success', `Saved ${entryCount} माळा for ${selectedUser.name}! This is now reflected on their profile.`);
       setShowAddModal(false);
       setSelectedUser(null);
       setEntryCount('');
+      setMonthlyGridCounts({
+        0: '', 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '', 9: '', 10: '', 11: ''
+      });
       fetchReport();
       if (selectedMember) {
         openMemberDetail(selectedMember);
@@ -214,6 +366,210 @@ const JapmalaReportScreen = () => {
       showAlert('Error', err.response?.data?.message || 'Failed to save entry.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // ─── WHATSAPP SMART PARSER LOGIC ───
+  const parseWhatsAppMessage = (text, targetYearNum) => {
+    if (!text || !text.trim()) {
+      setParsedDevotees([]);
+      return;
+    }
+
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const results = [];
+    let currentDevotee = null;
+
+    const isNoiseLine = (line) => {
+      const lower = line.toLowerCase();
+      return (
+        lower.includes('जय सच्चिदानंद') ||
+        lower.includes('जय सच्चिदानन्द') ||
+        lower.includes('जय गुरुदेव') ||
+        lower.includes('हरि: ॐ') ||
+        lower.includes('हरि ॐ') ||
+        lower.includes('read more') ||
+        lower.includes('forwarded') ||
+        lower.startsWith('~') ||
+        lower.includes('am') || lower.includes('pm') ||
+        /^\+?\d[\d\s\-()]{7,}\d$/.test(line)
+      );
+    };
+
+    lines.forEach((line) => {
+      if (isNoiseLine(line)) return;
+
+      const normalizedLine = convertDevanagariDigits(line);
+      const lowerLine = normalizedLine.toLowerCase();
+
+      // Check if line matches a month
+      let matchedMonth = null;
+      for (const m of MARATHI_MONTHS_MAP) {
+        for (const kw of m.keywords) {
+          if (lowerLine.includes(kw)) {
+            matchedMonth = m;
+            break;
+          }
+        }
+        if (matchedMonth) break;
+      }
+
+      if (matchedMonth) {
+        const numMatches = normalizedLine.match(/\b\d+\b/g);
+        let count = 0;
+        if (numMatches && numMatches.length > 0) {
+          count = parseInt(numMatches[numMatches.length - 1], 10);
+        }
+
+        if (!currentDevotee) {
+          currentDevotee = {
+            id: 'dev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            rawName: 'Devotee ' + (results.length + 1),
+            selectedUser: null,
+            months: [],
+          };
+          results.push(currentDevotee);
+        }
+
+        const range = getMonthRangeISO(targetYearNum, matchedMonth.index);
+        const existingIdx = currentDevotee.months.findIndex(m => m.monthIndex === matchedMonth.index);
+        if (existingIdx >= 0) {
+          currentDevotee.months[existingIdx].count = count;
+        } else {
+          currentDevotee.months.push({
+            monthIndex: matchedMonth.index,
+            monthName: `${matchedMonth.marathi} (${matchedMonth.english})`,
+            count: count,
+            from: range.from,
+            to: range.to,
+          });
+        }
+      } else {
+        // Starts a new Devotee block
+        const matchedUser = matchUserByName(line, allUsers);
+        currentDevotee = {
+          id: 'dev_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          rawName: line,
+          selectedUser: matchedUser,
+          months: [],
+        };
+        results.push(currentDevotee);
+      }
+    });
+
+    // Sort months chronologically
+    results.forEach(d => {
+      d.months.sort((a, b) => a.monthIndex - b.monthIndex);
+    });
+
+    setParsedDevotees(results);
+  };
+
+  const handleSaveWhatsAppBatch = async () => {
+    if (parsedDevotees.length === 0) {
+      showAlert('Empty', 'No devotee data parsed. Please paste text first.');
+      return;
+    }
+
+    // Validation: make sure all devotees have a selected user
+    const unassigned = parsedDevotees.filter(d => !d.selectedUser);
+    if (unassigned.length > 0) {
+      showAlert(
+        'Select Devotees',
+        `Please select a registered member for "${unassigned[0].rawName}" before saving.`
+      );
+      return;
+    }
+
+    const devoteesWithCounts = parsedDevotees.filter(d => d.months.length > 0);
+    if (devoteesWithCounts.length === 0) {
+      showAlert('No Counts', 'No month counts were found to save.');
+      return;
+    }
+
+    try {
+      setIsSubmittingWhatsApp(true);
+      let totalMonthsSaved = 0;
+      let totalDevoteesSaved = 0;
+
+      for (const dev of devoteesWithCounts) {
+        const breakdown = dev.months
+          .filter(m => Number(m.count) >= 0)
+          .map(m => ({
+            from: m.from,
+            to: m.to,
+            count: Number(m.count),
+          }));
+
+        if (breakdown.length > 0) {
+          await api.post('/japmala', {
+            userId: dev.selectedUser._id,
+            monthlyBreakdown: breakdown,
+            note: 'Imported from WhatsApp message',
+          });
+          totalMonthsSaved += breakdown.length;
+          totalDevoteesSaved += 1;
+        }
+      }
+
+      showAlert(
+        '🎉 Success!',
+        `Successfully saved Japmala for ${totalDevoteesSaved} devotee(s) across ${totalMonthsSaved} monthly entries!`
+      );
+      setShowWhatsAppModal(false);
+      setWhatsAppText('');
+      setParsedDevotees([]);
+      fetchReport();
+    } catch (err) {
+      console.error('Batch error:', err);
+      showAlert('Error', err.response?.data?.message || 'Failed to save batch entries.');
+    } finally {
+      setIsSubmittingWhatsApp(false);
+    }
+  };
+
+  // ─── SHARE WHATSAPP REPORT ───
+  const handleShareWhatsApp = async () => {
+    if (report.length === 0) {
+      showAlert('Info', 'No standings to share.');
+      return;
+    }
+
+    const periodTitle =
+      filterMode === 'all'
+        ? 'सर्व काळ (All Time)'
+        : filterMode === 'month'
+        ? `${monthNames[selectedMonth]} ${selectedYear}`
+        : `${formatDateDisplay(fromDate)} ते ${formatDateDisplay(toDate)}`;
+
+    let msg = `📿 *श्री गुरुदेव दत्त - जपमाळा अहवाल* 📿\n`;
+    msg += `📅 कालावधी: ${periodTitle}\n`;
+    msg += `👥 एकूण भाविक: ${report.length}\n`;
+    msg += `🌟 एकूण जपमाळा: ${grandTotal}\n\n`;
+    msg += `🏆 *भाविक माळा क्रमवारी:*\n`;
+
+    report.forEach((item, index) => {
+      msg += `${index + 1}. ${item.name} - ${item.total} माळा\n`;
+    });
+
+    msg += `\n🙏 *जय सच्चिदानंद* 🙏`;
+
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(msg);
+        showAlert('Copied!', 'WhatsApp report copied to clipboard. You can paste it in your WhatsApp group!');
+      } catch (e) {
+        // Ignore clipboard error
+      }
+    }
+
+    try {
+      await Share.share({
+        message: msg,
+        title: 'Japmala Report',
+      });
+    } catch (err) {
+      console.log('Share error:', err);
     }
   };
 
@@ -332,7 +688,6 @@ const JapmalaReportScreen = () => {
     if (Platform.OS === 'web') {
       const generatePdf = async () => {
         try {
-          // Use authenticated axios instance so token is automatically attached!
           const response = await api.get(`/japmala/export${params}`);
           const htmlContent = response.data;
 
@@ -405,8 +760,7 @@ const JapmalaReportScreen = () => {
   };
 
   const filteredUsers = allUsers.filter(u => {
-    const q = userSearch.toLowerCase().trim();
-    if (!q) return true;
+    const q = userSearch.toLowerCase();
     return (u.name && u.name.toLowerCase().includes(q)) || (u.phone && u.phone.includes(q));
   });
 
@@ -456,22 +810,40 @@ const JapmalaReportScreen = () => {
         }
         ListHeaderComponent={
           <View>
-            {/* Quick Add For Member Button */}
-            <TouchableOpacity
-              style={styles.addMemberEntryBtn}
-              onPress={() => {
-                setSelectedUser(null);
-                setEntryCount('');
-                setShowAddModal(true);
-              }}
-            >
-              <Text style={styles.addMemberEntryEmoji}>✍️</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.addMemberEntryTitle}>Add / Update Japmala for a Member</Text>
-                <Text style={styles.addMemberEntrySubtitle}>If a devotee calls or informs you directly, enter their count here</Text>
-              </View>
-              <Text style={styles.addMemberPlus}>＋</Text>
-            </TouchableOpacity>
+            {/* Quick Action Buttons Row */}
+            <View style={styles.quickActionRow}>
+              <TouchableOpacity
+                style={[styles.addMemberEntryBtn, { flex: 1, marginRight: 6 }]}
+                onPress={() => {
+                  setSelectedUser(null);
+                  setEntryCount('');
+                  setShowAddModal(true);
+                }}
+              >
+                <Text style={styles.addMemberEntryEmoji}>✍️</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.addMemberEntryTitle}>Member Entry</Text>
+                  <Text style={styles.addMemberEntrySubtitle}>Day, Range or 12-Mo Grid</Text>
+                </View>
+                <Text style={styles.addMemberPlus}>＋</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.pasteWhatsAppBtn, { flex: 1, marginLeft: 6 }]}
+                onPress={() => {
+                  setWhatsAppText('');
+                  setParsedDevotees([]);
+                  setShowWhatsAppModal(true);
+                }}
+              >
+                <Text style={styles.pasteWhatsAppEmoji}>💬</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pasteWhatsAppTitle}>Paste WhatsApp</Text>
+                  <Text style={styles.pasteWhatsAppSubtitle}>Auto-Parse Multi-Devotee</Text>
+                </View>
+                <Text style={styles.pasteWhatsAppPlus}>⚡</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Filter Card with 3 Tabs */}
             <View style={styles.card}>
@@ -575,17 +947,23 @@ const JapmalaReportScreen = () => {
               </View>
             )}
 
-            {/* Export Official PDF Button with Dynamic Label */}
+            {/* Export Official PDF & Share WhatsApp Action Row */}
             {fetched && report.length > 0 && (
-              <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
-                <Text style={styles.exportBtnText}>
-                  {filterMode === 'all'
-                    ? '📄 Download All-Time Official Report (PDF)'
-                    : filterMode === 'month'
-                    ? `📄 Download ${monthNames[selectedMonth]} ${selectedYear} Report (PDF)`
-                    : `📄 Download Range Report (${formatDateDisplay(fromDate)} to ${formatDateDisplay(toDate)}) (PDF)`}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.reportActionsRow}>
+                <TouchableOpacity style={[styles.exportBtn, { flex: 1.2, marginRight: 8 }]} onPress={handleExport}>
+                  <Text style={styles.exportBtnText} numberOfLines={1}>
+                    {filterMode === 'all'
+                      ? '📄 Official PDF Report'
+                      : filterMode === 'month'
+                      ? `📄 PDF (${monthNames[selectedMonth].substring(0, 3)} ${selectedYear})`
+                      : `📄 PDF Range Report`}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[styles.shareWhatsAppBtn, { flex: 1 }]} onPress={handleShareWhatsApp}>
+                  <Text style={styles.shareWhatsAppBtnText}>💬 Share WhatsApp</Text>
+                </TouchableOpacity>
+              </View>
             )}
 
             {/* Search Bar for Devotees in Standings */}
@@ -636,10 +1014,10 @@ const JapmalaReportScreen = () => {
         }
       />
 
-      {/* ─── MODAL 1: ADD FOR MEMBER ─── */}
+      {/* ─── MODAL 1: ADD FOR MEMBER (Single Day, Range, or 12-Month Grid) ─── */}
       <Modal visible={showAddModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxHeight: '90%' }]}>
+          <View style={[styles.modalContent, { maxHeight: '92%' }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={styles.modalHeaderRow}>
                 <Text style={styles.modalTitle}>✍️ Add Japmala for Member</Text>
@@ -701,8 +1079,8 @@ const JapmalaReportScreen = () => {
                 </View>
               )}
 
-              {/* Daily / Range Toggle */}
-              <Text style={[styles.inputLabel, { marginTop: 12 }]}>2. ENTRY TYPE</Text>
+              {/* Entry Type 3-way Toggle */}
+              <Text style={[styles.inputLabel, { marginTop: 14 }]}>2. ENTRY TYPE</Text>
               <View style={styles.toggleRow}>
                 <TouchableOpacity
                   style={[styles.toggleBtn, entryType === 'daily' && styles.toggleBtnActive]}
@@ -714,126 +1092,436 @@ const JapmalaReportScreen = () => {
                   style={[styles.toggleBtn, entryType === 'range' && styles.toggleBtnActive]}
                   onPress={() => setEntryType('range')}
                 >
-                  <Text style={[styles.toggleText, entryType === 'range' && styles.toggleTextActive]}>Date Range (Single Total)</Text>
+                  <Text style={[styles.toggleText, entryType === 'range' && styles.toggleTextActive]}>Date Range</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, entryType === 'monthly_grid' && styles.toggleBtnActive]}
+                  onPress={() => setEntryType('monthly_grid')}
+                >
+                  <Text style={[styles.toggleText, entryType === 'monthly_grid' && styles.toggleTextActive]}>12-Mo Grid</Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Date Inputs */}
-              {entryType === 'daily' ? (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>DATE</Text>
-                  <TouchableOpacity
-                    style={styles.dateTriggerBtn}
-                    onPress={() => openCalendar('entryDate')}
-                  >
-                    <Text style={styles.dateTriggerText}>{formatDateDisplay(entryDate)}</Text>
-                    <Text>📅</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <View style={styles.dateRangeRow}>
-                  <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-                    <Text style={styles.inputLabel}>FROM</Text>
+              {/* TYPE 1: DAILY */}
+              {entryType === 'daily' && (
+                <View>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>DATE</Text>
                     <TouchableOpacity
                       style={styles.dateTriggerBtn}
-                      onPress={() => openCalendar('entryFrom')}
+                      onPress={() => openCalendar('entryDate')}
                     >
-                      <Text style={styles.dateTriggerText}>{formatDateDisplay(entryFrom)}</Text>
+                      <Text style={styles.dateTriggerText}>{formatDateDisplay(entryDate)}</Text>
                       <Text>📅</Text>
                     </TouchableOpacity>
                   </View>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.inputLabel}>TO</Text>
-                    <TouchableOpacity
-                      style={styles.dateTriggerBtn}
-                      onPress={() => openCalendar('entryTo')}
-                    >
-                      <Text style={styles.dateTriggerText}>{formatDateDisplay(entryTo)}</Text>
-                      <Text>📅</Text>
-                    </TouchableOpacity>
+
+                  <Text style={[styles.inputLabel, { marginTop: 10 }]}>3. TOTAL माळा COUNT</Text>
+                  <View style={styles.inputGroup}>
+                    <TextInput
+                      style={styles.countInputBig}
+                      placeholder="0"
+                      placeholderTextColor={theme.colors.textMuted}
+                      keyboardType="numeric"
+                      value={entryCount}
+                      onChangeText={setEntryCount}
+                    />
                   </View>
                 </View>
               )}
 
-              {/* Count Input */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>3. MALA COUNT (माळा संख्या)</Text>
-                <TextInput
-                  style={[styles.input, styles.countInputBig]}
-                  placeholder="0"
-                  placeholderTextColor={theme.colors.textMuted}
-                  value={entryCount}
-                  onChangeText={setEntryCount}
-                  keyboardType="numeric"
-                />
-              </View>
+              {/* TYPE 2: DATE RANGE */}
+              {entryType === 'range' && (
+                <View>
+                  <View style={styles.dateRangeRow}>
+                    <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                      <Text style={styles.inputLabel}>FROM</Text>
+                      <TouchableOpacity
+                        style={styles.dateTriggerBtn}
+                        onPress={() => openCalendar('entryFrom')}
+                      >
+                        <Text style={styles.dateTriggerText}>{formatDateDisplay(entryFrom)}</Text>
+                        <Text>📅</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                      <Text style={styles.inputLabel}>TO</Text>
+                      <TouchableOpacity
+                        style={styles.dateTriggerBtn}
+                        onPress={() => openCalendar('entryTo')}
+                      >
+                        <Text style={styles.dateTriggerText}>{formatDateDisplay(entryTo)}</Text>
+                        <Text>📅</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
 
-              {/* Note Input */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>NOTE</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Optional note..."
-                  placeholderTextColor={theme.colors.textMuted}
-                  value={entryNote}
-                  onChangeText={setEntryNote}
-                />
-              </View>
+                  <Text style={[styles.inputLabel, { marginTop: 10 }]}>3. TOTAL माळा COUNT FOR THIS PERIOD</Text>
+                  <View style={styles.inputGroup}>
+                    <TextInput
+                      style={styles.countInputBig}
+                      placeholder="0"
+                      placeholderTextColor={theme.colors.textMuted}
+                      keyboardType="numeric"
+                      value={entryCount}
+                      onChangeText={setEntryCount}
+                    />
+                  </View>
+                </View>
+              )}
 
-              {/* Save Button */}
+              {/* TYPE 3: 12-MONTH GRID */}
+              {entryType === 'monthly_grid' && (
+                <View style={{ marginTop: 6 }}>
+                  {/* Year selector */}
+                  <View style={styles.gridYearNav}>
+                    <TouchableOpacity onPress={() => setGridYear(gridYear - 1)} style={styles.gridYearArrow}>
+                      <Text style={styles.gridYearArrowText}>◀</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.gridYearTitle}>Year {gridYear}</Text>
+                    <TouchableOpacity onPress={() => setGridYear(gridYear + 1)} style={styles.gridYearArrow}>
+                      <Text style={styles.gridYearArrowText}>▶</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.gridHelperText}>Enter counts for each month (leave empty if none):</Text>
+
+                  {/* 12-Month Grid Tiles */}
+                  <View style={styles.monthGridContainer}>
+                    {marathiMonthNames.map((mName, idx) => (
+                      <View key={idx} style={styles.monthGridTile}>
+                        <Text style={styles.monthGridLabel} numberOfLines={1}>
+                          {mName} <Text style={{ color: theme.colors.textMuted, fontSize: 10 }}>({monthNames[idx].substring(0, 3)})</Text>
+                        </Text>
+                        <TextInput
+                          style={styles.monthGridInput}
+                          placeholder="0"
+                          placeholderTextColor={theme.colors.textMuted}
+                          keyboardType="numeric"
+                          value={monthlyGridCounts[idx] || ''}
+                          onChangeText={(val) => setMonthlyGridCounts({ ...monthlyGridCounts, [idx]: val })}
+                        />
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Grid Total */}
+                  <View style={styles.gridTotalCard}>
+                    <Text style={styles.gridTotalLabel}>Total for {gridYear}:</Text>
+                    <Text style={styles.gridTotalValue}>
+                      {Object.values(monthlyGridCounts).reduce((acc, curr) => acc + (Number(curr) || 0), 0)} माळा
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Note */}
+              <Text style={[styles.inputLabel, { marginTop: 10 }]}>NOTE (OPTIONAL)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Added by Admin / WhatsApp"
+                placeholderTextColor={theme.colors.textMuted}
+                value={entryNote}
+                onChangeText={setEntryNote}
+              />
+
               <TouchableOpacity
                 style={[styles.saveAdminBtn, submitting && { opacity: 0.6 }]}
                 onPress={handleAdminSave}
                 disabled={submitting}
               >
-                <Text style={styles.saveAdminBtnText}>
-                  {submitting ? 'Saving...' : '💾 Save & Update Devotee Profile'}
-                </Text>
+                {submitting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.saveAdminBtnText}>
+                    {entryType === 'monthly_grid' ? '💾 Save All Monthly Entries' : '💾 Save Japmala for Member'}
+                  </Text>
+                )}
               </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
       </Modal>
 
-      {/* ─── MODAL 2: MEMBER ENTRIES DETAILS ─── */}
+      {/* ─── MODAL 2: WHATSAPP SMART MESSAGE PARSER ─── */}
+      <Modal visible={showWhatsAppModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '92%', width: '96%', maxWidth: 540 }]}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.modalHeaderRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 22, marginRight: 8 }}>💬</Text>
+                  <Text style={styles.modalTitle}>Paste WhatsApp Message</Text>
+                </View>
+                <TouchableOpacity onPress={() => setShowWhatsAppModal(false)} style={styles.closeBtn}>
+                  <Text style={styles.closeBtnText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.modalSubtitle}>
+                Paste messages with devotee names & Marathi/English monthly counts. The app parses and matches members automatically!
+              </Text>
+
+              {/* Year Selector */}
+              <View style={styles.whatsAppYearRow}>
+                <Text style={styles.inputLabel}>TARGET YEAR:</Text>
+                <View style={styles.whatsAppYearNav}>
+                  <TouchableOpacity onPress={() => { setWhatsAppYear(whatsAppYear - 1); parseWhatsAppMessage(whatsAppText, whatsAppYear - 1); }} style={styles.calNavBtnSmall}>
+                    <Text style={styles.calNavTextSmall}>◀</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.whatsAppYearText}>{whatsAppYear}</Text>
+                  <TouchableOpacity onPress={() => { setWhatsAppYear(whatsAppYear + 1); parseWhatsAppMessage(whatsAppText, whatsAppYear + 1); }} style={styles.calNavBtnSmall}>
+                    <Text style={styles.calNavTextSmall}>▶</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Text Input */}
+              <TextInput
+                style={styles.whatsAppTextInput}
+                placeholder="Paste WhatsApp text here...&#10;Example:&#10;गणेश गावकर&#10;मे - ३१ माळा&#10;जून - ८७ माळा&#10;&#10;संगीता गांवकर&#10;मे - २१ माळा"
+                placeholderTextColor={theme.colors.textMuted}
+                multiline
+                numberOfLines={6}
+                value={whatsAppText}
+                onChangeText={(t) => {
+                  setWhatsAppText(t);
+                  parseWhatsAppMessage(t, whatsAppYear);
+                }}
+              />
+
+              {/* Parse Button */}
+              <TouchableOpacity
+                style={styles.parseBtn}
+                onPress={() => parseWhatsAppMessage(whatsAppText, whatsAppYear)}
+              >
+                <Text style={styles.parseBtnText}>⚡ Parse & Preview Entries</Text>
+              </TouchableOpacity>
+
+              {/* Parsed Devotees List */}
+              {parsedDevotees.length > 0 && (
+                <View style={{ marginTop: theme.spacing.md }}>
+                  <View style={styles.parsedHeaderRow}>
+                    <Text style={styles.parsedSectionTitle}>
+                      Parsed Devotees ({parsedDevotees.length})
+                    </Text>
+                    <Text style={styles.parsedSectionSub}>
+                      Total Months: {parsedDevotees.reduce((acc, d) => acc + d.months.length, 0)}
+                    </Text>
+                  </View>
+
+                  {parsedDevotees.map((dev, devIndex) => (
+                    <View key={dev.id} style={styles.parsedDevCard}>
+                      {/* Devotee Header */}
+                      <View style={styles.parsedDevHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.parsedRawName} numberOfLines={1}>
+                            📝 Text Name: <Text style={{ color: theme.colors.textPrimary, fontWeight: 'bold' }}>{dev.rawName}</Text>
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => {
+                            const updated = parsedDevotees.filter(d => d.id !== dev.id);
+                            setParsedDevotees(updated);
+                          }}
+                          style={styles.removeDevBtn}
+                        >
+                          <Text style={styles.removeDevText}>🗑️</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Matched / Selected User Badge */}
+                      <Text style={[styles.inputLabel, { fontSize: 10, marginTop: 4 }]}>MATCHED APP DEVOTEE:</Text>
+                      {activePickerDevoteeId === dev.id ? (
+                        <View style={styles.devoteeInlinePicker}>
+                          <TextInput
+                            style={styles.searchInputSmall}
+                            placeholder="🔍 Type to search registered member..."
+                            placeholderTextColor={theme.colors.textMuted}
+                            value={devoteePickerSearch}
+                            onChangeText={setDevoteePickerSearch}
+                            autoFocus
+                          />
+                          <ScrollView style={styles.devoteePickerScroll} nestedScrollEnabled={true}>
+                            {allUsers
+                              .filter(u => {
+                                const q = devoteePickerSearch.toLowerCase();
+                                return (u.name && u.name.toLowerCase().includes(q)) || (u.phone && u.phone.includes(q));
+                              })
+                              .map(u => (
+                                <TouchableOpacity
+                                  key={u._id}
+                                  style={styles.devoteePickerItem}
+                                  onPress={() => {
+                                    const updated = [...parsedDevotees];
+                                    updated[devIndex].selectedUser = u;
+                                    setParsedDevotees(updated);
+                                    setActivePickerDevoteeId(null);
+                                    setDevoteePickerSearch('');
+                                  }}
+                                >
+                                  <Text style={styles.userPickerName}>{u.name}</Text>
+                                  {u.phone ? <Text style={styles.userPickerPhone}>📞 {u.phone}</Text> : null}
+                                </TouchableOpacity>
+                              ))}
+                          </ScrollView>
+                          <TouchableOpacity
+                            onPress={() => setActivePickerDevoteeId(null)}
+                            style={styles.cancelPickerBtn}
+                          >
+                            <Text style={styles.cancelPickerText}>Done / Close</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={[
+                            styles.userMatchBadge,
+                            dev.selectedUser ? styles.userMatchBadgeFound : styles.userMatchBadgeMissing,
+                          ]}
+                          onPress={() => {
+                            setActivePickerDevoteeId(dev.id);
+                            setDevoteePickerSearch('');
+                          }}
+                        >
+                          <Text style={styles.userMatchBadgeText}>
+                            {dev.selectedUser
+                              ? `👤 ${dev.selectedUser.name} ${dev.selectedUser.phone ? `(${dev.selectedUser.phone})` : ''}`
+                              : '⚠️ No match! Tap to select member'}
+                          </Text>
+                          <Text style={styles.userMatchChangeText}>
+                            {dev.selectedUser ? 'Change ▾' : 'Select ▾'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {/* Months Table */}
+                      <View style={styles.parsedMonthsTable}>
+                        <View style={styles.parsedMonthsHeader}>
+                          <Text style={[styles.parsedMonthColHead, { flex: 1.5 }]}>Month</Text>
+                          <Text style={[styles.parsedMonthColHead, { flex: 1.5 }]}>Count (माळा)</Text>
+                          <Text style={[styles.parsedMonthColHead, { width: 30, textAlign: 'center' }]}>✕</Text>
+                        </View>
+
+                        {dev.months.map((m, mIdx) => (
+                          <View key={mIdx} style={styles.parsedMonthRow}>
+                            <Text style={[styles.parsedMonthName, { flex: 1.5 }]}>
+                              {m.monthName}
+                            </Text>
+                            <TextInput
+                              style={[styles.parsedMonthCountInput, { flex: 1.5 }]}
+                              value={String(m.count)}
+                              keyboardType="numeric"
+                              onChangeText={(val) => {
+                                const updated = [...parsedDevotees];
+                                updated[devIndex].months[mIdx].count = Number(val) || 0;
+                                setParsedDevotees(updated);
+                              }}
+                            />
+                            <TouchableOpacity
+                              onPress={() => {
+                                const updated = [...parsedDevotees];
+                                updated[devIndex].months = updated[devIndex].months.filter((_, idx) => idx !== mIdx);
+                                setParsedDevotees(updated);
+                              }}
+                              style={styles.deleteMonthBtn}
+                            >
+                              <Text style={styles.deleteMonthText}>✕</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+
+                        {/* Add Month Row Button */}
+                        <TouchableOpacity
+                          style={styles.addMonthRowBtn}
+                          onPress={() => {
+                            const updated = [...parsedDevotees];
+                            const unusedMonth = MARATHI_MONTHS_MAP.find(
+                              m => !updated[devIndex].months.some(em => em.monthIndex === m.index)
+                            ) || MARATHI_MONTHS_MAP[0];
+                            const range = getMonthRangeISO(whatsAppYear, unusedMonth.index);
+                            updated[devIndex].months.push({
+                              monthIndex: unusedMonth.index,
+                              monthName: `${unusedMonth.marathi} (${unusedMonth.english})`,
+                              count: 0,
+                              from: range.from,
+                              to: range.to,
+                            });
+                            setParsedDevotees(updated);
+                          }}
+                        >
+                          <Text style={styles.addMonthRowText}>＋ Add Month for {dev.selectedUser?.name || dev.rawName}</Text>
+                        </TouchableOpacity>
+
+                        {/* Subtotal */}
+                        <View style={styles.parsedDevSubtotal}>
+                          <Text style={styles.parsedDevSubtotalLabel}>Subtotal for Devotee:</Text>
+                          <Text style={styles.parsedDevSubtotalVal}>
+                            {dev.months.reduce((acc, m) => acc + (Number(m.count) || 0), 0)} माळा
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+
+                  {/* Batch Save Button */}
+                  <TouchableOpacity
+                    style={[styles.saveBatchBtn, isSubmittingWhatsApp && { opacity: 0.6 }]}
+                    onPress={handleSaveWhatsAppBatch}
+                    disabled={isSubmittingWhatsApp}
+                  >
+                    {isSubmittingWhatsApp ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.saveBatchBtnText}>
+                        💾 Save All Entries ({parsedDevotees.length} Devotees, {parsedDevotees.reduce((acc, d) => acc + d.months.length, 0)} Months)
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── MODAL 3: MEMBER DETAIL / ENTRIES ─── */}
       <Modal visible={showMemberModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxHeight: '85%' }]}>
+          <View style={styles.modalContent}>
             <View style={styles.modalHeaderRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.modalTitle}>📿 {selectedMember?.name}</Text>
-                <Text style={styles.modalSubtitle}>
-                  Total: <Text style={{ color: theme.colors.accent, fontWeight: 'bold' }}>{selectedMember?.total} माळा</Text> in this period
-                </Text>
+                <Text style={styles.modalTitle}>{selectedMember?.name}</Text>
+                {selectedMember?.phone ? <Text style={styles.modalPhone}>📞 {selectedMember.phone}</Text> : null}
               </View>
               <TouchableOpacity onPress={() => setShowMemberModal(false)} style={styles.closeBtn}>
                 <Text style={styles.closeBtnText}>✕</Text>
               </TouchableOpacity>
             </View>
 
+            <View style={styles.memberModalStats}>
+              <Text style={styles.memberModalTotal}>{selectedMember?.total}</Text>
+              <Text style={styles.memberModalTotalLabel}>Total माळा Logged</Text>
+            </View>
+
             <TouchableOpacity
               style={styles.quickAddMemberBtn}
               onPress={() => {
-                setSelectedUser({ _id: selectedMember._id, name: selectedMember.name, phone: selectedMember.phone });
                 setShowMemberModal(false);
+                setSelectedUser(allUsers.find(u => u._id === selectedMember?._id) || selectedMember);
+                setEntryCount('');
                 setShowAddModal(true);
               }}
             >
-              <Text style={styles.quickAddMemberText}>＋ Add Another Entry for {selectedMember?.name}</Text>
+              <Text style={styles.quickAddMemberText}>＋ Add / Update More for this Devotee</Text>
             </TouchableOpacity>
 
-            <Text style={[styles.inputLabel, { marginTop: 12, marginBottom: 6 }]}>
-              ALL LOGGED ENTRIES:
+            <Text style={[styles.sectionTitle, { fontSize: theme.fontSize.sm, marginTop: 10, marginBottom: 8 }]}>
+              Entry Breakdown ({memberEntries.length})
             </Text>
 
             {loadingMemberEntries ? (
-              <ActivityIndicator size="large" color={theme.colors.primary} style={{ marginVertical: 20 }} />
-            ) : memberEntries.length === 0 ? (
-              <Text style={{ color: theme.colors.textMuted, textAlign: 'center', marginVertical: 20 }}>
-                No entries found.
-              </Text>
+              <ActivityIndicator size="small" color={theme.colors.primary} style={{ marginVertical: 20 }} />
             ) : (
-              <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
+              <ScrollView style={{ maxHeight: 260 }}>
                 {memberEntries.map(entry => {
                   const isRange = entry.entryType === 'range' || !!entry.toDate;
                   return (
@@ -841,144 +1529,142 @@ const JapmalaReportScreen = () => {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.memberEntryDate}>
                           {isRange
-                            ? `📅 ${formatDateDisplay(entry.date)} to ${formatDateDisplay(entry.toDate)}`
-                            : `🗓️ ${formatDateDisplay(entry.date)}`}
+                            ? `📆 ${formatDateDisplay(entry.date)} to ${formatDateDisplay(entry.toDate)}`
+                            : `📅 ${formatDateDisplay(entry.date)}`}
                         </Text>
-                        {isRange ? <Text style={styles.rangeTag}>Date Range</Text> : null}
-                        {entry.note ? <Text style={styles.memberEntryNote}>📝 {entry.note}</Text> : null}
+                        {isRange && <Text style={styles.rangeTag}>Date Range Entry</Text>}
+                        {entry.note ? <Text style={styles.memberEntryNote}>{entry.note}</Text> : null}
                       </View>
-                      <View style={{ alignItems: 'flex-end', marginRight: 12 }}>
-                        <Text style={styles.memberEntryCount}>{entry.count}</Text>
-                        <Text style={{ color: theme.colors.textMuted, fontSize: 10 }}>माळा</Text>
-                      </View>
-                      <TouchableOpacity
-                        style={styles.entryActionBtn}
-                        onPress={() => handleOpenEdit(entry)}
-                      >
-                        <Text style={{ fontSize: 16 }}>✏️</Text>
+                      <Text style={styles.memberEntryCount}>{entry.count}</Text>
+                      <TouchableOpacity onPress={() => handleOpenEdit(entry)} style={styles.entryActionBtn}>
+                        <Text style={{ fontSize: 14 }}>✏️</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.entryActionBtn, { backgroundColor: theme.colors.error + '20' }]}
-                        onPress={() => handleDeleteEntry(entry._id)}
-                      >
-                        <Text style={{ fontSize: 16 }}>🗑️</Text>
+                      <TouchableOpacity onPress={() => handleDeleteEntry(entry._id)} style={styles.entryActionBtn}>
+                        <Text style={{ fontSize: 14 }}>🗑️</Text>
                       </TouchableOpacity>
                     </View>
                   );
                 })}
+                {memberEntries.length === 0 && (
+                  <Text style={{ color: theme.colors.textMuted, textAlign: 'center', marginVertical: 14 }}>
+                    No entries recorded in this timeframe.
+                  </Text>
+                )}
               </ScrollView>
             )}
 
-            <TouchableOpacity
-              style={styles.modalCloseDoneBtn}
-              onPress={() => setShowMemberModal(false)}
-            >
+            <TouchableOpacity onPress={() => setShowMemberModal(false)} style={styles.modalCloseDoneBtn}>
               <Text style={styles.modalCloseDoneText}>Done</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* ─── MODAL 3: EDIT SINGLE/RANGE ENTRY ─── */}
-      <Modal visible={showEditModal} transparent animationType="fade">
+      {/* ─── MODAL 4: EDIT SINGLE ENTRY ─── */}
+      <Modal visible={showEditModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxWidth: 380 }]}>
-            <Text style={styles.modalTitle}>✏️ Edit Mala Entry</Text>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>✏️ Edit Japmala Entry</Text>
 
-            {editEntryType === 'range' ? (
+            <Text style={[styles.inputLabel, { marginTop: 12 }]}>ENTRY TYPE</Text>
+            <View style={styles.toggleRow}>
+              <TouchableOpacity
+                style={[styles.toggleBtn, editEntryType === 'daily' && styles.toggleBtnActive]}
+                onPress={() => setEditEntryType('daily')}
+              >
+                <Text style={[styles.toggleText, editEntryType === 'daily' && styles.toggleTextActive]}>Single Date</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleBtn, editEntryType === 'range' && styles.toggleBtnActive]}
+                onPress={() => setEditEntryType('range')}
+              >
+                <Text style={[styles.toggleText, editEntryType === 'range' && styles.toggleTextActive]}>Date Range</Text>
+              </TouchableOpacity>
+            </View>
+
+            {editEntryType === 'daily' ? (
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>DATE</Text>
+                <TouchableOpacity style={styles.dateTriggerBtn} onPress={() => openCalendar('editDateVal')}>
+                  <Text style={styles.dateTriggerText}>{formatDateDisplay(editDateVal)}</Text>
+                  <Text>📅</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
               <View style={styles.dateRangeRow}>
                 <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
                   <Text style={styles.inputLabel}>FROM</Text>
-                  <TouchableOpacity
-                    style={styles.dateTriggerBtn}
-                    onPress={() => openCalendar('editDateVal')}
-                  >
+                  <TouchableOpacity style={styles.dateTriggerBtn} onPress={() => openCalendar('editDateVal')}>
                     <Text style={styles.dateTriggerText}>{formatDateDisplay(editDateVal)}</Text>
                     <Text>📅</Text>
                   </TouchableOpacity>
                 </View>
                 <View style={[styles.inputGroup, { flex: 1 }]}>
                   <Text style={styles.inputLabel}>TO</Text>
-                  <TouchableOpacity
-                    style={styles.dateTriggerBtn}
-                    onPress={() => openCalendar('editToDateVal')}
-                  >
+                  <TouchableOpacity style={styles.dateTriggerBtn} onPress={() => openCalendar('editToDateVal')}>
                     <Text style={styles.dateTriggerText}>{formatDateDisplay(editToDateVal)}</Text>
                     <Text>📅</Text>
                   </TouchableOpacity>
                 </View>
               </View>
-            ) : (
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>DATE</Text>
-                <TouchableOpacity
-                  style={styles.dateTriggerBtn}
-                  onPress={() => openCalendar('editDateVal')}
-                >
-                  <Text style={styles.dateTriggerText}>{formatDateDisplay(editDateVal)}</Text>
-                  <Text>📅</Text>
-                </TouchableOpacity>
-              </View>
             )}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>MALA COUNT (माळा संख्या)</Text>
-              <TextInput
-                style={[styles.input, styles.countInputBig]}
-                value={editCountVal}
-                onChangeText={setEditCountVal}
-                keyboardType="numeric"
-              />
-            </View>
+            <Text style={[styles.inputLabel, { marginTop: 12 }]}>COUNT (माळा)</Text>
+            <TextInput
+              style={styles.countInputBig}
+              placeholder="0"
+              placeholderTextColor={theme.colors.textMuted}
+              keyboardType="numeric"
+              value={editCountVal}
+              onChangeText={setEditCountVal}
+            />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>NOTE</Text>
-              <TextInput
-                style={styles.input}
-                value={editNoteVal}
-                onChangeText={setEditNoteVal}
-                placeholder="Optional note..."
-                placeholderTextColor={theme.colors.textMuted}
-              />
-            </View>
+            <Text style={[styles.inputLabel, { marginTop: 12 }]}>NOTE (OPTIONAL)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Note"
+              placeholderTextColor={theme.colors.textMuted}
+              value={editNoteVal}
+              onChangeText={setEditNoteVal}
+            />
 
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-              <TouchableOpacity
-                style={[styles.modalCancelBtn, { flex: 1 }]}
-                onPress={() => {
-                  setShowEditModal(false);
-                  if (selectedMember) {
-                    setShowMemberModal(true);
-                  }
-                }}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.saveAdminBtn, { flex: 1, marginTop: 0 }]}
-                onPress={handleSaveEdit}
-              >
-                <Text style={styles.saveAdminBtnText}>Save</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={styles.saveAdminBtn} onPress={handleSaveEdit}>
+              <Text style={styles.saveAdminBtnText}>Save Changes</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.modalCancelBtn, { marginTop: 8 }]}
+              onPress={() => {
+                setShowEditModal(false);
+                if (selectedMember) setShowMemberModal(true);
+              }}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* ─── MODAL 4: CALENDAR MODAL (Placed LAST with high z-index) ─── */}
+      {/* ─── MODAL 5: CALENDAR PICKER ─── */}
       <Modal visible={showCalendar} transparent animationType="fade">
         <View style={styles.calModalOverlay}>
           <View style={styles.calModalContent}>
             <View style={styles.calHeader}>
               <TouchableOpacity
-                onPress={() => calMonth === 0 ? (setCalMonth(11), setCalYear(calYear - 1)) : setCalMonth(calMonth - 1)}
+                onPress={() => {
+                  if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1); }
+                  else { setCalMonth(calMonth - 1); }
+                }}
                 style={styles.calNavBtn}
               >
                 <Text style={styles.calNavText}>‹</Text>
               </TouchableOpacity>
               <Text style={styles.calTitle}>{monthNames[calMonth]} {calYear}</Text>
               <TouchableOpacity
-                onPress={() => calMonth === 11 ? (setCalMonth(0), setCalYear(calYear + 1)) : setCalMonth(calMonth + 1)}
+                onPress={() => {
+                  if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1); }
+                  else { setCalMonth(calMonth + 1); }
+                }}
                 style={styles.calNavBtn}
               >
                 <Text style={styles.calNavText}>›</Text>
@@ -987,59 +1673,58 @@ const JapmalaReportScreen = () => {
 
             {calendarTarget === 'filterRange' && (
               <Text style={styles.calHintText}>
-                {rangeStart && !rangeEnd
-                  ? `From: ${formatDateDisplay(rangeStart)} → Tap end date`
-                  : 'Tap start date, then tap end date'}
+                {!rangeStart ? 'Tap START date' : !rangeEnd ? 'Now tap END date' : 'Range selected! Tap any date to re-pick.'}
               </Text>
             )}
 
             <View style={styles.weekDaysRow}>
-              {dayShortNames.map((d, idx) => (
-                <Text key={idx} style={styles.weekDayText}>{d}</Text>
+              {dayShortNames.map((d, i) => (
+                <Text key={i} style={styles.weekDayText}>{d}</Text>
               ))}
             </View>
 
             <View style={styles.calGrid}>
-              {calendarCells.map((cellDay, index) => {
-                if (!cellDay) return <View key={index} style={styles.emptyCalCell} />;
-                const dayNum = parseInt(cellDay.split('-')[2], 10);
-                const isToday = cellDay === formatDateISO(new Date());
+              {calendarCells.map((dayStr, index) => {
+                if (!dayStr) {
+                  return <View key={`empty-${index}`} style={styles.emptyCalCell} />;
+                }
+                const isSelected =
+                  (calendarTarget === 'entryDate' && entryDate === dayStr) ||
+                  (calendarTarget === 'entryFrom' && entryFrom === dayStr) ||
+                  (calendarTarget === 'entryTo' && entryTo === dayStr) ||
+                  (calendarTarget === 'filterFrom' && fromDate === dayStr) ||
+                  (calendarTarget === 'filterTo' && toDate === dayStr) ||
+                  (calendarTarget === 'editDateVal' && editDateVal === dayStr) ||
+                  (calendarTarget === 'editToDateVal' && editToDateVal === dayStr) ||
+                  (calendarTarget === 'filterRange' && (rangeStart === dayStr || rangeEnd === dayStr));
 
                 const isInRange =
                   calendarTarget === 'filterRange' &&
                   rangeStart &&
                   rangeEnd &&
-                  new Date(cellDay) > new Date(rangeStart) &&
-                  new Date(cellDay) < new Date(rangeEnd);
+                  new Date(dayStr) > new Date(rangeStart) &&
+                  new Date(dayStr) < new Date(rangeEnd);
 
-                const isSelected =
-                  (calendarTarget === 'entryDate' && entryDate === cellDay) ||
-                  (calendarTarget === 'entryFrom' && entryFrom === cellDay) ||
-                  (calendarTarget === 'entryTo' && entryTo === cellDay) ||
-                  (calendarTarget === 'filterFrom' && fromDate === cellDay) ||
-                  (calendarTarget === 'filterTo' && toDate === cellDay) ||
-                  (calendarTarget === 'editDateVal' && editDateVal === cellDay) ||
-                  (calendarTarget === 'editToDateVal' && editToDateVal === cellDay) ||
-                  (calendarTarget === 'filterRange' && (rangeStart === cellDay || rangeEnd === cellDay));
+                const isToday = formatDateISO(new Date()) === dayStr;
 
                 return (
                   <TouchableOpacity
-                    key={index}
+                    key={dayStr}
                     style={[
                       styles.calCell,
                       isInRange && styles.calCellInRange,
                       isSelected && styles.calCellSelected,
                     ]}
-                    onPress={() => handleDayPress(cellDay)}
+                    onPress={() => handleDayPress(dayStr)}
                   >
                     <Text
                       style={[
                         styles.calDayText,
-                        isToday && !isSelected && styles.calDayToday,
+                        isToday && styles.calDayToday,
                         isSelected && styles.calDaySelectedText,
                       ]}
                     >
-                      {dayNum}
+                      {parseInt(dayStr.split('-')[2], 10)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -1049,15 +1734,18 @@ const JapmalaReportScreen = () => {
             <View style={styles.calActions}>
               <TouchableOpacity
                 style={styles.calActionTodayBtn}
-                onPress={() => handleDayPress(formatDateISO(new Date()))}
+                onPress={() => {
+                  const todayStr = formatDateISO(new Date());
+                  handleDayPress(todayStr);
+                }}
               >
-                <Text style={styles.calActionTodayText}>Today</Text>
+                <Text style={styles.calActionTodayText}>Select Today</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.calCloseBtn}
                 onPress={() => setShowCalendar(false)}
               >
-                <Text style={styles.calCloseText}>Cancel</Text>
+                <Text style={styles.calCloseText}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1068,52 +1756,74 @@ const JapmalaReportScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.bg },
-  list: { padding: theme.spacing.lg, paddingBottom: 120 },
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.bgDark,
+  },
+  list: {
+    padding: theme.spacing.md,
+  },
 
+  // Quick Action Buttons Row
+  quickActionRow: {
+    flexDirection: 'row',
+    marginBottom: theme.spacing.md,
+  },
   addMemberEntryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.primary + '18',
+    backgroundColor: theme.colors.bgCard,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     borderWidth: 1.5,
     borderColor: theme.colors.primary,
-    marginBottom: theme.spacing.md,
   },
-  addMemberEntryEmoji: { fontSize: 26, marginRight: 12 },
-  addMemberEntryTitle: { color: theme.colors.primary, fontSize: theme.fontSize.md, fontWeight: theme.fontWeight.bold },
-  addMemberEntrySubtitle: { color: theme.colors.textSecondary, fontSize: theme.fontSize.xs, marginTop: 2 },
-  addMemberPlus: { color: theme.colors.primary, fontSize: 24, fontWeight: 'bold', marginLeft: 8 },
+  addMemberEntryEmoji: { fontSize: 20, marginRight: 8 },
+  addMemberEntryTitle: { color: theme.colors.primary, fontSize: theme.fontSize.sm, fontWeight: 'bold' },
+  addMemberEntrySubtitle: { color: theme.colors.textMuted, fontSize: 10, marginTop: 2 },
+  addMemberPlus: { fontSize: 18, color: theme.colors.primary, fontWeight: 'bold' },
+
+  pasteWhatsAppBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#064e3b',
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    borderWidth: 1.5,
+    borderColor: '#10b981',
+  },
+  pasteWhatsAppEmoji: { fontSize: 20, marginRight: 8 },
+  pasteWhatsAppTitle: { color: '#34d399', fontSize: theme.fontSize.sm, fontWeight: 'bold' },
+  pasteWhatsAppSubtitle: { color: '#a7f3d0', fontSize: 10, marginTop: 2 },
+  pasteWhatsAppPlus: { fontSize: 16, color: '#34d399', fontWeight: 'bold' },
 
   card: {
     backgroundColor: theme.colors.bgCard,
     borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
   },
+
   toggleRow: {
     flexDirection: 'row',
-    marginBottom: theme.spacing.md,
     backgroundColor: theme.colors.bgInput,
     borderRadius: theme.borderRadius.md,
     padding: 3,
+    marginBottom: theme.spacing.sm,
   },
   toggleBtn: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: theme.borderRadius.sm,
+    paddingVertical: 8,
     alignItems: 'center',
+    borderRadius: theme.borderRadius.sm,
   },
   toggleBtnActive: {
     backgroundColor: theme.colors.primary,
   },
   toggleText: {
-    color: theme.colors.textMuted,
-    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.textSecondary,
     fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.semibold,
   },
   toggleTextActive: {
     color: '#fff',
@@ -1121,68 +1831,59 @@ const styles = StyleSheet.create({
   },
 
   allTimeBanner: {
-    backgroundColor: theme.colors.primary + '15',
+    backgroundColor: theme.colors.bgElevated,
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.primary + '35',
   },
   allTimeBannerTitle: {
-    color: theme.colors.primary,
+    color: theme.colors.accent,
     fontSize: theme.fontSize.sm,
     fontWeight: 'bold',
+    marginBottom: 4,
   },
   allTimeBannerSub: {
     color: theme.colors.textMuted,
     fontSize: theme.fontSize.xs,
-    marginTop: 4,
     textAlign: 'center',
+    lineHeight: 16,
   },
 
   monthNav: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: theme.spacing.xs,
   },
   navArrow: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     backgroundColor: theme.colors.bgElevated,
     borderRadius: theme.borderRadius.md,
   },
   monthNavText: {
     color: theme.colors.primary,
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.semibold,
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.bold,
   },
   monthTitle: {
     color: theme.colors.textPrimary,
-    fontSize: theme.fontSize.lg,
+    fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.bold,
   },
 
   dateRangeRow: {
     flexDirection: 'row',
+    marginTop: theme.spacing.xs,
   },
   inputGroup: {
     marginBottom: theme.spacing.sm,
   },
   inputLabel: {
-    color: theme.colors.textSecondary,
+    color: theme.colors.textMuted,
     fontSize: theme.fontSize.xs,
     fontWeight: theme.fontWeight.bold,
     marginBottom: 4,
-  },
-  input: {
-    backgroundColor: theme.colors.bgInput,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 10,
-    color: theme.colors.textPrimary,
-    fontSize: theme.fontSize.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
   },
   dateTriggerBtn: {
     flexDirection: 'row',
@@ -1195,77 +1896,128 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  dateTriggerText: { color: theme.colors.textPrimary, fontSize: theme.fontSize.sm, fontWeight: '600' },
+  dateTriggerText: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.fontSize.xs,
+    fontWeight: '600',
+  },
   openRangeCalBtn: {
-    backgroundColor: theme.colors.primary + '18',
-    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.bgElevated,
     paddingVertical: 10,
+    borderRadius: theme.borderRadius.md,
     alignItems: 'center',
+    marginTop: 4,
     borderWidth: 1,
     borderColor: theme.colors.primary + '40',
-    marginBottom: theme.spacing.sm,
   },
   openRangeCalText: {
-    color: theme.colors.primary,
+    color: theme.colors.accent,
     fontSize: theme.fontSize.xs,
     fontWeight: 'bold',
   },
-  generateBtn: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  generateBtnText: { color: '#fff', fontSize: theme.fontSize.sm, fontWeight: theme.fontWeight.bold },
 
   statsRow: {
     flexDirection: 'row',
-    gap: theme.spacing.md,
+    gap: theme.spacing.sm,
     marginBottom: theme.spacing.md,
   },
   statCard: {
     flex: 1,
     backgroundColor: theme.colors.bgCard,
     borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.lg,
+    padding: theme.spacing.md,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   statCardHighlight: {
-    borderColor: theme.colors.primary + '50',
+    borderColor: theme.colors.accent + '40',
   },
   statNumber: {
-    fontSize: 34,
+    fontSize: 26,
     fontWeight: theme.fontWeight.heavy,
     color: theme.colors.textPrimary,
   },
   statLabel: {
+    color: theme.colors.textMuted,
     fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-    marginTop: 4,
+    marginTop: 2,
     textAlign: 'center',
   },
 
-  exportBtn: {
-    backgroundColor: theme.colors.accent + '20',
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: 14,
+  // Report Actions Row (PDF + WhatsApp Share)
+  reportActionsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  exportBtn: {
+    backgroundColor: theme.colors.primary + '20',
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: theme.colors.accent,
-    marginBottom: theme.spacing.lg,
+    borderColor: theme.colors.primary,
   },
   exportBtnText: {
     color: theme.colors.accent,
+    fontSize: theme.fontSize.xs,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  shareWhatsAppBtn: {
+    backgroundColor: '#064e3b',
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#10b981',
+  },
+  shareWhatsAppBtnText: {
+    color: '#34d399',
+    fontSize: theme.fontSize.xs,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+
+  // Report Search Box
+  reportSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: theme.spacing.md,
+  },
+  reportSearchIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  reportSearchInput: {
+    flex: 1,
+    color: theme.colors.textPrimary,
     fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.bold,
+    padding: 0,
+  },
+  clearSearchBtn: {
+    padding: 4,
+    marginLeft: 6,
+  },
+  clearSearchText: {
+    color: theme.colors.textMuted,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 
   sectionTitle: {
+    color: theme.colors.textPrimary,
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.bold,
-    color: theme.colors.textPrimary,
   },
   sectionSubtitle: {
     color: theme.colors.textMuted,
@@ -1277,51 +2029,83 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.bgCard,
     borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    padding: theme.spacing.sm + 4,
+    marginBottom: theme.spacing.xs,
   },
   memberRank: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: theme.colors.bgElevated,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.md,
+    justifyContent: 'center',
+    marginRight: theme.spacing.sm,
   },
   memberRankText: {
-    color: theme.colors.primary,
+    color: theme.colors.accent,
+    fontSize: theme.fontSize.xs,
+    fontWeight: 'bold',
+  },
+  memberInfo: {
+    flex: 1,
+  },
+  memberName: {
+    color: theme.colors.textPrimary,
     fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold,
+  },
+  memberPhone: {
+    color: theme.colors.textMuted,
+    fontSize: theme.fontSize.xs,
+    marginTop: 2,
+  },
+  memberTotal: {
+    alignItems: 'flex-end',
+  },
+  memberTotalCount: {
+    color: theme.colors.accent,
+    fontSize: theme.fontSize.lg,
     fontWeight: theme.fontWeight.bold,
   },
-  memberInfo: { flex: 1 },
-  memberName: { color: theme.colors.textPrimary, fontSize: theme.fontSize.md, fontWeight: 'bold' },
-  memberPhone: { color: theme.colors.textSecondary, fontSize: theme.fontSize.xs, marginTop: 2 },
-  memberTotal: { alignItems: 'flex-end' },
-  memberTotalCount: { color: theme.colors.accent, fontSize: theme.fontSize.xl, fontWeight: theme.fontWeight.bold },
-  memberTotalLabel: { color: theme.colors.primary, fontSize: 10, marginTop: 2 },
+  memberTotalLabel: {
+    color: theme.colors.primary,
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 1,
+  },
 
   emptyState: {
+    padding: theme.spacing.xl,
     alignItems: 'center',
-    paddingVertical: theme.spacing.xxl,
+    justifyContent: 'center',
   },
-  emptyEmoji: { fontSize: 48, marginBottom: theme.spacing.md },
-  emptyTitle: { color: theme.colors.textMuted, fontSize: theme.fontSize.lg, fontWeight: theme.fontWeight.semibold },
-  emptyHint: { color: theme.colors.textMuted, fontSize: theme.fontSize.sm, marginTop: 4 },
+  emptyEmoji: {
+    fontSize: 48,
+    marginBottom: theme.spacing.sm,
+  },
+  emptyTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.bold,
+  },
+  emptyHint: {
+    color: theme.colors.textMuted,
+    fontSize: theme.fontSize.sm,
+    textAlign: 'center',
+    marginTop: theme.spacing.xs,
+  },
 
+  // Modal Common
   modalOverlay: {
     flex: 1,
-    backgroundColor: theme.colors.bgOverlay,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: theme.spacing.md,
-    zIndex: 1000,
   },
   modalContent: {
     backgroundColor: theme.colors.bgCard,
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: theme.borderRadius.xl,
     padding: theme.spacing.lg,
     width: '100%',
     maxWidth: 440,
@@ -1331,19 +2115,397 @@ const styles = StyleSheet.create({
   modalHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  modalTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.bold,
+  },
+  modalSubtitle: {
+    color: theme.colors.textMuted,
+    fontSize: theme.fontSize.xs,
+    marginBottom: theme.spacing.md,
+  },
+  closeBtn: {
+    padding: 6,
+    borderRadius: theme.borderRadius.sm,
+    backgroundColor: theme.colors.bgElevated,
+  },
+  closeBtnText: {
+    color: theme.colors.textMuted,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  // 12-Month Grid Styles
+  gridYearNav: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 6,
+    marginBottom: 8,
+  },
+  gridYearArrow: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  gridYearArrowText: {
+    color: theme.colors.accent,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  gridYearTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: theme.fontSize.md,
+    fontWeight: 'bold',
+    marginHorizontal: 12,
+  },
+  gridHelperText: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  monthGridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  monthGridTile: {
+    width: '48%',
+    backgroundColor: theme.colors.bgElevated,
+    borderRadius: theme.borderRadius.md,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  monthGridLabel: {
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  monthGridInput: {
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.sm,
+    color: theme.colors.accent,
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  gridTotalCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary + '20',
+    borderRadius: theme.borderRadius.md,
+    padding: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.primary + '40',
+  },
+  gridTotalLabel: {
+    color: theme.colors.textPrimary,
+    fontWeight: 'bold',
+    fontSize: theme.fontSize.sm,
+  },
+  gridTotalValue: {
+    color: theme.colors.accent,
+    fontWeight: 'heavy',
+    fontSize: theme.fontSize.md,
+  },
+
+  // WhatsApp Smart Parser Modal Styles
+  whatsAppYearRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  whatsAppYearNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  whatsAppYearText: {
+    color: theme.colors.textPrimary,
+    fontWeight: 'bold',
+    fontSize: 13,
+    marginHorizontal: 8,
+  },
+  calNavBtnSmall: {
+    padding: 4,
+  },
+  calNavTextSmall: {
+    color: theme.colors.accent,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  whatsAppTextInput: {
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    color: theme.colors.textPrimary,
+    fontSize: theme.fontSize.sm,
+    minHeight: 110,
+    textAlignVertical: 'top',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  parseBtn: {
+    backgroundColor: '#059669',
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  parseBtnText: {
+    color: '#fff',
+    fontSize: theme.fontSize.sm,
+    fontWeight: 'bold',
+  },
+  parsedHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  parsedSectionTitle: {
+    color: theme.colors.accent,
+    fontWeight: 'bold',
+    fontSize: theme.fontSize.sm,
+  },
+  parsedSectionSub: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+  },
+  parsedDevCard: {
+    backgroundColor: theme.colors.bgElevated,
+    borderRadius: theme.borderRadius.lg,
+    padding: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  parsedDevHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+    paddingBottom: 6,
+  },
+  parsedRawName: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+  },
+  removeDevBtn: {
+    padding: 4,
+  },
+  removeDevText: {
+    fontSize: 14,
+  },
+  userMatchBadge: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: theme.borderRadius.md,
+    marginVertical: 4,
+  },
+  userMatchBadgeFound: {
+    backgroundColor: '#064e3b',
+    borderWidth: 1,
+    borderColor: '#10b981',
+  },
+  userMatchBadgeMissing: {
+    backgroundColor: '#78350f',
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+  },
+  userMatchBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    flex: 1,
+  },
+  userMatchChangeText: {
+    color: '#fef08a',
+    fontSize: 11,
+    fontWeight: 'bold',
+    marginLeft: 6,
+  },
+  devoteeInlinePicker: {
+    backgroundColor: theme.colors.bgCard,
+    borderRadius: theme.borderRadius.md,
+    padding: 8,
+    marginVertical: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  searchInputSmall: {
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.sm,
+    padding: 6,
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  devoteePickerScroll: {
+    maxHeight: 120,
+  },
+  devoteePickerItem: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  cancelPickerBtn: {
+    alignItems: 'center',
+    paddingVertical: 6,
+    marginTop: 4,
+    backgroundColor: theme.colors.bgElevated,
+    borderRadius: theme.borderRadius.sm,
+  },
+  cancelPickerText: {
+    color: theme.colors.textSecondary,
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+
+  parsedMonthsTable: {
+    marginTop: 6,
+    backgroundColor: theme.colors.bgCard,
+    borderRadius: theme.borderRadius.md,
+    padding: 6,
+  },
+  parsedMonthsHeader: {
+    flexDirection: 'row',
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  parsedMonthColHead: {
+    color: theme.colors.textMuted,
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  parsedMonthRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border + '40',
+  },
+  parsedMonthName: {
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  parsedMonthCountInput: {
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.sm,
+    color: theme.colors.accent,
+    fontSize: 13,
+    fontWeight: 'bold',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    textAlign: 'center',
+    marginRight: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  deleteMonthBtn: {
+    width: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deleteMonthText: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  addMonthRowBtn: {
+    alignItems: 'center',
+    paddingVertical: 6,
+    marginTop: 4,
+  },
+  addMonthRowText: {
+    color: theme.colors.primary,
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  parsedDevSubtotal: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    paddingTop: 6,
+    marginTop: 4,
+  },
+  parsedDevSubtotalLabel: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  parsedDevSubtotalVal: {
+    color: theme.colors.accent,
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  saveBatchBtn: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: theme.spacing.md,
     marginBottom: theme.spacing.sm,
   },
-  modalTitle: { fontSize: theme.fontSize.lg, fontWeight: theme.fontWeight.bold, color: theme.colors.textPrimary },
-  modalSubtitle: { fontSize: theme.fontSize.xs, color: theme.colors.textMuted, marginBottom: theme.spacing.md },
-  closeBtn: { padding: 6 },
-  closeBtnText: { fontSize: 20, color: theme.colors.textMuted, fontWeight: 'bold' },
+  saveBatchBtnText: {
+    color: '#fff',
+    fontSize: theme.fontSize.sm,
+    fontWeight: 'bold',
+  },
+
+  // Member Modal Stats
+  memberModalStats: {
+    backgroundColor: theme.colors.bgElevated,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    alignItems: 'center',
+    marginVertical: theme.spacing.sm,
+  },
+  memberModalTotal: {
+    fontSize: 32,
+    fontWeight: theme.fontWeight.heavy,
+    color: theme.colors.accent,
+  },
+  memberModalTotalLabel: {
+    color: theme.colors.textMuted,
+    fontSize: theme.fontSize.xs,
+    marginTop: 2,
+  },
+  modalPhone: {
+    color: theme.colors.primary,
+    fontSize: theme.fontSize.xs,
+  },
 
   searchInput: {
     backgroundColor: theme.colors.bgInput,
     borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 8,
+    padding: 10,
     color: theme.colors.textPrimary,
     fontSize: theme.fontSize.sm,
     borderWidth: 1,
@@ -1351,36 +2513,31 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   userPickerBox: {
-    maxHeight: 180,
+    maxHeight: 140,
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.md,
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.bgInput,
-    marginBottom: 10,
-    ...(Platform.OS === 'web' ? { overflowY: 'auto' } : {}),
+    marginBottom: theme.spacing.sm,
   },
   userPickerItem: {
-    paddingVertical: 8,
-    paddingHorizontal: theme.spacing.md,
+    padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
   userPickerName: { color: theme.colors.textPrimary, fontSize: theme.fontSize.sm, fontWeight: '600' },
-  userPickerPhone: { color: theme.colors.textMuted, fontSize: theme.fontSize.xs },
-  noUsersText: { color: theme.colors.textMuted, fontSize: theme.fontSize.xs, padding: 12, textAlign: 'center' },
+  userPickerPhone: { color: theme.colors.textMuted, fontSize: theme.fontSize.xs, marginTop: 2 },
+  noUsersText: { color: theme.colors.textMuted, padding: 12, textAlign: 'center', fontSize: theme.fontSize.xs },
 
   selectedUserBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.primary + '18',
+    backgroundColor: theme.colors.primary + '15',
     borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
+    padding: 10,
     borderWidth: 1,
     borderColor: theme.colors.primary,
-    marginBottom: 10,
+    marginBottom: theme.spacing.sm,
   },
   selectedUserName: { color: theme.colors.textPrimary, fontSize: theme.fontSize.md, fontWeight: 'bold' },
   selectedUserPhone: { color: theme.colors.primary, fontSize: theme.fontSize.xs, marginTop: 2 },
@@ -1392,6 +2549,22 @@ const styles = StyleSheet.create({
     fontWeight: theme.fontWeight.heavy,
     textAlign: 'center',
     color: theme.colors.accent,
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+
+  input: {
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.md,
+    padding: 10,
+    color: theme.colors.textPrimary,
+    fontSize: theme.fontSize.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: theme.spacing.sm,
   },
 
   saveAdminBtn: {
@@ -1439,7 +2612,7 @@ const styles = StyleSheet.create({
   modalCancelBtn: { paddingVertical: 12, borderRadius: theme.borderRadius.md, backgroundColor: theme.colors.bgInput, alignItems: 'center' },
   modalCancelText: { color: theme.colors.textSecondary, fontWeight: 'bold', fontSize: theme.fontSize.md },
 
-  // Calendar Modal Styles with high z-index
+  // Calendar Modal Styles
   calModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
@@ -1494,39 +2667,6 @@ const styles = StyleSheet.create({
   calActionTodayText: { color: theme.colors.accent, fontSize: theme.fontSize.xs, fontWeight: 'bold' },
   calCloseBtn: { paddingVertical: 8, paddingHorizontal: 14, backgroundColor: theme.colors.bgElevated, borderRadius: theme.borderRadius.md },
   calCloseText: { color: theme.colors.textMuted, fontSize: theme.fontSize.xs, fontWeight: '600' },
-
-  // Report Search Box
-  reportSearchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.bgInput,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginBottom: theme.spacing.md,
-    marginTop: theme.spacing.xs,
-  },
-  reportSearchIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  reportSearchInput: {
-    flex: 1,
-    color: theme.colors.textPrimary,
-    fontSize: theme.fontSize.sm,
-    padding: 0,
-  },
-  clearSearchBtn: {
-    padding: 4,
-    marginLeft: 6,
-  },
-  clearSearchText: {
-    color: theme.colors.textMuted,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
 });
 
 export default JapmalaReportScreen;
