@@ -116,7 +116,9 @@ const ProfileScreen = ({ navigation }) => {
       if (user) {
         setName(user.name || user.username || '');
         setPhone(user.phone || '');
-        setAge(user.age !== undefined && user.age !== null ? String(user.age) : '');
+        if (user.age !== undefined && user.age !== null) {
+          setAge(String(user.age));
+        }
       }
     }, [user])
   );
@@ -152,6 +154,7 @@ const ProfileScreen = ({ navigation }) => {
 
     const cleanPhone = toEnglishDigits(phone.trim());
     const cleanAge = toEnglishDigits(age.trim());
+    const parsedAgeNum = cleanAge ? Number(cleanAge) : null;
 
     try {
       setSaving(true);
@@ -159,11 +162,25 @@ const ProfileScreen = ({ navigation }) => {
         name: name.trim(),
         username: name.trim(),
         phone: cleanPhone,
-        age: cleanAge ? Number(cleanAge) : null,
+        age: parsedAgeNum,
       });
 
-      if (response.data.user && updateUserProfile) {
-        updateUserProfile(response.data.user);
+      const updatedUser = response.data?.user || {
+        ...user,
+        name: name.trim(),
+        username: name.trim(),
+        phone: cleanPhone,
+        age: parsedAgeNum,
+      };
+
+      if (updateUserProfile) {
+        await updateUserProfile(updatedUser);
+      }
+
+      if (cleanAge) {
+        setAge(lang === 'mr' ? toMarathiDigits(cleanAge) : cleanAge);
+      } else {
+        setAge('');
       }
 
       showAlert(t.successTitle, t.successMsg);
@@ -241,7 +258,13 @@ const ProfileScreen = ({ navigation }) => {
 
         <TouchableOpacity
           style={styles.openJapmalaBtn}
-          onPress={() => navigation.navigate('Japmala')}
+          onPress={() => {
+          try {
+            navigation.navigate('JapmalaTab');
+          } catch (e) {
+            navigation.navigate('Japmala');
+          }
+        }}
         >
           <Text style={styles.openJapmalaBtnText}>{t.openJapmala}</Text>
         </TouchableOpacity>
@@ -271,7 +294,7 @@ const ProfileScreen = ({ navigation }) => {
           <Text style={styles.inputLabel}>{t.mobileLabel}</Text>
           <TextInput
             style={styles.input}
-            value={lang === 'mr' ? toMarathiDigits(phone) : phone}
+            value={phone}
             onChangeText={handlePhoneChange}
             placeholder={t.mobilePlaceholder}
             placeholderTextColor={theme.colors.textMuted}
@@ -283,7 +306,7 @@ const ProfileScreen = ({ navigation }) => {
           <Text style={styles.inputLabel}>{t.ageLabel}</Text>
           <TextInput
             style={styles.input}
-            value={lang === 'mr' ? toMarathiDigits(age) : age}
+            value={age}
             onChangeText={handleAgeChange}
             placeholder={t.agePlaceholder}
             placeholderTextColor={theme.colors.textMuted}
