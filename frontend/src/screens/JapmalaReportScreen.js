@@ -12,6 +12,7 @@ import {
   FlatList,
   Platform,
   Share,
+  StatusBar,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -2065,6 +2066,7 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: theme.spacing.md,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 16 : 24,
     paddingBottom: 160,
     backgroundColor: theme.colors.bg || '#0b0f19',
     minHeight: '100%',

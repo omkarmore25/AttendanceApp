@@ -9,6 +9,7 @@ import {
   Platform,
   Modal,
   TextInput,
+  StatusBar,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
@@ -266,7 +267,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.xl,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 16 : theme.spacing.xl,
     paddingBottom: theme.spacing.md,
   },
   devotionalHeader: {

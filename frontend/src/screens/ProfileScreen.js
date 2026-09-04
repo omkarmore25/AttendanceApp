@@ -7,6 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
   ScrollView,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -427,6 +429,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.bg || '#0b0f19',
     padding: theme.spacing.lg,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 16 : theme.spacing.lg,
   },
   topBar: {
     flexDirection: 'row',

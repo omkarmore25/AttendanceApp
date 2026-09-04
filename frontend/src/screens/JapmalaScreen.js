@@ -10,6 +10,7 @@ import {
   Modal,
   ScrollView,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../api/client';
@@ -1401,6 +1402,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: theme.spacing.md,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 16 : 24,
     paddingBottom: 160,
     backgroundColor: theme.colors.bg || '#0b0f19',
     minHeight: '100%',
