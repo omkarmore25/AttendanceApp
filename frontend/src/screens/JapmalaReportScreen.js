@@ -1948,10 +1948,12 @@ const JapmalaReportScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.bgDark,
+    backgroundColor: theme.colors.bg || '#0b0f19',
   },
   list: {
     padding: theme.spacing.md,
+    backgroundColor: theme.colors.bg || '#0b0f19',
+    minHeight: '100%',
   },
 
   // Quick Action Buttons Row

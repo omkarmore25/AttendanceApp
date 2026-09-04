@@ -5,6 +5,7 @@ const theme = {
   colors: {
     // Backgrounds
     bg: '#0b0f19',
+    bgDark: '#0b0f19',
     bgCard: '#151b2a',
     bgElevated: '#1c2438',
     bgInput: '#111624',

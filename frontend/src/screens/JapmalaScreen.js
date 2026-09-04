@@ -1344,16 +1344,18 @@ const JapmalaScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.bgDark,
+    backgroundColor: theme.colors.bg || '#0b0f19',
   },
   centered: {
     flex: 1,
-    backgroundColor: theme.colors.bgDark,
+    backgroundColor: theme.colors.bg || '#0b0f19',
     alignItems: 'center',
     justifyContent: 'center',
   },
   scrollContent: {
     padding: theme.spacing.md,
+    backgroundColor: theme.colors.bg || '#0b0f19',
+    minHeight: '100%',
   },
   header: {
     flexDirection: 'row',

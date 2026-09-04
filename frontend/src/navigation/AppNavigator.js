@@ -1,10 +1,22 @@
 import React, { useEffect, useRef } from 'react';
-import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer, useNavigationContainerRef, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, View, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import theme from '../theme';
+
+const navTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: '#0b0f19',
+    card: '#151b2a',
+    text: '#ffffff',
+    border: '#232c3f',
+    primary: '#ff6b00',
+  },
+};
 
 // Screens
 import LoginScreen from '../screens/LoginScreen';
@@ -259,7 +271,7 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} onStateChange={handleStateChange}>
+    <NavigationContainer theme={navTheme} ref={navigationRef} onStateChange={handleStateChange}>
       {!isLoggedIn ? (
         <AuthStack />
       ) : isAdmin ? (
