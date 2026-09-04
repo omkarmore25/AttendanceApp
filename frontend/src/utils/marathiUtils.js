@@ -2,13 +2,13 @@
 // MARATHI UTILITIES: Numeral Conversion & Phonetic Transliteration
 // ═══════════════════════════════════════════════════════
 
-const DEV_DIGITS = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
+const DEV_DIGITS = ['\u0966', '\u0967', '\u0968', '\u0969', '\u096A', '\u096B', '\u096C', '\u096D', '\u096E', '\u096F'];
 
 /**
  * Convert any string or number to Marathi Devanagari digits (0-9 -> ०-९)
  */
 export function toMarathiDigits(val) {
-  if (val == null) return '';
+  if (val == null || val === '') return '';
   const str = String(val);
   return str.replace(/[0-9]/g, (d) => DEV_DIGITS[Number(d)] || d);
 }
@@ -17,9 +17,9 @@ export function toMarathiDigits(val) {
  * Convert any Marathi Devanagari digits to standard English digits (०-९ -> 0-9)
  */
 export function toEnglishDigits(val) {
-  if (val == null) return '';
+  if (val == null || val === '') return '';
   const str = String(val);
-  return str.replace(/[०-९]/g, (d) => {
+  return str.replace(/[\u0966-\u096F]/g, (d) => {
     const idx = DEV_DIGITS.indexOf(d);
     return idx >= 0 ? String(idx) : d;
   });
@@ -29,7 +29,7 @@ export function toEnglishDigits(val) {
  * Format numbers according to active language
  */
 export function formatNumberByLang(val, lang = 'mr') {
-  if (val == null) return '';
+  if (val == null || val === '') return '';
   if (lang === 'mr') {
     return toMarathiDigits(val);
   }
@@ -167,7 +167,6 @@ function transliterateWord(word) {
   let prevWasConsonant = false;
 
   while (i < lower.length) {
-    // Check multi-character consonants first
     let matchedConsonant = null;
     for (const c of PHONETIC_CONSONANTS) {
       if (lower.startsWith(c.en, i)) {
@@ -183,7 +182,6 @@ function transliterateWord(word) {
       continue;
     }
 
-    // Check vowels
     let matchedVowel = null;
     for (const v of PHONETIC_VOWELS) {
       if (lower.startsWith(v.en, i)) {
@@ -203,7 +201,6 @@ function transliterateWord(word) {
       continue;
     }
 
-    // Default fallback
     res += lower[i];
     i++;
     prevWasConsonant = false;
@@ -217,7 +214,6 @@ function transliterateWord(word) {
  */
 export function transliterateToMarathi(text) {
   if (!text || !text.trim()) return text;
-  // If already Devanagari, return as-is
   if (/[\u0900-\u097F]/.test(text) && !/[a-zA-Z]/.test(text)) {
     return text;
   }

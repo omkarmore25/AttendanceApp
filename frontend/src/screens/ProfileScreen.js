@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import theme from '../theme';
@@ -89,8 +90,12 @@ const ProfileScreen = ({ navigation }) => {
   const t = strings[lang];
 
   const [name, setName] = useState(user?.name || user?.username || '');
-  const [phone, setPhone] = useState(user?.phone || '');
-  const [age, setAge] = useState(user?.age !== undefined && user?.age !== null ? String(user.age) : '');
+  const [phone, setPhone] = useState(user?.phone ? (lang === 'mr' ? toMarathiDigits(user.phone) : user.phone) : '');
+  const [age, setAge] = useState(
+    user?.age !== undefined && user?.age !== null
+      ? (lang === 'mr' ? toMarathiDigits(String(user.age)) : String(user.age))
+      : ''
+  );
   const [saving, setSaving] = useState(false);
 
   // Japmala summary state
@@ -112,16 +117,30 @@ const ProfileScreen = ({ navigation }) => {
 
   const fetchFreshProfile = async () => {
     try {
+      // 1. Check local storage fallback first
+      const cachedAge = await AsyncStorage.getItem('user_saved_age');
+      if (cachedAge && (!age || age === '')) {
+        setAge(lang === 'mr' ? toMarathiDigits(cachedAge) : cachedAge);
+      }
+
+      // 2. Fetch fresh from backend
       const res = await api.get('/auth/me');
       if (res.data?.user) {
         const u = res.data.user;
         if (updateUserProfile) {
-          updateUserProfile(u);
+          await updateUserProfile(u);
         }
         if (u.name || u.username) setName(u.name || u.username);
-        if (u.phone !== undefined) setPhone(u.phone || '');
+        if (u.phone !== undefined) {
+          setPhone(u.phone ? (lang === 'mr' ? toMarathiDigits(u.phone) : u.phone) : '');
+        }
         if (u.age !== undefined && u.age !== null) {
-          setAge(String(u.age));
+          const strAge = String(u.age);
+          setAge(lang === 'mr' ? toMarathiDigits(strAge) : strAge);
+          await AsyncStorage.setItem('user_saved_age', strAge);
+        } else if (cachedAge) {
+          // If server returned null but we had saved age, preserve it
+          setAge(lang === 'mr' ? toMarathiDigits(cachedAge) : cachedAge);
         }
       }
     } catch (err) {
@@ -133,19 +152,36 @@ const ProfileScreen = ({ navigation }) => {
   useEffect(() => {
     if (user) {
       setName(user.name || user.username || '');
-      setPhone(user.phone || '');
+      if (user.phone !== undefined) {
+        setPhone(user.phone ? (lang === 'mr' ? toMarathiDigits(user.phone) : user.phone) : '');
+      }
       if (user.age !== undefined && user.age !== null) {
-        setAge(String(user.age));
+        const strAge = String(user.age);
+        setAge(lang === 'mr' ? toMarathiDigits(strAge) : strAge);
+        AsyncStorage.setItem('user_saved_age', strAge).catch(() => {});
       }
     }
   }, [user]);
+
+  // Handle Language toggle
+  const toggleLanguage = () => {
+    const nextLang = lang === 'en' ? 'mr' : 'en';
+    setLang(nextLang);
+    // Convert current input values to new language digit format
+    if (phone) {
+      setPhone(nextLang === 'mr' ? toMarathiDigits(phone) : toEnglishDigits(phone));
+    }
+    if (age) {
+      setAge(nextLang === 'mr' ? toMarathiDigits(age) : toEnglishDigits(age));
+    }
+  };
 
   // Initial fetch on mount and on screen focus
   useFocusEffect(
     useCallback(() => {
       fetchFreshProfile();
       fetchJapmalaStats();
-    }, [])
+    }, [lang])
   );
 
   useEffect(() => {
@@ -161,7 +197,6 @@ const ProfileScreen = ({ navigation }) => {
 
   const handlePhoneChange = (val) => {
     if (lang === 'mr') {
-      // Allow Marathi typing or convert English to Marathi digits
       setPhone(toMarathiDigits(val));
     } else {
       setPhone(val);
@@ -188,6 +223,14 @@ const ProfileScreen = ({ navigation }) => {
 
     try {
       setSaving(true);
+      
+      // Save locally first for instant persistence
+      if (cleanAge) {
+        await AsyncStorage.setItem('user_saved_age', cleanAge);
+      } else {
+        await AsyncStorage.removeItem('user_saved_age');
+      }
+
       const response = await api.put('/auth/profile', {
         name: name.trim(),
         username: name.trim(),
@@ -215,6 +258,7 @@ const ProfileScreen = ({ navigation }) => {
 
       showAlert(t.successTitle, t.successMsg);
     } catch (error) {
+      console.error('Error saving profile:', error);
       showAlert('Error', error.response?.data?.message || 'Failed to update profile');
     } finally {
       setSaving(false);
@@ -228,6 +272,7 @@ const ProfileScreen = ({ navigation }) => {
       async () => {
         try {
           await api.delete('/auth/account');
+          await AsyncStorage.removeItem('user_saved_age');
           showAlert('Account Deleted', 'Your account has been permanently removed.');
           logout();
         } catch (error) {
@@ -243,7 +288,7 @@ const ProfileScreen = ({ navigation }) => {
       <View style={styles.topBar}>
         <TouchableOpacity
           style={styles.langToggleBtn}
-          onPress={() => setLang(lang === 'en' ? 'mr' : 'en')}
+          onPress={toggleLanguage}
         >
           <Text style={styles.langToggleText}>🌐 {t.switchLang}</Text>
         </TouchableOpacity>
@@ -264,9 +309,11 @@ const ProfileScreen = ({ navigation }) => {
       <View style={[styles.card, styles.japmalaCard]}>
         <View style={styles.japmalaHeaderRow}>
           <Text style={styles.japmalaCardTitle}>{t.japmalaTitle}</Text>
-          <Text style={styles.japmalaLiveBadge}>{t.japmalaLive}</Text>
+          <View style={styles.liveIndicator}>
+            <Text style={styles.liveText}>{t.japmalaLive}</Text>
+          </View>
         </View>
-        <Text style={styles.japmalaSubtitle}>{t.japmalaSub}</Text>
+        <Text style={styles.japmalaSubTitle}>{t.japmalaSub}</Text>
 
         <View style={styles.japmalaStatsRow}>
           <View style={styles.japmalaStatBox}>
@@ -276,7 +323,7 @@ const ProfileScreen = ({ navigation }) => {
             <Text style={styles.japmalaLabel}>{t.totalMala}</Text>
           </View>
 
-          <View style={styles.japmalaDivider} />
+          <View style={styles.statDivider} />
 
           <View style={styles.japmalaStatBox}>
             <Text style={styles.japmalaNumber}>
@@ -289,12 +336,12 @@ const ProfileScreen = ({ navigation }) => {
         <TouchableOpacity
           style={styles.openJapmalaBtn}
           onPress={() => {
-          try {
-            navigation.navigate('JapmalaTab');
-          } catch (e) {
-            navigation.navigate('Japmala');
-          }
-        }}
+            try {
+              navigation.navigate('JapmalaTab');
+            } catch (e) {
+              navigation.navigate('Japmala');
+            }
+          }}
         >
           <Text style={styles.openJapmalaBtnText}>{t.openJapmala}</Text>
         </TouchableOpacity>
@@ -363,29 +410,16 @@ const ProfileScreen = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Account Settings / Actions */}
+      {/* Account Settings & Actions */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>{t.accountActions}</Text>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-          <Text style={styles.logoutText}>{t.logoutBtn}</Text>
+          <Text style={styles.logoutBtnText}>{t.logoutBtn}</Text>
         </TouchableOpacity>
 
-        {user?.role !== 'Admin' && (
-          <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount}>
-            <Text style={styles.deleteText}>{t.deleteBtn}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Subtle Legal Footer */}
-      <View style={styles.subtleLegalFooter}>
-        <TouchableOpacity onPress={() => navigation.navigate('PrivacyPolicy')}>
-          <Text style={styles.subtleLegalLink}>Privacy Policy</Text>
-        </TouchableOpacity>
-        <Text style={styles.subtleDot}>•</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Terms')}>
-          <Text style={styles.subtleLegalLink}>Terms of Service</Text>
+        <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount}>
+          <Text style={styles.deleteBtnText}>{t.deleteBtn}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -395,154 +429,96 @@ const ProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.bg,
+    backgroundColor: theme.colors.background,
     padding: theme.spacing.lg,
   },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     marginBottom: 8,
+    marginTop: 4,
   },
   langToggleBtn: {
-    backgroundColor: theme.colors.primary + '25',
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: theme.borderRadius.full,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: theme.colors.primary + '60',
+    borderColor: theme.colors.border,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   langToggleText: {
-    color: theme.colors.primaryLight,
-    fontSize: theme.fontSize.xs,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.primary,
   },
   header: {
     alignItems: 'center',
-    marginBottom: theme.spacing.xl,
-    paddingTop: theme.spacing.xs,
+    marginBottom: theme.spacing.lg,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: theme.colors.primary + '25',
-    justifyContent: 'center',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: theme.colors.surface,
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
+    justifyContent: 'center',
+    marginBottom: theme.spacing.sm,
     borderWidth: 2,
     borderColor: theme.colors.primary,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   avatarText: {
-    fontSize: 40,
+    fontSize: 32,
   },
   title: {
-    fontSize: theme.fontSize.xxl,
-    fontWeight: theme.fontWeight.heavy,
-    color: theme.colors.textPrimary,
+    fontSize: 20,
+    fontWeight: '700',
+    color: theme.colors.text,
   },
   email: {
-    fontSize: theme.fontSize.md,
+    fontSize: 13,
     color: theme.colors.textMuted,
-    marginTop: 4,
+    marginTop: 2,
   },
   roleBadge: {
-    marginTop: theme.spacing.sm,
-    backgroundColor: theme.colors.bgCard,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 6,
-    borderRadius: theme.borderRadius.full,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    marginTop: 6,
+    backgroundColor: theme.colors.primary + '18',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   roleText: {
-    color: theme.colors.primaryLight,
-    fontSize: theme.fontSize.xs,
-    fontWeight: theme.fontWeight.semibold,
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.primary,
   },
   card: {
-    backgroundColor: theme.colors.bgCard,
+    backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.lg,
     marginBottom: theme.spacing.lg,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
   },
-
-  // Japmala Card Styles
-  japmalaCard: {
-    borderColor: theme.colors.primary + '60',
-    backgroundColor: theme.colors.bgCard,
-  },
-  japmalaHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  japmalaCardTitle: {
-    fontSize: theme.fontSize.xs,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.primary,
-    letterSpacing: 1.2,
-  },
-  japmalaLiveBadge: {
-    color: theme.colors.success,
-    fontSize: theme.fontSize.xs,
-    fontWeight: 'bold',
-  },
-  japmalaSubtitle: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-    marginTop: 2,
-    marginBottom: theme.spacing.md,
-  },
-  japmalaStatsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: theme.spacing.sm,
-    marginBottom: theme.spacing.md,
-    backgroundColor: theme.colors.bgInput,
-    borderRadius: theme.borderRadius.md,
-  },
-  japmalaStatBox: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  japmalaNumber: {
-    fontSize: 28,
-    fontWeight: theme.fontWeight.heavy,
-    color: theme.colors.accent,
-  },
-  japmalaLabel: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-    fontWeight: '600',
-  },
-  japmalaDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: theme.colors.border,
-  },
-  openJapmalaBtn: {
-    backgroundColor: theme.colors.primary + '20',
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
-  },
-  openJapmalaBtnText: {
-    color: theme.colors.primary,
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.bold,
-  },
-
   sectionTitle: {
-    fontSize: theme.fontSize.xs,
-    fontWeight: theme.fontWeight.bold,
+    fontSize: 13,
+    fontWeight: '700',
     color: theme.colors.textMuted,
-    letterSpacing: 1.2,
+    letterSpacing: 0.8,
     marginBottom: theme.spacing.md,
   },
   inputGroup: {
@@ -554,107 +530,160 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.textMuted,
+    letterSpacing: 0.5,
+  },
   transliterateBtn: {
-    backgroundColor: theme.colors.primary + '20',
+    backgroundColor: '#fff3e0',
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: theme.borderRadius.sm,
+    paddingVertical: 3,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: theme.colors.primary + '60',
+    borderColor: '#ffb74d',
   },
   transliterateBtnText: {
-    color: theme.colors.accent,
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: '#e65100',
+  },
+  input: {
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: theme.colors.text,
   },
   inputGroupDisabled: {
     marginBottom: theme.spacing.lg,
-    opacity: 0.7,
-  },
-  inputLabel: {
-    fontSize: theme.fontSize.xs,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.textMuted,
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: theme.colors.bgInput,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 12,
-    color: theme.colors.textPrimary,
-    fontSize: theme.fontSize.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
   },
   disabledValue: {
-    backgroundColor: theme.colors.bgInput,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 12,
+    fontSize: 14,
     color: theme.colors.textMuted,
-    fontSize: theme.fontSize.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    paddingVertical: 6,
   },
   saveBtn: {
     backgroundColor: theme.colors.primary,
     borderRadius: theme.borderRadius.md,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
-    marginTop: theme.spacing.sm,
+    marginTop: theme.spacing.xs,
   },
   btnDisabled: {
     opacity: 0.6,
   },
   saveBtnText: {
     color: '#fff',
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.bold,
+    fontSize: 14,
+    fontWeight: '700',
   },
   logoutBtn: {
-    backgroundColor: theme.colors.bgInput,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
   },
-  logoutText: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
+  logoutBtnText: {
+    color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: '600',
   },
   deleteBtn: {
-    backgroundColor: theme.colors.error + '15',
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: 14,
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: theme.colors.error + '30',
-  },
-  deleteText: {
-    color: theme.colors.error,
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.bold,
-  },
-  subtleLegalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    borderColor: theme.colors.error + '40',
+    backgroundColor: theme.colors.error + '10',
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 12,
     alignItems: 'center',
-    gap: 12,
-    marginTop: theme.spacing.xl,
-    paddingBottom: 40,
   },
-  subtleLegalLink: {
-    color: theme.colors.textMuted,
-    fontSize: theme.fontSize.xs,
-    fontWeight: '500',
+  deleteBtnText: {
+    color: theme.colors.error,
+    fontSize: 14,
+    fontWeight: '600',
   },
-  subtleDot: {
+  japmalaCard: {
+    borderColor: '#ff9800',
+    borderWidth: 1.5,
+    backgroundColor: '#fffdf9',
+  },
+  japmalaHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  japmalaCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#e65100',
+    letterSpacing: 0.5,
+  },
+  liveIndicator: {
+    backgroundColor: '#e8f5e9',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#a5d6a7',
+  },
+  liveText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#2e7d32',
+  },
+  japmalaSubTitle: {
+    fontSize: 11,
     color: theme.colors.textMuted,
-    fontSize: theme.fontSize.xs,
+    marginBottom: 12,
+  },
+  japmalaStatsRow: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#ffe0b2',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  japmalaStatBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: '#ffe0b2',
+  },
+  japmalaNumber: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#e65100',
+    marginBottom: 2,
+  },
+  japmalaLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+  },
+  openJapmalaBtn: {
+    backgroundColor: '#e65100',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  openJapmalaBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });
 

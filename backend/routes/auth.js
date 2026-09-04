@@ -14,8 +14,18 @@ const router = express.Router();
 function cleanDigits(val) {
   if (val == null) return val;
   const str = String(val);
-  const devMap = { '०': '0', '१': '1', '२': '2', '३': '3', '४': '4', '५': '5', '६': '6', '७': '7', '८': '8', '९': '9' };
-  return str.replace(/[०-९]/g, (d) => devMap[d] !== undefined ? devMap[d] : d);
+  const devanagariDigits = ['\u0966', '\u0967', '\u0968', '\u0969', '\u096A', '\u096B', '\u096C', '\u096D', '\u096E', '\u096F'];
+  let result = '';
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    const idx = devanagariDigits.indexOf(char);
+    if (idx !== -1) {
+      result += String(idx);
+    } else {
+      result += char;
+    }
+  }
+  return result;
 }
 
 // In-memory store for pending email registrations (email -> { username, email, phone, password, otp, expiresAt })
@@ -545,7 +555,12 @@ router.put('/profile', auth, async (req, res) => {
     if (phone !== undefined) user.phone = cleanDigits(phone).trim();
     if (age !== undefined) {
       const cleanAge = cleanDigits(age);
-      user.age = cleanAge === '' || cleanAge === null ? null : Number(cleanAge);
+      if (cleanAge === '' || cleanAge === null || cleanAge === undefined) {
+        user.age = null;
+      } else {
+        const parsedNum = Number(cleanAge);
+        user.age = isNaN(parsedNum) ? null : parsedNum;
+      }
     }
 
     await user.save();
