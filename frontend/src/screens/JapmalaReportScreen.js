@@ -35,6 +35,7 @@ const JapmalaReportScreen = () => {
   const [toDate, setToDate] = useState('');
 
   const [report, setReport] = useState([]);
+  const [reportSearch, setReportSearch] = useState('');
   const [grandTotal, setGrandTotal] = useState(0);
   const [memberCount, setMemberCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -409,6 +410,16 @@ const JapmalaReportScreen = () => {
     return (u.name && u.name.toLowerCase().includes(q)) || (u.phone && u.phone.includes(q));
   });
 
+  const filteredReport = report.filter((item) => {
+    const q = reportSearch.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      (item.name && item.name.toLowerCase().includes(q)) ||
+      (item.phone && item.phone.includes(q)) ||
+      (item.username && item.username.toLowerCase().includes(q))
+    );
+  });
+
   const renderMember = ({ item, index }) => (
     <TouchableOpacity
       style={styles.memberCard}
@@ -432,7 +443,7 @@ const JapmalaReportScreen = () => {
   return (
     <View style={styles.container}>
       <FlatList
-        data={report}
+        data={filteredReport}
         keyExtractor={(item) => item._id}
         renderItem={renderMember}
         contentContainerStyle={styles.list}
@@ -577,10 +588,30 @@ const JapmalaReportScreen = () => {
               </TouchableOpacity>
             )}
 
+            {/* Search Bar for Devotees in Standings */}
+            {fetched && report.length > 0 && (
+              <View style={styles.reportSearchBox}>
+                <Text style={styles.reportSearchIcon}>🔍</Text>
+                <TextInput
+                  style={styles.reportSearchInput}
+                  placeholder="Search devotees by name or phone..."
+                  placeholderTextColor={theme.colors.textMuted}
+                  value={reportSearch}
+                  onChangeText={setReportSearch}
+                  autoCapitalize="none"
+                />
+                {reportSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setReportSearch('')} style={styles.clearSearchBtn}>
+                    <Text style={styles.clearSearchText}>✕</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
             {/* Section Title */}
             {fetched && (
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm }}>
-                <Text style={styles.sectionTitle}>Devotee Standings ({report.length})</Text>
+                <Text style={styles.sectionTitle}>Devotee Standings ({filteredReport.length})</Text>
                 <Text style={styles.sectionSubtitle}>Tap member to view/edit entries</Text>
               </View>
             )}
@@ -589,9 +620,13 @@ const JapmalaReportScreen = () => {
         ListEmptyComponent={
           fetched ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>📿</Text>
-              <Text style={styles.emptyTitle}>No entries found</Text>
-              <Text style={styles.emptyHint}>No Japmala entries recorded for this time frame.</Text>
+              <Text style={styles.emptyEmoji}>{reportSearch ? '🔍' : '📿'}</Text>
+              <Text style={styles.emptyTitle}>{reportSearch ? 'No matching devotees' : 'No entries found'}</Text>
+              <Text style={styles.emptyHint}>
+                {reportSearch
+                  ? `No devotees match "${reportSearch}". Try searching with a different name or phone number.`
+                  : 'No Japmala entries recorded for this time frame.'}
+              </Text>
             </View>
           ) : loading ? (
             <View style={styles.emptyState}>
@@ -1459,6 +1494,39 @@ const styles = StyleSheet.create({
   calActionTodayText: { color: theme.colors.accent, fontSize: theme.fontSize.xs, fontWeight: 'bold' },
   calCloseBtn: { paddingVertical: 8, paddingHorizontal: 14, backgroundColor: theme.colors.bgElevated, borderRadius: theme.borderRadius.md },
   calCloseText: { color: theme.colors.textMuted, fontSize: theme.fontSize.xs, fontWeight: '600' },
+
+  // Report Search Box
+  reportSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: theme.spacing.md,
+    marginTop: theme.spacing.xs,
+  },
+  reportSearchIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  reportSearchInput: {
+    flex: 1,
+    color: theme.colors.textPrimary,
+    fontSize: theme.fontSize.sm,
+    padding: 0,
+  },
+  clearSearchBtn: {
+    padding: 4,
+    marginLeft: 6,
+  },
+  clearSearchText: {
+    color: theme.colors.textMuted,
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
 });
 
 export default JapmalaReportScreen;
