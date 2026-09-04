@@ -269,6 +269,11 @@ const JapmalaScreen = () => {
     }
   }, [lastSyncResult]);
 
+  useEffect(() => {
+    setLoading(true);
+    fetchEntries();
+  }, [filterMode, selectedMonth, selectedYear, filterYear]);
+
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
@@ -603,6 +608,14 @@ const JapmalaScreen = () => {
     } else {
       setSelectedMonth(selectedMonth + 1);
     }
+  };
+
+  const prevYear = () => {
+    setFilterYear((prev) => prev - 1);
+  };
+
+  const nextYear = () => {
+    setFilterYear((prev) => prev + 1);
   };
 
   // Calendar Helpers
@@ -1086,13 +1099,13 @@ const JapmalaScreen = () => {
           {/* Year Selector in Filter Mode */}
           {filterMode === 'year' && (
             <View style={styles.monthNav}>
-              <TouchableOpacity onPress={() => setFilterYear(filterYear - 1)} style={styles.navArrow}>
+              <TouchableOpacity onPress={prevYear} style={styles.navArrow}>
                 <Text style={styles.monthNavText}>← {filterYear - 1}</Text>
               </TouchableOpacity>
               <Text style={styles.monthTitle}>
                 🗓️ {lang === 'mr' ? 'वर्ष' : 'Year'} {filterYear}
               </Text>
-              <TouchableOpacity onPress={() => setFilterYear(filterYear + 1)} style={styles.navArrow}>
+              <TouchableOpacity onPress={nextYear} style={styles.navArrow}>
                 <Text style={styles.monthNavText}>{filterYear + 1} →</Text>
               </TouchableOpacity>
             </View>

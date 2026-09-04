@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -288,6 +288,10 @@ const JapmalaReportScreen = () => {
       console.error('Fetch users error:', err);
     }
   };
+
+  useEffect(() => {
+    fetchReport();
+  }, [filterMode, selectedMonth, selectedYear, filterYear]);
 
   useFocusEffect(
     useCallback(() => {
@@ -831,6 +835,14 @@ const JapmalaReportScreen = () => {
     }
   };
 
+  const prevYear = () => {
+    setFilterYear((prev) => prev - 1);
+  };
+
+  const nextYear = () => {
+    setFilterYear((prev) => prev + 1);
+  };
+
   const filteredUsers = allUsers.filter(u => {
     const q = userSearch.toLowerCase();
     return (u.name && u.name.toLowerCase().includes(q)) || (u.phone && u.phone.includes(q));
@@ -980,11 +992,11 @@ const JapmalaReportScreen = () => {
               {/* Mode 3: Year Selector */}
               {filterMode === 'year' && (
                 <View style={styles.monthNav}>
-                  <TouchableOpacity onPress={() => setFilterYear(filterYear - 1)} style={styles.navArrow}>
+                  <TouchableOpacity onPress={prevYear} style={styles.navArrow}>
                     <Text style={styles.monthNavText}>← {filterYear - 1}</Text>
                   </TouchableOpacity>
                   <Text style={styles.monthTitle}>🗓️ Year {filterYear}</Text>
-                  <TouchableOpacity onPress={() => setFilterYear(filterYear + 1)} style={styles.navArrow}>
+                  <TouchableOpacity onPress={nextYear} style={styles.navArrow}>
                     <Text style={styles.monthNavText}>{filterYear + 1} →</Text>
                   </TouchableOpacity>
                 </View>
