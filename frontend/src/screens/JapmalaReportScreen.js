@@ -914,6 +914,14 @@ const JapmalaReportScreen = () => {
         }
         ListHeaderComponent={
           <View>
+            {/* Devotional Header */}
+            <View style={styles.devotionalHeaderContainer}>
+              <Text style={styles.devotionalHeader}>जय सच्चिदानंद 🚩</Text>
+              <Text style={styles.reportMainTitle}>
+                {lang === 'mr' ? '📿 जपमाळा अहवाल व नोंदी' : '📿 Japmala Consolidated Report'}
+              </Text>
+            </View>
+
             {/* Language Switcher Bar */}
             <View style={styles.langHeaderContainer}>
               <Text style={styles.langHeaderTitle}>
@@ -2035,6 +2043,22 @@ const JapmalaReportScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  devotionalHeaderContainer: {
+    marginBottom: theme.spacing.sm,
+    paddingHorizontal: 2,
+  },
+  devotionalHeader: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.primary,
+    marginBottom: 2,
+  },
+  reportMainTitle: {
+    fontSize: theme.fontSize.xl,
+    fontWeight: theme.fontWeight.heavy,
+    color: theme.colors.textPrimary,
+    marginBottom: 4,
+  },
   container: {
     flex: 1,
     backgroundColor: theme.colors.bg || '#0b0f19',

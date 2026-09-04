@@ -767,7 +767,10 @@ const JapmalaScreen = () => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>{t.title}</Text>
+          <View>
+            <Text style={styles.devotionalHeader}>जय सच्चिदानंद 🚩</Text>
+            <Text style={styles.title}>{t.title}</Text>
+          </View>
           <TouchableOpacity style={styles.langBtn} onPress={() => setLang(lang === 'en' ? 'mr' : 'en')}>
             <Text style={styles.langBtnText}>{t.switchLang}</Text>
           </TouchableOpacity>
@@ -1407,6 +1410,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: theme.spacing.md,
+  },
+  devotionalHeader: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.primary,
+    marginBottom: 2,
   },
   title: {
     fontSize: theme.fontSize.xl,
