@@ -143,7 +143,7 @@ router.post('/manual-attendance', async (req, res) => {
 router.get('/users', async (req, res) => {
   try {
     const users = await User.find()
-      .select('username name email phone role is_manual_entry createdAt')
+      .select('username name email phone age role is_manual_entry createdAt')
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -161,11 +161,11 @@ router.get('/users', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════
-// PUT /api/admin/users/:id — Admin updates user's name and phone
+// PUT /api/admin/users/:id — Admin updates user's name, phone, age
 // ═══════════════════════════════════════════════════════
 router.put('/users/:id', async (req, res) => {
   try {
-    const { name, username, phone, email } = req.body;
+    const { name, username, phone, email, age } = req.body;
     const user = await User.findById(req.params.id);
 
     if (!user) {
@@ -194,6 +194,9 @@ router.put('/users/:id', async (req, res) => {
     if (phone !== undefined) {
       user.phone = phone.trim();
     }
+    if (age !== undefined) {
+      user.age = age === '' || age === null ? null : Number(age);
+    }
     if (email !== undefined && email.trim() !== '') {
       user.email = email.trim().toLowerCase();
     }
@@ -209,6 +212,7 @@ router.put('/users/:id', async (req, res) => {
         username: user.username,
         phone: user.phone,
         email: user.email,
+        age: user.age,
         role: user.role,
         is_manual_entry: user.is_manual_entry,
         createdAt: user.createdAt,

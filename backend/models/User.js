@@ -26,6 +26,12 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    age: {
+      type: Number,
+      min: [1, 'Age must be at least 1'],
+      max: [120, 'Age cannot exceed 120'],
+      default: null,
+    },
     password_hash: {
       type: String,
       select: false,

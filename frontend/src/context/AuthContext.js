@@ -184,6 +184,12 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // Update cached user profile
+  const updateUserProfile = async (updatedUser) => {
+    setUser(updatedUser);
+    await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+  };
+
   const isAdmin = user?.role === 'Admin';
 
   return (
@@ -200,6 +206,7 @@ export const AuthProvider = ({ children }) => {
         register,
         login,
         logout,
+        updateUserProfile,
       }}
     >
       {children}

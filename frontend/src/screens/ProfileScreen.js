@@ -15,9 +15,10 @@ import api from '../api/client';
 import { showAlert, showConfirm } from '../utils/dialog';
 
 const ProfileScreen = ({ navigation }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUserProfile } = useAuth();
   const [name, setName] = useState(user?.name || user?.username || '');
   const [phone, setPhone] = useState(user?.phone || '');
+  const [age, setAge] = useState(user?.age !== undefined && user?.age !== null ? String(user.age) : '');
   const [saving, setSaving] = useState(false);
 
   // Japmala summary state
@@ -40,7 +41,12 @@ const ProfileScreen = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       fetchJapmalaStats();
-    }, [])
+      if (user) {
+        setName(user.name || user.username || '');
+        setPhone(user.phone || '');
+        setAge(user.age !== undefined && user.age !== null ? String(user.age) : '');
+      }
+    }, [user])
   );
 
   const handleSaveProfile = async () => {
@@ -55,7 +61,12 @@ const ProfileScreen = ({ navigation }) => {
         name: name.trim(),
         username: name.trim(),
         phone: phone.trim(),
+        age: age.trim() ? Number(age.trim()) : null,
       });
+
+      if (response.data.user && updateUserProfile) {
+        updateUserProfile(response.data.user);
+      }
 
       showAlert('✅ Profile Updated', 'Your profile details have been saved.');
     } catch (error) {
@@ -145,6 +156,19 @@ const ProfileScreen = ({ navigation }) => {
             placeholder="Enter mobile number (e.g. 9876543210)"
             placeholderTextColor={theme.colors.textMuted}
             keyboardType="phone-pad"
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>AGE / वय (YEARS)</Text>
+          <TextInput
+            style={styles.input}
+            value={age}
+            onChangeText={setAge}
+            placeholder="Enter your age (e.g. 45)"
+            placeholderTextColor={theme.colors.textMuted}
+            keyboardType="numeric"
+            maxLength={3}
           />
         </View>
 

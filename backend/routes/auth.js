@@ -524,7 +524,7 @@ router.post('/google', async (req, res) => {
 // ═══════════════════════════════════════════════════════
 router.put('/profile', auth, async (req, res) => {
   try {
-    const { username, name, phone } = req.body;
+    const { username, name, phone, age } = req.body;
     const user = await User.findById(req.user._id);
 
     if (!user) {
@@ -534,6 +534,9 @@ router.put('/profile', auth, async (req, res) => {
     if (username) user.username = username.trim();
     if (name) user.name = name.trim();
     if (phone !== undefined) user.phone = phone.trim();
+    if (age !== undefined) {
+      user.age = age === '' || age === null ? null : Number(age);
+    }
 
     await user.save();
 

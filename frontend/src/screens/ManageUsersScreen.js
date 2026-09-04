@@ -27,6 +27,7 @@ const ManageUsersScreen = () => {
   const [userToEdit, setUserToEdit] = useState(null);
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [editAge, setEditAge] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
@@ -50,6 +51,7 @@ const ManageUsersScreen = () => {
     setUserToEdit(user);
     setEditName(user.name || user.username || '');
     setEditPhone(user.phone || '');
+    setEditAge(user.age !== undefined && user.age !== null ? String(user.age) : '');
   };
 
   const handleSaveEdit = async () => {
@@ -64,6 +66,7 @@ const ManageUsersScreen = () => {
         name: editName.trim(),
         username: editName.trim(),
         phone: editPhone.trim(),
+        age: editAge.trim() ? Number(editAge.trim()) : null,
       });
 
       // Update local state immediately
@@ -75,6 +78,7 @@ const ManageUsersScreen = () => {
                 name: editName.trim(),
                 username: editName.trim(),
                 phone: editPhone.trim(),
+                age: editAge.trim() ? Number(editAge.trim()) : null,
               }
             : u
         )
@@ -136,6 +140,7 @@ const ManageUsersScreen = () => {
 
         <Text style={styles.userPhone}>
           {item.phone ? `📱 ${item.phone}` : `📧 ${item.email}`}
+          {item.age ? ` • 🎂 Age: ${item.age}` : ''}
         </Text>
         <Text style={styles.userDate}>
           Joined: {new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -175,28 +180,47 @@ const ManageUsersScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Toast Feedback Notification */}
-      {feedbackMsg !== '' && (
-        <View style={styles.toast}>
-          <Text style={styles.toastText}>{feedbackMsg}</Text>
+      {/* Header Info */}
+      <View style={styles.header}>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>👥 Devotees Directory</Text>
+          <View style={styles.countBadge}>
+            <Text style={styles.countText}>{users.length}</Text>
+          </View>
+        </View>
+        <Text style={styles.subtitle}>
+          View registered devotees, manual attendance entries, and edit contact info.
+        </Text>
+      </View>
+
+      {/* Feedback Toast Banner */}
+      {!!feedbackMsg && (
+        <View style={styles.feedbackBanner}>
+          <Text style={styles.feedbackText}>{feedbackMsg}</Text>
         </View>
       )}
 
-      {/* Search Input */}
-      <View style={styles.searchContainer}>
+      {/* Search Bar */}
+      <View style={styles.searchBox}>
+        <Text style={styles.searchIcon}>🔍</Text>
         <TextInput
           style={styles.searchInput}
-          placeholder="🔍 Search user by username, phone, or email..."
+          placeholder="Search by name, phone or email..."
           placeholderTextColor={theme.colors.textMuted}
           value={search}
           onChangeText={setSearch}
         />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch('')}>
+            <Text style={styles.clearSearch}>✕</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* User Counter */}
-      <View style={styles.countRow}>
-        <Text style={styles.countLabel}>
-          Showing {filteredUsers.length} of {users.length} users
+      {/* Stats Summary Bar */}
+      <View style={styles.statsBar}>
+        <Text style={styles.statsText}>
+          Total: <Text style={styles.statsBold}>{users.length}</Text> • Registered: <Text style={styles.statsBold}>{users.filter((u) => !u.is_manual_entry && u.role !== 'Admin').length}</Text> • Offline/Manual: <Text style={styles.statsBold}>{users.filter((u) => u.is_manual_entry).length}</Text>
         </Text>
       </View>
 
@@ -258,6 +282,19 @@ const ManageUsersScreen = () => {
                 placeholder="10-digit mobile number..."
                 placeholderTextColor={theme.colors.textMuted}
                 keyboardType="phone-pad"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>AGE / वय (YEARS)</Text>
+              <TextInput
+                style={styles.input}
+                value={editAge}
+                onChangeText={setEditAge}
+                placeholder="Enter age (e.g. 45)..."
+                placeholderTextColor={theme.colors.textMuted}
+                keyboardType="numeric"
+                maxLength={3}
               />
             </View>
 
