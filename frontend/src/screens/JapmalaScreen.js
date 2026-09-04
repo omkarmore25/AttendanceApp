@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Modal,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../api/client';
@@ -27,6 +28,7 @@ const strings = {
     title: '📿 Japmala Tracker',
     logEntry: 'Log Japmala',
     dailyTab: 'Daily',
+    monthTab: 'By Month',
     rangeTab: 'Date Range',
     date: 'Date',
     from: 'From Date',
@@ -59,6 +61,8 @@ const strings = {
     today: 'Today',
     selectRangeHint: 'Tap start date, then tap end date',
     rangeBadge: 'Date Range',
+    monthBadge: 'Monthly',
+    selectMonthYear: 'Select Month & Year',
     multiMonthNotice: 'Multi-month range selected. Choose how you want to log:',
     singleRangeMode: 'Single total for entire range',
     splitMonthMode: 'Separate count per month',
@@ -67,6 +71,7 @@ const strings = {
     title: '📿 जपमाळा ट्रॅकर',
     logEntry: 'जपमाळा नोंदवा',
     dailyTab: 'दैनिक',
+    monthTab: 'महिना',
     rangeTab: 'तारीख श्रेणी',
     date: 'तारीख',
     from: 'पासून तारीख',
@@ -99,6 +104,8 @@ const strings = {
     today: 'आज',
     selectRangeHint: 'सुरुवातीची तारीख आणि नंतर शेवटची तारीख निवडा',
     rangeBadge: 'तारीख श्रेणी',
+    monthBadge: 'मासिक नोंद',
+    selectMonthYear: 'महिना आणि वर्ष निवडा',
     multiMonthNotice: 'दोन किंवा अधिक महिने निवडले आहेत. नोंद कशी करायची ते निवडा:',
     singleRangeMode: 'संपूर्ण श्रेणीसाठी एकच एकूण माळा संख्या',
     splitMonthMode: 'प्रत्येक महिन्यासाठी स्वतंत्र माळा संख्या',
@@ -110,23 +117,53 @@ const monthNames = {
   mr: ['जानेवारी', 'फेब्रुवारी', 'मार्च', 'एप्रिल', 'मे', 'जून', 'जुलै', 'ऑगस्ट', 'सप्टेंबर', 'ऑक्टोबर', 'नोव्हेंबर', 'डिसेंबर'],
 };
 
+const monthShortNames = {
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  mr: ['जाने', 'फेब्रु', 'मार्च', 'एप्रि', 'मे', 'जून', 'जुलै', 'ऑगस्ट', 'सप्टें', 'ऑक्टो', 'नोव्हे', 'डिसे'],
+};
+
 const dayShortNames = {
   en: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
   mr: ['रवि', 'सोम', 'मंगळ', 'बुध', 'गुरु', 'शुक्र', 'शनि'],
 };
+
+export function isPerfectMonth(dateStr, toDateStr) {
+  if (!dateStr || !toDateStr) return false;
+  const s = new Date(dateStr);
+  const e = new Date(toDateStr);
+  if (isNaN(s.getTime()) || isNaN(e.getTime())) return false;
+  if (s.getUTCFullYear() !== e.getUTCFullYear()) return false;
+  if (s.getUTCMonth() !== e.getUTCMonth()) return false;
+  if (s.getUTCDate() !== 1) return false;
+  const lastDay = new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth() + 1, 0)).getUTCDate();
+  return e.getUTCDate() === lastDay;
+}
+
+function getMonthRangeISO(year, monthIndex) {
+  const s = new Date(Date.UTC(year, monthIndex, 1));
+  const e = new Date(Date.UTC(year, monthIndex + 1, 0));
+  const sStr = `${s.getUTCFullYear()}-${String(s.getUTCMonth() + 1).padStart(2, '0')}-01`;
+  const eStr = `${e.getUTCFullYear()}-${String(e.getUTCMonth() + 1).padStart(2, '0')}-${String(e.getUTCDate()).padStart(2, '0')}`;
+  return { from: sStr, to: eStr };
+}
 
 const JapmalaScreen = () => {
   const [lang, setLang] = useState('en');
   const t = strings[lang];
   const { lastSyncResult } = useOffline();
 
-  const [entryMode, setEntryMode] = useState('daily'); // 'daily' or 'range'
-  const [date, setDate] = useState(formatDateISO(new Date()));
-  const [fromDate, setFromDate] = useState(formatDateISO(new Date()));
-  const [toDate, setToDate] = useState(formatDateISO(new Date()));
+  const now = new Date();
+  const [entryMode, setEntryMode] = useState('daily'); // 'daily', 'month', or 'range'
+  const [date, setDate] = useState(formatDateISO(now));
+  const [fromDate, setFromDate] = useState(formatDateISO(now));
+  const [toDate, setToDate] = useState(formatDateISO(now));
   const [count, setCount] = useState('');
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Month Entry Mode State
+  const [monthLogYear, setMonthLogYear] = useState(now.getFullYear());
+  const [monthLogMonth, setMonthLogMonth] = useState(now.getMonth());
 
   // Multi-Month Breakdown in Form
   const [multiMonthMode, setMultiMonthMode] = useState('single'); // 'single' or 'split'
@@ -139,7 +176,6 @@ const JapmalaScreen = () => {
   // Filter mode: 'all' (default, no artificial split) or 'month'
   const [filterMode, setFilterMode] = useState('all');
 
-  const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
 
@@ -152,9 +188,11 @@ const JapmalaScreen = () => {
   // Edit Modal State
   const [editModal, setEditModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
-  const [editEntryType, setEditEntryType] = useState('daily');
+  const [editEntryType, setEditEntryType] = useState('daily'); // 'daily', 'month', 'range'
   const [editDate, setEditDate] = useState('');
   const [editToDate, setEditToDate] = useState('');
+  const [editMonthVal, setEditMonthVal] = useState(now.getMonth());
+  const [editYearVal, setEditYearVal] = useState(now.getFullYear());
   const [editCount, setEditCount] = useState('');
   const [editNote, setEditNote] = useState('');
 
@@ -221,14 +259,6 @@ const JapmalaScreen = () => {
   };
 
   useEffect(() => {
-    if (entryMode === 'range') {
-      checkRangePreview(fromDate, toDate);
-    } else {
-      setRangePreview(null);
-    }
-  }, [fromDate, toDate, entryMode]);
-
-  useEffect(() => {
     if (lastSyncResult && lastSyncResult.totalSynced > 0) {
       fetchEntries();
     }
@@ -250,6 +280,17 @@ const JapmalaScreen = () => {
     return targetTime >= sTime && targetTime <= eTime;
   });
 
+  const monthRangeBounds = getMonthRangeISO(monthLogYear, monthLogMonth);
+
+  const monthCoveredByRange = entryMode === 'month' && entries.find((e) => {
+    if (e.entryType !== 'range' && !e.toDate) return false;
+    const s1 = new Date(monthRangeBounds.from).getTime();
+    const e1 = new Date(monthRangeBounds.to).getTime();
+    const s2 = new Date(e.date).getTime();
+    const e2 = new Date(e.toDate).getTime();
+    return s1 <= e2 && e1 >= s2;
+  });
+
   const overlappingRange = entryMode === 'range' && entries.find((e) => {
     if (e.entryType !== 'range' && !e.toDate) return false;
     const s1 = new Date(fromDate).getTime();
@@ -266,7 +307,7 @@ const JapmalaScreen = () => {
         'Date Overlap',
         lang === 'mr'
           ? `⚠️ ही तारीख (${formatDateDisplay(date)}) आधीच तारीख श्रेणीमध्ये (${formatDateDisplay(coveredByRange.date)} ते ${formatDateDisplay(coveredByRange.toDate)}) येते! कृपया खालील इतिहासामधून त्या श्रेणीमध्ये बदल करा.`
-          : `⚠️ This date (${formatDateDisplay(date)}) falls inside an existing Date Range (${formatDateDisplay(coveredByRange.date)} to ${formatDateDisplay(coveredRange.toDate)})! Please edit that range in History below.`
+          : `⚠️ This date (${formatDateDisplay(date)}) falls inside an existing Date Range (${formatDateDisplay(coveredByRange.date)} to ${formatDateDisplay(coveredByRange.toDate)})! Please edit that range in History below.`
       );
       return;
     }
@@ -294,6 +335,19 @@ const JapmalaScreen = () => {
           date,
           count: Number(count),
           note,
+        });
+      } else if (entryMode === 'month') {
+        if (!count || Number(count) <= 0) {
+          showAlert('Invalid Count', lang === 'mr' ? 'कृपया वैध माळा संख्या प्रविष्ट करा.' : 'Please enter a valid count.');
+          return;
+        }
+        const mRange = getMonthRangeISO(monthLogYear, monthLogMonth);
+        await api.post('/japmala', {
+          entryType: 'range',
+          date: mRange.from,
+          toDate: mRange.to,
+          count: Number(count),
+          note: note || `Monthly count for ${monthNames.en[monthLogMonth]} ${monthLogYear}`,
         });
       } else if (isDifferentMonths && multiMonthMode === 'split') {
         if (!month1Count || !month2Count) {
@@ -340,15 +394,28 @@ const JapmalaScreen = () => {
       if (!error.response || error.message === 'Network Error' || error.code === 'ECONNABORTED') {
         try {
           const entryCount = Number(count || (Number(month1Count || 0) + Number(month2Count || 0)));
+          let saveDate = date;
+          let saveToDate = null;
+          let saveType = entryMode;
+
+          if (entryMode === 'month') {
+            const mRange = getMonthRangeISO(monthLogYear, monthLogMonth);
+            saveDate = mRange.from;
+            saveToDate = mRange.to;
+            saveType = 'range';
+          } else if (entryMode === 'range') {
+            saveDate = fromDate;
+            saveToDate = toDate;
+          }
+
           const savedEntry = await saveOfflineJapmala({
             count: entryCount,
-            date: entryMode === 'daily' ? date : fromDate,
-            toDate: entryMode === 'range' ? toDate : null,
-            entryType: entryMode,
-            note: note || (entryMode === 'range' ? `Range: ${fromDate} to ${toDate}` : ''),
+            date: saveDate,
+            toDate: saveToDate,
+            entryType: saveType,
+            note: note || (entryMode === 'month' ? `Monthly: ${monthNames.en[monthLogMonth]} ${monthLogYear}` : ''),
           });
 
-          // Add locally to entries view with the exact matching _id
           const localEntry = {
             ...savedEntry,
             _id: savedEntry.id,
@@ -385,49 +452,89 @@ const JapmalaScreen = () => {
   const handleEdit = (item) => {
     setEditItem(item);
     const isRange = item.entryType === 'range' || !!item.toDate;
-    setEditEntryType(isRange ? 'range' : 'daily');
-    setEditDate(formatDateISO(new Date(item.date)));
-    setEditToDate(item.toDate ? formatDateISO(new Date(item.toDate)) : '');
+    const isFullMonth = isRange && isPerfectMonth(item.date, item.toDate);
+
+    if (isFullMonth) {
+      setEditEntryType('month');
+      setEditMonthVal(new Date(item.date).getUTCMonth());
+      setEditYearVal(new Date(item.date).getUTCFullYear());
+    } else if (isRange) {
+      setEditEntryType('range');
+      setEditDate(formatDateISO(new Date(item.date)));
+      setEditToDate(item.toDate ? formatDateISO(new Date(item.toDate)) : '');
+    } else {
+      setEditEntryType('daily');
+      setEditDate(formatDateISO(new Date(item.date)));
+      setEditToDate('');
+    }
+
     setEditCount(String(item.count));
     setEditNote(item.note || '');
     setEditModal(true);
   };
 
   const handleUpdate = async () => {
-    if (!editCount || Number(editCount) < 0) return;
-    const itemId = editItem._id || editItem.id;
-    const updatePayload = {
-      count: Number(editCount),
-      note: editNote,
-      date: editDate,
-      toDate: editEntryType === 'range' ? editToDate : null,
-      entryType: editEntryType,
-    };
+    if (!editCount || Number(editCount) <= 0) {
+      showAlert('Invalid Count', lang === 'mr' ? 'कृपया वैध माळा संख्या प्रविष्ट करा.' : 'Please enter a valid count.');
+      return;
+    }
+
+    let targetDate = editDate;
+    let targetToDate = editEntryType === 'range' ? editToDate : null;
+    let targetType = editEntryType;
+
+    if (editEntryType === 'month') {
+      const mRange = getMonthRangeISO(editYearVal, editMonthVal);
+      targetDate = mRange.from;
+      targetToDate = mRange.to;
+      targetType = 'range';
+    }
 
     try {
-      await api.put(`/japmala/${itemId}`, updatePayload);
+      await api.put(`/japmala/${editItem._id}`, {
+        count: Number(editCount),
+        note: editNote,
+        date: targetDate,
+        toDate: targetToDate,
+        entryType: targetType,
+      });
+
       setEditModal(false);
+      showAlert('Updated', lang === 'mr' ? '✅ जपमाळा नोंद अपडेट झाली!' : '✅ Japmala entry updated!');
       fetchEntries();
     } catch (error) {
       if (!error.response || error.message === 'Network Error' || error.code === 'ECONNABORTED' || editItem.isOffline) {
         try {
-          await saveOfflineJapmalaEdit(itemId, updatePayload);
+          await saveOfflineJapmalaEdit(editItem._id || editItem.id, {
+            count: Number(editCount),
+            note: editNote,
+            date: targetDate,
+            toDate: targetToDate,
+            entryType: targetType,
+          });
 
-          // Update local entries state immediately
           setEntries((prev) =>
             prev.map((item) =>
-              (item._id === itemId || item.id === itemId)
-                ? { ...item, ...updatePayload, isOffline: true }
+              item._id === editItem._id || item.id === editItem.id
+                ? {
+                    ...item,
+                    count: Number(editCount),
+                    note: editNote,
+                    date: targetDate,
+                    toDate: targetToDate,
+                    entryType: targetType,
+                    isOffline: true,
+                  }
                 : item
             )
           );
 
           setEditModal(false);
           showAlert(
-            'Saved Offline',
+            'Updated Offline',
             lang === 'mr'
-              ? '💾 बदल ऑफलाइन सेव्ह झाले आहेत! इंटरनेट सुरू होताच क्लाउडवर सिंक होतील.'
-              : '💾 Offline Mode: Changes saved locally! Will sync to cloud when connected.'
+              ? '💾 बदल ऑफलाइन सेव्ह झाले आहेत! इंटरनेट सुरू होताच क्लाउडवर अपडेट होतील.'
+              : '💾 Changes saved locally! Will sync to cloud when connected.'
           );
           return;
         } catch (offlineErr) {
@@ -435,18 +542,16 @@ const JapmalaScreen = () => {
         }
       }
 
-      const msg = error.response?.data?.message || 'Failed to update entry.';
-      showAlert('Error', msg);
+      showAlert('Error', 'Failed to update entry.');
     }
   };
 
   const handleDelete = () => {
+    const itemId = editItem._id || editItem.id;
     showConfirm(
-      lang === 'mr' ? 'नोंद हटवा' : 'Delete Entry',
+      t.delete,
       t.confirmDelete,
       async () => {
-        const itemId = editItem._id || editItem.id;
-
         try {
           await api.delete(`/japmala/${itemId}`);
           setEditModal(false);
@@ -455,8 +560,6 @@ const JapmalaScreen = () => {
           if (!error.response || error.message === 'Network Error' || error.code === 'ECONNABORTED' || editItem.isOffline) {
             try {
               await saveOfflineJapmalaDelete(itemId);
-
-              // Remove from local entries state immediately
               setEntries((prev) => prev.filter((item) => item._id !== itemId && item.id !== itemId));
               setSummaryTotal((prev) => Math.max(0, prev - Number(editItem.count || 0)));
 
@@ -581,20 +684,32 @@ const JapmalaScreen = () => {
 
   const renderEntry = ({ item }) => {
     const isRange = item.entryType === 'range' || !!item.toDate;
+    const isFullMonth = isRange && isPerfectMonth(item.date, item.toDate);
+
+    let displayDateText = formatDateDisplay(item.date);
+    let badgeText = null;
+
+    if (isFullMonth) {
+      const s = new Date(item.date);
+      const mName = monthNames[lang][s.getUTCMonth()];
+      const year = s.getUTCFullYear();
+      displayDateText = `${mName} ${year}`;
+      badgeText = t.monthBadge;
+    } else if (isRange) {
+      displayDateText = `${formatDateDisplay(item.date)}  ${lang === 'mr' ? 'ते' : 'to'}  ${formatDateDisplay(item.toDate)}`;
+      badgeText = t.rangeBadge;
+    }
+
     return (
       <TouchableOpacity style={styles.entryRow} onPress={() => handleEdit(item)} activeOpacity={0.7}>
         <View style={styles.entryDate}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontSize: 16 }}>{isRange ? '📅' : '🗓️'}</Text>
+            <Text style={{ fontSize: 16 }}>{isFullMonth ? '📅' : isRange ? '📆' : '🗓️'}</Text>
             <View>
-              <Text style={styles.entryDateText}>
-                {isRange
-                  ? `${formatDateDisplay(item.date)}  ${lang === 'mr' ? 'ते' : 'to'}  ${formatDateDisplay(item.toDate)}`
-                  : formatDateDisplay(item.date)}
-              </Text>
-              {isRange ? (
-                <Text style={styles.rangeBadgeText}>
-                  {t.rangeBadge}
+              <Text style={styles.entryDateText}>{displayDateText}</Text>
+              {badgeText ? (
+                <Text style={[styles.rangeBadgeText, isFullMonth && styles.monthBadgeText]}>
+                  {badgeText}
                 </Text>
               ) : null}
             </View>
@@ -643,13 +758,19 @@ const JapmalaScreen = () => {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{t.logEntry}</Text>
 
-          {/* Daily / Range Toggle */}
+          {/* 3-way Toggle: Daily / Month / Range */}
           <View style={styles.toggleRow}>
             <TouchableOpacity
               style={[styles.toggleBtn, entryMode === 'daily' && styles.toggleBtnActive]}
               onPress={() => setEntryMode('daily')}
             >
               <Text style={[styles.toggleText, entryMode === 'daily' && styles.toggleTextActive]}>{t.dailyTab}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, entryMode === 'month' && styles.toggleBtnActive]}
+              onPress={() => setEntryMode('month')}
+            >
+              <Text style={[styles.toggleText, entryMode === 'month' && styles.toggleTextActive]}>{t.monthTab}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.toggleBtn, entryMode === 'range' && styles.toggleBtnActive]}
@@ -659,8 +780,8 @@ const JapmalaScreen = () => {
             </TouchableOpacity>
           </View>
 
-          {/* Daily Input */}
-          {entryMode === 'daily' ? (
+          {/* TAB 1: DAILY */}
+          {entryMode === 'daily' && (
             <View>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>{t.date}</Text>
@@ -684,9 +805,69 @@ const JapmalaScreen = () => {
                 </View>
               )}
             </View>
-          ) : (
+          )}
+
+          {/* TAB 2: MONTH DROPDOWN & SELECTOR */}
+          {entryMode === 'month' && (
+            <View style={styles.monthSelectSection}>
+              {/* Year Selector */}
+              <View style={styles.monthYearNav}>
+                <TouchableOpacity onPress={() => setMonthLogYear(monthLogYear - 1)} style={styles.yearNavBtn}>
+                  <Text style={styles.yearNavText}>◀</Text>
+                </TouchableOpacity>
+                <Text style={styles.yearNavTitle}>Year {monthLogYear}</Text>
+                <TouchableOpacity onPress={() => setMonthLogYear(monthLogYear + 1)} style={styles.yearNavBtn}>
+                  <Text style={styles.yearNavText}>▶</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.monthGridHelper}>{lang === 'mr' ? 'महिना निवडा:' : 'Select Month:'}</Text>
+
+              {/* 12 Months Pills Grid */}
+              <View style={styles.monthsPillsGrid}>
+                {monthNames[lang].map((mName, idx) => {
+                  const isSelected = monthLogMonth === idx;
+                  return (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[styles.monthPill, isSelected && styles.monthPillActive]}
+                      onPress={() => setMonthLogMonth(idx)}
+                    >
+                      <Text style={[styles.monthPillText, isSelected && styles.monthPillTextActive]}>
+                        {monthShortNames[lang][idx]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Selected Month Banner */}
+              <View style={styles.selectedMonthCard}>
+                <Text style={styles.selectedMonthTitle}>
+                  📅 {monthNames[lang][monthLogMonth]} {monthLogYear}
+                </Text>
+                <Text style={styles.selectedMonthSubtitle}>
+                  {lang === 'mr'
+                    ? `संपूर्ण महिना (${formatDateDisplay(monthRangeBounds.from)} ते ${formatDateDisplay(monthRangeBounds.to)})`
+                    : `Full Month (${formatDateDisplay(monthRangeBounds.from)} to ${formatDateDisplay(monthRangeBounds.to)})`}
+                </Text>
+              </View>
+
+              {monthCoveredByRange && (
+                <View style={styles.warningBanner}>
+                  <Text style={styles.warningBannerText}>
+                    {lang === 'mr'
+                      ? `⚠️ या महिन्यासाठी आधीच नोंद अस्तित्वात आहे (${formatDateDisplay(monthCoveredByRange.date)} ते ${formatDateDisplay(monthCoveredByRange.toDate)})!`
+                      : `⚠️ An entry already exists overlapping this month (${formatDateDisplay(monthCoveredByRange.date)} to ${formatDateDisplay(monthCoveredByRange.toDate)})!`}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* TAB 3: DATE RANGE */}
+          {entryMode === 'range' && (
             <View>
-              {/* Date Range Inputs */}
               <View style={styles.dateRangeRow}>
                 <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
                   <Text style={styles.inputLabel}>{t.from}</Text>
@@ -718,6 +899,15 @@ const JapmalaScreen = () => {
               >
                 <Text style={styles.openRangeCalText}>📅 {t.pickRange} (Select Start & End on Calendar)</Text>
               </TouchableOpacity>
+
+              {/* Notice if the selected range happens to be a perfect month */}
+              {isPerfectMonth(fromDate, toDate) && (
+                <View style={[styles.selectedMonthCard, { marginVertical: 8 }]}>
+                  <Text style={styles.selectedMonthTitle}>
+                    ✨ {monthNames[lang][new Date(fromDate).getUTCMonth()]} {new Date(fromDate).getUTCFullYear()} ({lang === 'mr' ? 'संपूर्ण महिना' : 'Perfect 1 Month Range'})
+                  </Text>
+                </View>
+              )}
 
               {overlappingRange && (
                 <View style={styles.warningBanner}>
@@ -751,71 +941,71 @@ const JapmalaScreen = () => {
                 </View>
               )}
 
-              {/* 🌟 Multi-Month Mode Selector */}
+              {/* Multi-Month Split Option */}
               {isDifferentMonths && (
                 <View style={styles.multiMonthCard}>
-                  <Text style={styles.multiMonthNoticeTitle}>
-                    📅 {t.multiMonthNotice}
-                  </Text>
+                  <Text style={styles.multiMonthNoticeText}>⚠️ {t.multiMonthNotice}</Text>
                   <View style={styles.multiMonthToggleRow}>
                     <TouchableOpacity
-                      style={[styles.multiMonthOptionBtn, multiMonthMode === 'single' && styles.multiMonthOptionActive]}
+                      style={[styles.multiMonthToggleBtn, multiMonthMode === 'single' && styles.multiMonthToggleBtnActive]}
                       onPress={() => setMultiMonthMode('single')}
                     >
-                      <Text style={[styles.multiMonthOptionText, multiMonthMode === 'single' && styles.multiMonthOptionTextActive]}>
+                      <Text style={[styles.multiMonthToggleText, multiMonthMode === 'single' && styles.multiMonthToggleTextActive]}>
                         {t.singleRangeMode}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.multiMonthOptionBtn, multiMonthMode === 'split' && styles.multiMonthOptionActive]}
+                      style={[styles.multiMonthToggleBtn, multiMonthMode === 'split' && styles.multiMonthToggleBtnActive]}
                       onPress={() => setMultiMonthMode('split')}
                     >
-                      <Text style={[styles.multiMonthOptionText, multiMonthMode === 'split' && styles.multiMonthOptionTextActive]}>
+                      <Text style={[styles.multiMonthToggleText, multiMonthMode === 'split' && styles.multiMonthToggleTextActive]}>
                         {t.splitMonthMode}
                       </Text>
                     </TouchableOpacity>
                   </View>
+
+                  {multiMonthMode === 'split' && (
+                    <View style={styles.splitInputsContainer}>
+                      <View style={styles.splitInputGroup}>
+                        <Text style={styles.splitInputLabel}>📅 {fromMonthLabel}</Text>
+                        <TextInput
+                          style={styles.splitInput}
+                          placeholder="0"
+                          placeholderTextColor={theme.colors.textMuted}
+                          keyboardType="numeric"
+                          value={month1Count}
+                          onChangeText={setMonth1Count}
+                        />
+                      </View>
+                      <View style={styles.splitInputGroup}>
+                        <Text style={styles.splitInputLabel}>📅 {toMonthLabel}</Text>
+                        <TextInput
+                          style={styles.splitInput}
+                          placeholder="0"
+                          placeholderTextColor={theme.colors.textMuted}
+                          keyboardType="numeric"
+                          value={month2Count}
+                          onChangeText={setMonth2Count}
+                        />
+                      </View>
+                    </View>
+                  )}
                 </View>
               )}
             </View>
           )}
 
-          {/* Count Inputs */}
-          {entryMode === 'range' && isDifferentMonths && multiMonthMode === 'split' ? (
-            <View style={{ marginTop: 8 }}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>{fromMonthLabel} {t.count}</Text>
-                <TextInput
-                  style={[styles.input, styles.countInput]}
-                  value={month1Count}
-                  onChangeText={setMonth1Count}
-                  placeholder="0"
-                  placeholderTextColor={theme.colors.textMuted}
-                  keyboardType="numeric"
-                />
-              </View>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>{toMonthLabel} {t.count}</Text>
-                <TextInput
-                  style={[styles.input, styles.countInput]}
-                  value={month2Count}
-                  onChangeText={setMonth2Count}
-                  placeholder="0"
-                  placeholderTextColor={theme.colors.textMuted}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-          ) : (
+          {/* Mala Count Input (Common unless split multi-month is active) */}
+          {!(entryMode === 'range' && isDifferentMonths && multiMonthMode === 'split') && (
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>{t.count}</Text>
               <TextInput
-                style={[styles.input, styles.countInput]}
-                value={count}
-                onChangeText={setCount}
+                style={styles.countInput}
                 placeholder="0"
                 placeholderTextColor={theme.colors.textMuted}
                 keyboardType="numeric"
+                value={count}
+                onChangeText={setCount}
               />
             </View>
           )}
@@ -825,49 +1015,50 @@ const JapmalaScreen = () => {
             <Text style={styles.inputLabel}>{t.note}</Text>
             <TextInput
               style={styles.input}
+              placeholder={t.note}
+              placeholderTextColor={theme.colors.textMuted}
               value={note}
               onChangeText={setNote}
-              placeholder={lang === 'mr' ? 'टिप्पणी...' : 'Optional note...'}
-              placeholderTextColor={theme.colors.textMuted}
             />
           </View>
 
           {/* Save Button */}
           <TouchableOpacity
-            style={[
-              styles.saveBtn,
-              (saving || !!coveredByRange || !!overlappingRange) && { opacity: 0.6 },
-            ]}
+            style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
             onPress={handleSave}
-            disabled={saving || !!coveredByRange || !!overlappingRange}
+            disabled={saving}
           >
-            <Text style={styles.saveBtnText}>{saving ? t.saving : t.save}</Text>
+            {saving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.saveBtnText}>
+                {entryMode === 'month'
+                  ? `${t.save} (${monthNames[lang][monthLogMonth]} ${monthLogYear})`
+                  : t.save}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
 
-        {/* 🌟 Summary Period Filter Tabs */}
-        <View style={styles.periodFilterRow}>
-          <TouchableOpacity
-            style={[styles.periodFilterBtn, filterMode === 'all' && styles.periodFilterBtnActive]}
-            onPress={() => setFilterMode('all')}
-          >
-            <Text style={[styles.periodFilterText, filterMode === 'all' && styles.periodFilterTextActive]}>
-              {t.filterAll}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.periodFilterBtn, filterMode === 'month' && styles.periodFilterBtnActive]}
-            onPress={() => setFilterMode('month')}
-          >
-            <Text style={[styles.periodFilterText, filterMode === 'month' && styles.periodFilterTextActive]}>
-              {t.filterMonth}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Filter Card: All Time vs By Month */}
+        <View style={styles.card}>
+          <View style={styles.toggleRow}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, filterMode === 'all' && styles.toggleBtnActive]}
+              onPress={() => setFilterMode('all')}
+            >
+              <Text style={[styles.toggleText, filterMode === 'all' && styles.toggleTextActive]}>{t.filterAll}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, filterMode === 'month' && styles.toggleBtnActive]}
+              onPress={() => setFilterMode('month')}
+            >
+              <Text style={[styles.toggleText, filterMode === 'month' && styles.toggleTextActive]}>{t.filterMonth}</Text>
+            </TouchableOpacity>
+          </View>
 
-        {/* Summary Card */}
-        <View style={styles.summaryCard}>
-          {filterMode === 'month' ? (
+          {/* Month Selector in Filter Mode */}
+          {filterMode === 'month' && (
             <View style={styles.monthNav}>
               <TouchableOpacity onPress={prevMonth} style={styles.navArrow}>
                 <Text style={styles.monthNavText}>{t.prevMonth}</Text>
@@ -879,95 +1070,150 @@ const JapmalaScreen = () => {
                 <Text style={styles.monthNavText}>{t.nextMonth}</Text>
               </TouchableOpacity>
             </View>
-          ) : (
-            <View style={{ alignItems: 'center', marginBottom: theme.spacing.md }}>
-              <Text style={styles.allTimeTitle}>🌟 {t.allTimeSummary}</Text>
-            </View>
           )}
+        </View>
 
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryNumber}>{summaryTotal}</Text>
+        {/* Summary Card */}
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>
+            {filterMode === 'all' ? `🌟 ${t.allTimeSummary}` : `📅 ${monthNames[lang][selectedMonth]} ${selectedYear}`}
+          </Text>
+          <View style={styles.summaryStats}>
+            <View style={styles.summaryStatItem}>
+              <Text style={styles.summaryValue}>{summaryTotal}</Text>
               <Text style={styles.summaryLabel}>{t.totalMala}</Text>
             </View>
             <View style={styles.summaryDivider} />
-            <View style={styles.summaryItem}>
-              <Text style={styles.summaryNumber}>{summaryDays}</Text>
+            <View style={styles.summaryStatItem}>
+              <Text style={styles.summaryValue}>{summaryDays}</Text>
               <Text style={styles.summaryLabel}>{t.days}</Text>
             </View>
           </View>
         </View>
 
         {/* History List */}
-        <Text style={styles.sectionTitle}>{t.history} ({entries.length})</Text>
-        {entries.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>📿</Text>
-            <Text style={styles.emptyTitle}>{t.noEntries}</Text>
-            <Text style={styles.emptyHint}>{t.noEntriesHint}</Text>
-          </View>
-        ) : (
-          entries.map((item) => (
-            <View key={item._id}>
-              {renderEntry({ item })}
-            </View>
-          ))
-        )}
+        <View style={styles.historySection}>
+          <Text style={styles.historyTitle}>
+            {t.history} ({entries.length})
+          </Text>
 
-        <View style={{ height: 120 }} />
+          {entries.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>📿</Text>
+              <Text style={styles.emptyTitle}>{t.noEntries}</Text>
+              <Text style={styles.emptyHint}>{t.noEntriesHint}</Text>
+            </View>
+          ) : (
+            entries.map((item) => (
+              <View key={item._id || item.id}>
+                {renderEntry({ item })}
+              </View>
+            ))
+          )}
+        </View>
       </ScrollView>
 
-      {/* ─── MODAL 1: EDIT ENTRY (Placed FIRST in DOM so Calendar can layer on top) ─── */}
-      <Modal visible={editModal} transparent animationType="fade">
+      {/* ─── MODAL: EDIT ENTRY ─── */}
+      <Modal visible={editModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{t.editEntry}</Text>
 
-            {editEntryType === 'range' ? (
-              <View>
-                <View style={styles.dateRangeRow}>
-                  <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-                    <Text style={styles.inputLabel}>{t.from}</Text>
-                    <TouchableOpacity
-                      style={styles.calendarTriggerBtn}
-                      onPress={() => openCalendar('editDate')}
-                    >
-                      <Text style={styles.calendarTriggerTextSmall}>{formatDateDisplay(editDate)}</Text>
-                      <Text style={{ fontSize: 14 }}>📅</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.inputLabel}>{t.to}</Text>
-                    <TouchableOpacity
-                      style={styles.calendarTriggerBtn}
-                      onPress={() => openCalendar('editToDate')}
-                    >
-                      <Text style={styles.calendarTriggerTextSmall}>{formatDateDisplay(editToDate)}</Text>
-                      <Text style={{ fontSize: 14 }}>📅</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            ) : (
+            {/* 3-way Toggle in Edit */}
+            <View style={styles.toggleRow}>
+              <TouchableOpacity
+                style={[styles.toggleBtn, editEntryType === 'daily' && styles.toggleBtnActive]}
+                onPress={() => setEditEntryType('daily')}
+              >
+                <Text style={[styles.toggleText, editEntryType === 'daily' && styles.toggleTextActive]}>{t.dailyTab}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleBtn, editEntryType === 'month' && styles.toggleBtnActive]}
+                onPress={() => setEditEntryType('month')}
+              >
+                <Text style={[styles.toggleText, editEntryType === 'month' && styles.toggleTextActive]}>{t.monthTab}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleBtn, editEntryType === 'range' && styles.toggleBtnActive]}
+                onPress={() => setEditEntryType('range')}
+              >
+                <Text style={[styles.toggleText, editEntryType === 'range' && styles.toggleTextActive]}>{t.rangeTab}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {editEntryType === 'daily' && (
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>{t.date}</Text>
-                <TouchableOpacity
-                  style={styles.calendarTriggerBtn}
-                  onPress={() => openCalendar('editDate')}
-                >
+                <TouchableOpacity style={styles.calendarTriggerBtn} onPress={() => openCalendar('editDate')}>
                   <Text style={styles.calendarTriggerText}>{formatDateDisplay(editDate)}</Text>
-                  <Text style={styles.calendarIcon}>📅 {t.pickDate}</Text>
+                  <Text>📅</Text>
                 </TouchableOpacity>
+              </View>
+            )}
+
+            {editEntryType === 'month' && (
+              <View style={{ marginBottom: theme.spacing.sm }}>
+                <View style={styles.monthYearNav}>
+                  <TouchableOpacity onPress={() => setEditYearVal(editYearVal - 1)} style={styles.yearNavBtn}>
+                    <Text style={styles.yearNavText}>◀</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.yearNavTitle}>Year {editYearVal}</Text>
+                  <TouchableOpacity onPress={() => setEditYearVal(editYearVal + 1)} style={styles.yearNavBtn}>
+                    <Text style={styles.yearNavText}>▶</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.monthsPillsGrid}>
+                  {monthNames[lang].map((mName, idx) => {
+                    const isSelected = editMonthVal === idx;
+                    return (
+                      <TouchableOpacity
+                        key={idx}
+                        style={[styles.monthPill, isSelected && styles.monthPillActive]}
+                        onPress={() => setEditMonthVal(idx)}
+                      >
+                        <Text style={[styles.monthPillText, isSelected && styles.monthPillTextActive]}>
+                          {monthShortNames[lang][idx]}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <Text style={[styles.selectedMonthSubtitle, { textAlign: 'center', marginTop: 4 }]}>
+                  {monthNames[lang][editMonthVal]} {editYearVal} ({lang === 'mr' ? 'संपूर्ण महिना' : 'Full Month'})
+                </Text>
+              </View>
+            )}
+
+            {editEntryType === 'range' && (
+              <View style={styles.dateRangeRow}>
+                <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                  <Text style={styles.inputLabel}>{t.from}</Text>
+                  <TouchableOpacity style={styles.calendarTriggerBtn} onPress={() => openCalendar('editDate')}>
+                    <Text style={styles.calendarTriggerTextSmall}>{formatDateDisplay(editDate)}</Text>
+                    <Text>📅</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={[styles.inputGroup, { flex: 1 }]}>
+                  <Text style={styles.inputLabel}>{t.to}</Text>
+                  <TouchableOpacity style={styles.calendarTriggerBtn} onPress={() => openCalendar('editToDate')}>
+                    <Text style={styles.calendarTriggerTextSmall}>{formatDateDisplay(editToDate)}</Text>
+                    <Text>📅</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             )}
 
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>{t.count}</Text>
               <TextInput
-                style={[styles.input, styles.countInput]}
+                style={styles.countInput}
+                placeholder="0"
+                placeholderTextColor={theme.colors.textMuted}
+                keyboardType="numeric"
                 value={editCount}
                 onChangeText={setEditCount}
-                keyboardType="numeric"
               />
             </View>
 
@@ -975,6 +1221,8 @@ const JapmalaScreen = () => {
               <Text style={styles.inputLabel}>{t.note}</Text>
               <TextInput
                 style={styles.input}
+                placeholder={t.note}
+                placeholderTextColor={theme.colors.textMuted}
                 value={editNote}
                 onChangeText={setEditNote}
               />
@@ -995,7 +1243,7 @@ const JapmalaScreen = () => {
         </View>
       </Modal>
 
-      {/* ─── MODAL 2: CALENDAR DATE PICKER (Placed LAST in DOM with high z-index to ALWAYS appear on top!) ─── */}
+      {/* ─── MODAL: CALENDAR PICKER ─── */}
       <Modal visible={showCalendar} transparent animationType="fade">
         <View style={styles.calModalOverlay}>
           <View style={styles.calModalContent}>
@@ -1013,61 +1261,56 @@ const JapmalaScreen = () => {
 
             {calendarTarget === 'range' && (
               <Text style={styles.calHintText}>
-                {rangeStart && !rangeEnd
-                  ? `${t.from}: ${formatDateDisplay(rangeStart)} → Tap end date`
-                  : t.selectRangeHint}
+                {!rangeStart ? 'Tap START date' : !rangeEnd ? 'Now tap END date' : 'Range selected! Tap any date to re-pick.'}
               </Text>
             )}
 
             <View style={styles.weekDaysRow}>
-              {dayShortNames[lang].map((d, idx) => (
-                <Text key={idx} style={styles.weekDayText}>{d}</Text>
+              {dayShortNames[lang].map((d, i) => (
+                <Text key={i} style={styles.weekDayText}>{d}</Text>
               ))}
             </View>
 
             <View style={styles.calGrid}>
-              {calendarCells.map((cellDay, index) => {
-                if (!cellDay) {
-                  return <View key={index} style={styles.emptyCalCell} />;
+              {calendarCells.map((dayStr, index) => {
+                if (!dayStr) {
+                  return <View key={`empty-${index}`} style={styles.emptyCalCell} />;
                 }
-
-                const dayNum = parseInt(cellDay.split('-')[2], 10);
                 const isSelected =
-                  (calendarTarget === 'date' && date === cellDay) ||
-                  (calendarTarget === 'fromDate' && fromDate === cellDay) ||
-                  (calendarTarget === 'toDate' && toDate === cellDay) ||
-                  (calendarTarget === 'editDate' && editDate === cellDay) ||
-                  (calendarTarget === 'editToDate' && editToDate === cellDay) ||
-                  (rangeStart === cellDay) ||
-                  (rangeEnd === cellDay);
+                  (calendarTarget === 'date' && date === dayStr) ||
+                  (calendarTarget === 'fromDate' && fromDate === dayStr) ||
+                  (calendarTarget === 'toDate' && toDate === dayStr) ||
+                  (calendarTarget === 'editDate' && editDate === dayStr) ||
+                  (calendarTarget === 'editToDate' && editToDate === dayStr) ||
+                  (calendarTarget === 'range' && (rangeStart === dayStr || rangeEnd === dayStr));
 
                 const isInRange =
                   calendarTarget === 'range' &&
                   rangeStart &&
                   rangeEnd &&
-                  new Date(cellDay) > new Date(rangeStart) &&
-                  new Date(cellDay) < new Date(rangeEnd);
+                  new Date(dayStr) > new Date(rangeStart) &&
+                  new Date(dayStr) < new Date(rangeEnd);
 
-                const isToday = cellDay === formatDateISO(new Date());
+                const isToday = formatDateISO(new Date()) === dayStr;
 
                 return (
                   <TouchableOpacity
-                    key={index}
+                    key={dayStr}
                     style={[
                       styles.calCell,
                       isInRange && styles.calCellInRange,
                       isSelected && styles.calCellSelected,
                     ]}
-                    onPress={() => handleDayPress(cellDay)}
+                    onPress={() => handleDayPress(dayStr)}
                   >
                     <Text
                       style={[
                         styles.calDayText,
-                        isToday && !isSelected && styles.calDayToday,
+                        isToday && styles.calDayToday,
                         isSelected && styles.calDaySelectedText,
                       ]}
                     >
-                      {dayNum}
+                      {parseInt(dayStr.split('-')[2], 10)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -1077,7 +1320,10 @@ const JapmalaScreen = () => {
             <View style={styles.calActions}>
               <TouchableOpacity
                 style={styles.calActionTodayBtn}
-                onPress={() => handleDayPress(formatDateISO(new Date()))}
+                onPress={() => {
+                  const todayStr = formatDateISO(new Date());
+                  handleDayPress(todayStr);
+                }}
               >
                 <Text style={styles.calActionTodayText}>{t.today}</Text>
               </TouchableOpacity>
@@ -1096,14 +1342,24 @@ const JapmalaScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.bg },
-  centered: { flex: 1, backgroundColor: theme.colors.bg, justifyContent: 'center', alignItems: 'center' },
-  scrollContent: { padding: theme.spacing.lg, paddingTop: theme.spacing.xl },
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.bgDark,
+  },
+  centered: {
+    flex: 1,
+    backgroundColor: theme.colors.bgDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scrollContent: {
+    padding: theme.spacing.md,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   title: {
     fontSize: theme.fontSize.xl,
@@ -1112,63 +1368,65 @@ const styles = StyleSheet.create({
   },
   langBtn: {
     backgroundColor: theme.colors.bgElevated,
-    paddingHorizontal: theme.spacing.md,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: theme.borderRadius.md,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.primary + '50',
   },
   langBtnText: {
     color: theme.colors.accent,
-    fontWeight: theme.fontWeight.semibold,
-    fontSize: theme.fontSize.sm,
+    fontWeight: 'bold',
+    fontSize: theme.fontSize.xs,
   },
   card: {
     backgroundColor: theme.colors.bgCard,
     borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   cardTitle: {
-    fontSize: theme.fontSize.lg,
+    fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.bold,
-    color: theme.colors.primary,
-    marginBottom: theme.spacing.md,
+    color: theme.colors.accent,
+    marginBottom: theme.spacing.sm,
   },
   toggleRow: {
     flexDirection: 'row',
-    marginBottom: theme.spacing.md,
     backgroundColor: theme.colors.bgInput,
     borderRadius: theme.borderRadius.md,
     padding: 3,
+    marginBottom: theme.spacing.md,
   },
   toggleBtn: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: theme.borderRadius.sm,
+    paddingVertical: 8,
     alignItems: 'center',
+    borderRadius: theme.borderRadius.sm,
   },
   toggleBtnActive: {
     backgroundColor: theme.colors.primary,
   },
   toggleText: {
-    color: theme.colors.textMuted,
+    color: theme.colors.textSecondary,
+    fontSize: theme.fontSize.xs,
     fontWeight: theme.fontWeight.semibold,
-    fontSize: theme.fontSize.sm,
   },
   toggleTextActive: {
     color: '#fff',
+    fontWeight: 'bold',
   },
+
   inputGroup: {
     marginBottom: theme.spacing.sm,
   },
   inputLabel: {
-    color: theme.colors.textSecondary,
     fontSize: theme.fontSize.xs,
-    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.textMuted,
     marginBottom: 4,
+    fontWeight: theme.fontWeight.medium,
   },
   input: {
     backgroundColor: theme.colors.bgInput,
@@ -1176,7 +1434,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.md,
     paddingVertical: 10,
     color: theme.colors.textPrimary,
-    fontSize: theme.fontSize.md,
+    fontSize: theme.fontSize.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  countInput: {
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 10,
+    color: theme.colors.accent,
+    fontSize: theme.fontSize.xl,
+    fontWeight: theme.fontWeight.heavy,
+    textAlign: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
@@ -1187,242 +1456,221 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.bgInput,
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: 11,
+    paddingVertical: 10,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   calendarTriggerText: {
     color: theme.colors.textPrimary,
-    fontSize: theme.fontSize.md,
+    fontSize: theme.fontSize.sm,
     fontWeight: '600',
   },
   calendarTriggerTextSmall: {
     color: theme.colors.textPrimary,
-    fontSize: theme.fontSize.sm,
+    fontSize: theme.fontSize.xs,
     fontWeight: '600',
   },
   calendarIcon: {
-    color: theme.colors.primary,
+    color: theme.colors.accent,
     fontSize: theme.fontSize.xs,
     fontWeight: 'bold',
-  },
-  openRangeCalBtn: {
-    backgroundColor: theme.colors.primary + '18',
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.primary + '40',
-    marginBottom: theme.spacing.sm,
-  },
-  openRangeCalText: {
-    color: theme.colors.primary,
-    fontSize: theme.fontSize.xs,
-    fontWeight: 'bold',
-  },
-  warningBanner: {
-    backgroundColor: theme.colors.error + '20',
-    borderRadius: theme.borderRadius.md,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.error + '60',
-    marginBottom: theme.spacing.sm,
-  },
-  warningBannerText: {
-    color: '#f87171',
-    fontSize: 12,
-    fontWeight: '600',
-    lineHeight: 18,
-  },
-  mergeBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.accent + '15',
-    borderRadius: theme.borderRadius.md,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.accent + '40',
-    marginBottom: theme.spacing.sm,
-  },
-  mergeTitle: {
-    color: theme.colors.accent,
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  mergeSubtitle: {
-    color: theme.colors.textMuted,
-    fontSize: 10,
-    marginTop: 2,
-  },
-  mergeBtn: {
-    backgroundColor: theme.colors.accent,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: theme.borderRadius.sm,
-    marginLeft: 8,
-  },
-  mergeBtnText: {
-    color: '#0b0f19',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  multiMonthCard: {
-    backgroundColor: theme.colors.bgElevated,
-    borderRadius: theme.borderRadius.md,
-    padding: 10,
-    marginVertical: theme.spacing.sm,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  multiMonthNoticeTitle: {
-    color: theme.colors.accent,
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  multiMonthToggleRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  multiMonthOptionBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.bgInput,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  multiMonthOptionActive: {
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.primary + '20',
-  },
-  multiMonthOptionText: {
-    color: theme.colors.textMuted,
-    fontSize: 11,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  multiMonthOptionTextActive: {
-    color: theme.colors.primary,
-    fontWeight: 'bold',
-  },
-  countInput: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: theme.fontWeight.bold,
-    textAlign: 'center',
-    color: theme.colors.accent,
   },
   dateRangeRow: {
     flexDirection: 'row',
   },
-  saveBtn: {
-    backgroundColor: theme.colors.primary,
+  openRangeCalBtn: {
+    backgroundColor: theme.colors.bgElevated,
+    paddingVertical: 10,
     borderRadius: theme.borderRadius.md,
-    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: theme.spacing.sm,
-  },
-  saveBtnText: {
-    color: '#fff',
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.bold,
-  },
-
-  // Period Filter Bar
-  periodFilterRow: {
-    flexDirection: 'row',
-    marginBottom: theme.spacing.md,
-    backgroundColor: theme.colors.bgCard,
-    borderRadius: theme.borderRadius.md,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  periodFilterBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: theme.borderRadius.sm,
-    alignItems: 'center',
-  },
-  periodFilterBtnActive: {
-    backgroundColor: theme.colors.primary,
-  },
-  periodFilterText: {
-    color: theme.colors.textMuted,
-    fontWeight: theme.fontWeight.semibold,
-    fontSize: theme.fontSize.xs,
-  },
-  periodFilterTextActive: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-
-  summaryCard: {
-    backgroundColor: theme.colors.bgCard,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.lg,
+    marginTop: 2,
+    marginBottom: theme.spacing.sm,
     borderWidth: 1,
     borderColor: theme.colors.primary + '40',
   },
-  allTimeTitle: {
+  openRangeCalText: {
     color: theme.colors.accent,
+    fontSize: theme.fontSize.xs,
+    fontWeight: 'bold',
+  },
+
+  // Month Entry Mode Styles
+  monthSelectSection: {
+    marginBottom: theme.spacing.sm,
+  },
+  monthYearNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 8,
+  },
+  yearNavBtn: {
+    padding: 6,
+  },
+  yearNavText: {
+    color: theme.colors.accent,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  yearNavTitle: {
+    color: theme.colors.textPrimary,
     fontSize: theme.fontSize.md,
     fontWeight: 'bold',
   },
+  monthGridHelper: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  monthsPillsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+  },
+  monthPill: {
+    width: '23%',
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  monthPillActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  monthPillText: {
+    color: theme.colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  monthPillTextActive: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  selectedMonthCard: {
+    backgroundColor: theme.colors.primary + '15',
+    borderRadius: theme.borderRadius.md,
+    padding: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.primary + '40',
+    marginBottom: 6,
+  },
+  selectedMonthTitle: {
+    color: theme.colors.accent,
+    fontSize: theme.fontSize.sm,
+    fontWeight: 'bold',
+  },
+  selectedMonthSubtitle: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    marginTop: 2,
+  },
+
+  warningBanner: {
+    backgroundColor: '#78350f',
+    borderRadius: theme.borderRadius.md,
+    padding: 10,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+  },
+  warningBannerText: {
+    color: '#fef08a',
+    fontSize: theme.fontSize.xs,
+    fontWeight: 'bold',
+    lineHeight: 16,
+  },
+
+  mergeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#064e3b',
+    borderRadius: theme.borderRadius.md,
+    padding: 10,
+    marginVertical: 6,
+    borderWidth: 1,
+    borderColor: '#10b981',
+  },
+  mergeTitle: { color: '#a7f3d0', fontSize: theme.fontSize.xs, fontWeight: 'bold' },
+  mergeSubtitle: { color: '#6ee7b7', fontSize: 10, marginTop: 2 },
+  mergeBtn: { backgroundColor: '#10b981', paddingHorizontal: 12, paddingVertical: 6, borderRadius: theme.borderRadius.sm, marginLeft: 8 },
+  mergeBtnText: { color: '#000', fontSize: theme.fontSize.xs, fontWeight: 'bold' },
+
+  multiMonthCard: {
+    backgroundColor: theme.colors.bgElevated,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.sm,
+    marginVertical: 6,
+  },
+  multiMonthNoticeText: { color: theme.colors.accent, fontSize: theme.fontSize.xs, fontWeight: 'bold', marginBottom: 6 },
+  multiMonthToggleRow: { flexDirection: 'row', gap: 6, marginBottom: 8 },
+  multiMonthToggleBtn: { flex: 1, paddingVertical: 6, paddingHorizontal: 6, backgroundColor: theme.colors.bgInput, borderRadius: theme.borderRadius.sm, alignItems: 'center' },
+  multiMonthToggleBtnActive: { backgroundColor: theme.colors.primary },
+  multiMonthToggleText: { color: theme.colors.textMuted, fontSize: 10, textAlign: 'center' },
+  multiMonthToggleTextActive: { color: '#fff', fontWeight: 'bold' },
+  splitInputsContainer: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  splitInputGroup: { flex: 1 },
+  splitInputLabel: { color: theme.colors.textPrimary, fontSize: 10, fontWeight: '600', marginBottom: 4 },
+  splitInput: { backgroundColor: theme.colors.bgInput, borderRadius: theme.borderRadius.sm, padding: 8, color: theme.colors.accent, fontSize: theme.fontSize.md, fontWeight: 'bold', textAlign: 'center' },
+
+  saveBtn: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: theme.spacing.xs,
+  },
+  saveBtnDisabled: { opacity: 0.6 },
+  saveBtnText: { color: '#fff', fontSize: theme.fontSize.md, fontWeight: theme.fontWeight.bold },
+
   monthNav: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
   },
   navArrow: {
-    paddingHorizontal: theme.spacing.sm,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: theme.colors.bgElevated,
     borderRadius: theme.borderRadius.md,
   },
-  monthNavText: {
-    color: theme.colors.primary,
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.semibold,
-  },
-  monthTitle: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.bold,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  summaryItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  summaryNumber: {
-    fontSize: 36,
-    fontWeight: theme.fontWeight.heavy,
-    color: theme.colors.accent,
-  },
-  summaryLabel: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-    marginTop: 4,
-  },
-  summaryDivider: {
-    width: 1,
-    height: 50,
-    backgroundColor: theme.colors.border,
-  },
-  sectionTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.textPrimary,
+  monthNavText: { color: theme.colors.primary, fontSize: theme.fontSize.xs, fontWeight: theme.fontWeight.bold },
+  monthTitle: { color: theme.colors.textPrimary, fontSize: theme.fontSize.md, fontWeight: theme.fontWeight.bold },
+
+  summaryCard: {
+    backgroundColor: theme.colors.bgCard,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  summaryTitle: { fontSize: theme.fontSize.sm, color: theme.colors.accent, fontWeight: theme.fontWeight.bold, marginBottom: theme.spacing.sm },
+  summaryStats: { flexDirection: 'row', alignItems: 'center', width: '100%' },
+  summaryStatItem: { flex: 1, alignItems: 'center' },
+  summaryValue: { fontSize: 28, fontWeight: theme.fontWeight.heavy, color: theme.colors.accent },
+  summaryLabel: { fontSize: theme.fontSize.xs, color: theme.colors.textMuted, marginTop: 2 },
+  summaryDivider: { width: 1, height: 36, backgroundColor: theme.colors.border },
+
+  historySection: {
+    marginBottom: theme.spacing.xl,
+  },
+  historyTitle: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.textPrimary,
+    marginBottom: theme.spacing.sm,
   },
   entryRow: {
     flexDirection: 'row',
@@ -1430,66 +1678,78 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.bgCard,
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  entryDate: {
-    flex: 1,
-  },
-  entryDateText: {
-    color: theme.colors.textPrimary,
-    fontSize: theme.fontSize.sm,
-    fontWeight: '600',
-  },
-  rangeBadgeText: {
-    color: theme.colors.primary,
-    fontSize: 10,
-    fontWeight: 'bold',
-    marginTop: 2,
-    textTransform: 'uppercase',
-  },
-  entryNoteText: {
-    color: theme.colors.textMuted,
-    fontSize: theme.fontSize.xs,
-    marginTop: 2,
-  },
-  entryCount: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
-  },
-  entryCountText: {
-    color: theme.colors.accent,
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.bold,
-  },
-  entryCountLabel: {
-    color: theme.colors.textMuted,
-    fontSize: theme.fontSize.xs,
-  },
-  entryEditIcon: {
-    fontSize: 16,
-    marginLeft: theme.spacing.md,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.xxl,
-  },
-  emptyEmoji: { fontSize: 48, marginBottom: theme.spacing.md },
-  emptyTitle: { color: theme.colors.textMuted, fontSize: theme.fontSize.lg, fontWeight: theme.fontWeight.semibold },
-  emptyHint: { color: theme.colors.textMuted, fontSize: theme.fontSize.sm, marginTop: 4 },
+  entryDate: { flex: 1 },
+  entryDateText: { fontSize: theme.fontSize.sm, color: theme.colors.textPrimary, fontWeight: theme.fontWeight.semibold },
+  rangeBadgeText: { fontSize: 9, color: theme.colors.primary, fontWeight: 'bold', textTransform: 'uppercase', marginTop: 1 },
+  monthBadgeText: { color: '#10b981' },
+  entryNoteText: { fontSize: theme.fontSize.xs, color: theme.colors.textMuted, marginTop: 2 },
+  entryCount: { alignItems: 'flex-end', marginRight: theme.spacing.sm },
+  entryCountText: { fontSize: theme.fontSize.md, fontWeight: theme.fontWeight.bold, color: theme.colors.accent },
+  entryCountLabel: { fontSize: 10, color: theme.colors.textMuted },
+  entryEditIcon: { fontSize: 14, opacity: 0.7 },
 
+  emptyState: { alignItems: 'center', paddingVertical: theme.spacing.xl },
+  emptyEmoji: { fontSize: 40, marginBottom: theme.spacing.xs },
+  emptyTitle: { fontSize: theme.fontSize.md, fontWeight: theme.fontWeight.bold, color: theme.colors.textPrimary },
+  emptyHint: { fontSize: theme.fontSize.xs, color: theme.colors.textMuted, marginTop: 2 },
+
+  // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: theme.colors.bgOverlay,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: theme.spacing.md,
-    zIndex: 1000,
   },
+  modalContent: {
+    backgroundColor: theme.colors.bgCard,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.lg,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  modalTitle: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.textPrimary,
+    marginBottom: theme.spacing.md,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+  },
+  modalDeleteBtn: {
+    backgroundColor: theme.colors.error + '20',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 10,
+    borderRadius: theme.borderRadius.md,
+    marginRight: 'auto',
+  },
+  modalDeleteText: { color: theme.colors.error, fontWeight: theme.fontWeight.semibold, fontSize: theme.fontSize.sm },
+  modalCancelBtn: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 10,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.bgInput,
+  },
+  modalCancelText: { color: theme.colors.textSecondary, fontWeight: theme.fontWeight.semibold, fontSize: theme.fontSize.sm },
+  modalSaveBtn: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: 10,
+    borderRadius: theme.borderRadius.md,
+  },
+  modalSaveText: { color: '#fff', fontWeight: theme.fontWeight.bold, fontSize: theme.fontSize.sm },
 
-  // 🌟 Calendar Overlay & Content with high z-index
+  // Calendar Modal
   calModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
@@ -1622,50 +1882,6 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.xs,
     fontWeight: '600',
   },
-
-  modalContent: {
-    backgroundColor: theme.colors.bgCard,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.lg,
-    width: '100%',
-    maxWidth: 400,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  modalTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.textPrimary,
-    marginBottom: theme.spacing.md,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: theme.spacing.sm,
-    marginTop: theme.spacing.md,
-  },
-  modalDeleteBtn: {
-    backgroundColor: theme.colors.error + '20',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 10,
-    borderRadius: theme.borderRadius.md,
-    marginRight: 'auto',
-  },
-  modalDeleteText: { color: theme.colors.error, fontWeight: theme.fontWeight.semibold, fontSize: theme.fontSize.sm },
-  modalCancelBtn: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: 10,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.bgInput,
-  },
-  modalCancelText: { color: theme.colors.textSecondary, fontWeight: theme.fontWeight.semibold, fontSize: theme.fontSize.sm },
-  modalSaveBtn: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: 10,
-    borderRadius: theme.borderRadius.md,
-  },
-  modalSaveText: { color: '#fff', fontWeight: theme.fontWeight.bold, fontSize: theme.fontSize.sm },
 });
 
 export default JapmalaScreen;

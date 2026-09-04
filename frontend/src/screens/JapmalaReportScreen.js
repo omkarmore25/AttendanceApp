@@ -29,6 +29,14 @@ const marathiMonthNames = [
   'जुलै', 'ऑगस्ट', 'सप्टेंबर', 'ऑक्टोबर', 'नोव्हेंबर', 'डिसेंबर'
 ];
 
+const monthShortNames = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+];
+
+const marathiMonthShortNames = [
+  'जाने', 'फेब्रु', 'मार्च', 'एप्रि', 'मे', 'जून', 'जुलै', 'ऑगस्ट', 'सप्टें', 'ऑक्टो', 'नोव्हे', 'डिसे'
+];
+
 const dayShortNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 const MARATHI_MONTHS_MAP = [
@@ -45,6 +53,18 @@ const MARATHI_MONTHS_MAP = [
   { index: 10, marathi: 'नोव्हेंबर', english: 'Nov', keywords: ['नोव्हेंबर', 'नोव्हे', 'november', 'nov'] },
   { index: 11, marathi: 'डिसेंबर', english: 'Dec', keywords: ['डिसेंबर', 'डिसे', 'december', 'dec'] },
 ];
+
+export function isPerfectMonth(dateStr, toDateStr) {
+  if (!dateStr || !toDateStr) return false;
+  const s = new Date(dateStr);
+  const e = new Date(toDateStr);
+  if (isNaN(s.getTime()) || isNaN(e.getTime())) return false;
+  if (s.getUTCFullYear() !== e.getUTCFullYear()) return false;
+  if (s.getUTCMonth() !== e.getUTCMonth()) return false;
+  if (s.getUTCDate() !== 1) return false;
+  const lastDay = new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth() + 1, 0)).getUTCDate();
+  return e.getUTCDate() === lastDay;
+}
 
 function convertDevanagariDigits(str) {
   if (!str) return '';
@@ -146,10 +166,12 @@ const JapmalaReportScreen = () => {
   const [allUsers, setAllUsers] = useState([]);
   const [userSearch, setUserSearch] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
-  const [entryType, setEntryType] = useState('daily'); // 'daily', 'range', or 'monthly_grid'
+  const [entryType, setEntryType] = useState('daily'); // 'daily', 'month', 'range', 'monthly_grid'
   const [entryDate, setEntryDate] = useState(formatDateISO(new Date()));
   const [entryFrom, setEntryFrom] = useState(formatDateISO(new Date()));
   const [entryTo, setEntryTo] = useState(formatDateISO(new Date()));
+  const [singleMonthVal, setSingleMonthVal] = useState(now.getMonth());
+  const [singleYearVal, setSingleYearVal] = useState(now.getFullYear());
   const [entryCount, setEntryCount] = useState('');
   const [entryNote, setEntryNote] = useState('Added by Admin (Phone Call)');
   const [submitting, setSubmitting] = useState(false);
@@ -177,9 +199,11 @@ const JapmalaReportScreen = () => {
 
   // Single Entry Edit Modal (within member detail)
   const [editEntryItem, setEditEntryItem] = useState(null);
-  const [editEntryType, setEditEntryType] = useState('daily');
+  const [editEntryType, setEditEntryType] = useState('daily'); // 'daily', 'month', 'range'
   const [editDateVal, setEditDateVal] = useState('');
   const [editToDateVal, setEditToDateVal] = useState('');
+  const [editMonthVal, setEditMonthVal] = useState(now.getMonth());
+  const [editYearVal, setEditYearVal] = useState(now.getFullYear());
   const [editCountVal, setEditCountVal] = useState('');
   const [editNoteVal, setEditNoteVal] = useState('');
   const [showEditModal, setShowEditModal] = useState(false);
@@ -321,6 +345,22 @@ const JapmalaReportScreen = () => {
         });
 
         showAlert('✅ Success', `Saved ${breakdown.length} months of Japmala for ${selectedUser.name}!`);
+      } else if (entryType === 'month') {
+        if (!entryCount || Number(entryCount) <= 0) {
+          showAlert('Required', 'Please enter a valid count of माळा.');
+          setSubmitting(false);
+          return;
+        }
+        const mRange = getMonthRangeISO(singleYearVal, singleMonthVal);
+        await api.post('/japmala', {
+          userId: selectedUser._id,
+          entryType: 'range',
+          date: mRange.from,
+          toDate: mRange.to,
+          count: Number(entryCount),
+          note: entryNote || `Monthly count for ${monthNames[singleMonthVal]} ${singleYearVal}`,
+        });
+        showAlert('✅ Success', `Saved ${entryCount} माळा for ${monthNames[singleMonthVal]} ${singleYearVal} for ${selectedUser.name}!`);
       } else if (entryType === 'daily') {
         if (!entryCount || Number(entryCount) <= 0) {
           showAlert('Required', 'Please enter a valid count of माळा.');
@@ -576,9 +616,22 @@ const JapmalaReportScreen = () => {
   const handleOpenEdit = (entry) => {
     setEditEntryItem(entry);
     const isRange = entry.entryType === 'range' || !!entry.toDate;
-    setEditEntryType(isRange ? 'range' : 'daily');
-    setEditDateVal(formatDateISO(new Date(entry.date)));
-    setEditToDateVal(entry.toDate ? formatDateISO(new Date(entry.toDate)) : '');
+    const isFullMonth = isRange && isPerfectMonth(entry.date, entry.toDate);
+
+    if (isFullMonth) {
+      setEditEntryType('month');
+      setEditMonthVal(new Date(entry.date).getUTCMonth());
+      setEditYearVal(new Date(entry.date).getUTCFullYear());
+    } else if (isRange) {
+      setEditEntryType('range');
+      setEditDateVal(formatDateISO(new Date(entry.date)));
+      setEditToDateVal(entry.toDate ? formatDateISO(new Date(entry.toDate)) : '');
+    } else {
+      setEditEntryType('daily');
+      setEditDateVal(formatDateISO(new Date(entry.date)));
+      setEditToDateVal('');
+    }
+
     setEditCountVal(String(entry.count));
     setEditNoteVal(entry.note || '');
     setShowMemberModal(false);
@@ -590,13 +643,25 @@ const JapmalaReportScreen = () => {
       showAlert('Invalid', 'Please enter a valid count.');
       return;
     }
+
+    let targetDate = editDateVal;
+    let targetToDate = editEntryType === 'range' ? editToDateVal : null;
+    let targetType = editEntryType;
+
+    if (editEntryType === 'month') {
+      const mRange = getMonthRangeISO(editYearVal, editMonthVal);
+      targetDate = mRange.from;
+      targetToDate = mRange.to;
+      targetType = 'range';
+    }
+
     try {
       await api.put(`/japmala/${editEntryItem._id}`, {
         count: Number(editCountVal),
         note: editNoteVal,
-        date: editDateVal,
-        toDate: editEntryType === 'range' ? editToDateVal : null,
-        entryType: editEntryType,
+        date: targetDate,
+        toDate: targetToDate,
+        entryType: targetType,
       });
       showAlert('✅ Updated', 'Japmala count updated successfully.');
       setShowEditModal(false);
@@ -823,7 +888,7 @@ const JapmalaReportScreen = () => {
                 <Text style={styles.addMemberEntryEmoji}>✍️</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.addMemberEntryTitle}>Member Entry</Text>
-                  <Text style={styles.addMemberEntrySubtitle}>Day, Range or 12-Mo Grid</Text>
+                  <Text style={styles.addMemberEntrySubtitle}>Day, Month, Range or Grid</Text>
                 </View>
                 <Text style={styles.addMemberPlus}>＋</Text>
               </TouchableOpacity>
@@ -1014,7 +1079,7 @@ const JapmalaReportScreen = () => {
         }
       />
 
-      {/* ─── MODAL 1: ADD FOR MEMBER (Single Day, Range, or 12-Month Grid) ─── */}
+      {/* ─── MODAL 1: ADD FOR MEMBER (Single Day, Month, Range, or 12-Month Grid) ─── */}
       <Modal visible={showAddModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: '92%' }]}>
@@ -1079,26 +1144,32 @@ const JapmalaReportScreen = () => {
                 </View>
               )}
 
-              {/* Entry Type 3-way Toggle */}
+              {/* Entry Type 4-way Toggle */}
               <Text style={[styles.inputLabel, { marginTop: 14 }]}>2. ENTRY TYPE</Text>
               <View style={styles.toggleRow}>
                 <TouchableOpacity
                   style={[styles.toggleBtn, entryType === 'daily' && styles.toggleBtnActive]}
                   onPress={() => setEntryType('daily')}
                 >
-                  <Text style={[styles.toggleText, entryType === 'daily' && styles.toggleTextActive]}>Single Date</Text>
+                  <Text style={[styles.toggleText, entryType === 'daily' && styles.toggleTextActive]}>Day</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, entryType === 'month' && styles.toggleBtnActive]}
+                  onPress={() => setEntryType('month')}
+                >
+                  <Text style={[styles.toggleText, entryType === 'month' && styles.toggleTextActive]}>Month</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.toggleBtn, entryType === 'range' && styles.toggleBtnActive]}
                   onPress={() => setEntryType('range')}
                 >
-                  <Text style={[styles.toggleText, entryType === 'range' && styles.toggleTextActive]}>Date Range</Text>
+                  <Text style={[styles.toggleText, entryType === 'range' && styles.toggleTextActive]}>Range</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.toggleBtn, entryType === 'monthly_grid' && styles.toggleBtnActive]}
                   onPress={() => setEntryType('monthly_grid')}
                 >
-                  <Text style={[styles.toggleText, entryType === 'monthly_grid' && styles.toggleTextActive]}>12-Mo Grid</Text>
+                  <Text style={[styles.toggleText, entryType === 'monthly_grid' && styles.toggleTextActive]}>12-Mo</Text>
                 </TouchableOpacity>
               </View>
 
@@ -1130,7 +1201,63 @@ const JapmalaReportScreen = () => {
                 </View>
               )}
 
-              {/* TYPE 2: DATE RANGE */}
+              {/* TYPE 2: SINGLE MONTH */}
+              {entryType === 'month' && (
+                <View>
+                  {/* Year selector */}
+                  <View style={styles.gridYearNav}>
+                    <TouchableOpacity onPress={() => setSingleYearVal(singleYearVal - 1)} style={styles.gridYearArrow}>
+                      <Text style={styles.gridYearArrowText}>◀</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.gridYearTitle}>Year {singleYearVal}</Text>
+                    <TouchableOpacity onPress={() => setSingleYearVal(singleYearVal + 1)} style={styles.gridYearArrow}>
+                      <Text style={styles.gridYearArrowText}>▶</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* 12 Months Pills */}
+                  <View style={styles.monthsPillsGrid}>
+                    {monthNames.map((mName, idx) => {
+                      const isSelected = singleMonthVal === idx;
+                      return (
+                        <TouchableOpacity
+                          key={idx}
+                          style={[styles.monthPill, isSelected && styles.monthPillActive]}
+                          onPress={() => setSingleMonthVal(idx)}
+                        >
+                          <Text style={[styles.monthPillText, isSelected && styles.monthPillTextActive]}>
+                            {monthShortNames[idx]}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {/* Selected Month Banner */}
+                  <View style={styles.selectedMonthCard}>
+                    <Text style={styles.selectedMonthTitle}>
+                      📅 {monthNames[singleMonthVal]} {singleYearVal}
+                    </Text>
+                    <Text style={styles.selectedMonthSubtitle}>
+                      Full Month ({formatDateDisplay(getMonthRangeISO(singleYearVal, singleMonthVal).from)} to {formatDateDisplay(getMonthRangeISO(singleYearVal, singleMonthVal).to)})
+                    </Text>
+                  </View>
+
+                  <Text style={[styles.inputLabel, { marginTop: 10 }]}>3. TOTAL माळा COUNT FOR THIS MONTH</Text>
+                  <View style={styles.inputGroup}>
+                    <TextInput
+                      style={styles.countInputBig}
+                      placeholder="0"
+                      placeholderTextColor={theme.colors.textMuted}
+                      keyboardType="numeric"
+                      value={entryCount}
+                      onChangeText={setEntryCount}
+                    />
+                  </View>
+                </View>
+              )}
+
+              {/* TYPE 3: DATE RANGE */}
               {entryType === 'range' && (
                 <View>
                   <View style={styles.dateRangeRow}>
@@ -1170,7 +1297,7 @@ const JapmalaReportScreen = () => {
                 </View>
               )}
 
-              {/* TYPE 3: 12-MONTH GRID */}
+              {/* TYPE 4: 12-MONTH GRID */}
               {entryType === 'monthly_grid' && (
                 <View style={{ marginTop: 6 }}>
                   {/* Year selector */}
@@ -1233,7 +1360,11 @@ const JapmalaReportScreen = () => {
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <Text style={styles.saveAdminBtnText}>
-                    {entryType === 'monthly_grid' ? '💾 Save All Monthly Entries' : '💾 Save Japmala for Member'}
+                    {entryType === 'monthly_grid'
+                      ? '💾 Save All Monthly Entries'
+                      : entryType === 'month'
+                      ? `💾 Save ${monthNames[singleMonthVal]} ${singleYearVal}`
+                      : '💾 Save Japmala for Member'}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -1524,15 +1655,31 @@ const JapmalaReportScreen = () => {
               <ScrollView style={{ maxHeight: 260 }}>
                 {memberEntries.map(entry => {
                   const isRange = entry.entryType === 'range' || !!entry.toDate;
+                  const isFullMonth = isRange && isPerfectMonth(entry.date, entry.toDate);
+                  let displayDateText = formatDateDisplay(entry.date);
+                  let tagText = null;
+
+                  if (isFullMonth) {
+                    const s = new Date(entry.date);
+                    const mName = monthNames[s.getUTCMonth()];
+                    displayDateText = `📅 ${mName} ${s.getUTCFullYear()}`;
+                    tagText = 'Monthly Entry';
+                  } else if (isRange) {
+                    displayDateText = `📆 ${formatDateDisplay(entry.date)} to ${formatDateDisplay(entry.toDate)}`;
+                    tagText = 'Date Range Entry';
+                  } else {
+                    displayDateText = `📅 ${formatDateDisplay(entry.date)}`;
+                  }
+
                   return (
                     <View key={entry._id} style={styles.memberEntryRow}>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.memberEntryDate}>
-                          {isRange
-                            ? `📆 ${formatDateDisplay(entry.date)} to ${formatDateDisplay(entry.toDate)}`
-                            : `📅 ${formatDateDisplay(entry.date)}`}
-                        </Text>
-                        {isRange && <Text style={styles.rangeTag}>Date Range Entry</Text>}
+                        <Text style={styles.memberEntryDate}>{displayDateText}</Text>
+                        {tagText && (
+                          <Text style={[styles.rangeTag, isFullMonth && { color: '#10b981' }]}>
+                            {tagText}
+                          </Text>
+                        )}
                         {entry.note ? <Text style={styles.memberEntryNote}>{entry.note}</Text> : null}
                       </View>
                       <Text style={styles.memberEntryCount}>{entry.count}</Text>
@@ -1575,6 +1722,12 @@ const JapmalaReportScreen = () => {
                 <Text style={[styles.toggleText, editEntryType === 'daily' && styles.toggleTextActive]}>Single Date</Text>
               </TouchableOpacity>
               <TouchableOpacity
+                style={[styles.toggleBtn, editEntryType === 'month' && styles.toggleBtnActive]}
+                onPress={() => setEditEntryType('month')}
+              >
+                <Text style={[styles.toggleText, editEntryType === 'month' && styles.toggleTextActive]}>Month</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[styles.toggleBtn, editEntryType === 'range' && styles.toggleBtnActive]}
                 onPress={() => setEditEntryType('range')}
               >
@@ -1582,7 +1735,7 @@ const JapmalaReportScreen = () => {
               </TouchableOpacity>
             </View>
 
-            {editEntryType === 'daily' ? (
+            {editEntryType === 'daily' && (
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>DATE</Text>
                 <TouchableOpacity style={styles.dateTriggerBtn} onPress={() => openCalendar('editDateVal')}>
@@ -1590,7 +1743,44 @@ const JapmalaReportScreen = () => {
                   <Text>📅</Text>
                 </TouchableOpacity>
               </View>
-            ) : (
+            )}
+
+            {editEntryType === 'month' && (
+              <View style={{ marginBottom: theme.spacing.sm }}>
+                <View style={styles.gridYearNav}>
+                  <TouchableOpacity onPress={() => setEditYearVal(editYearVal - 1)} style={styles.gridYearArrow}>
+                    <Text style={styles.gridYearArrowText}>◀</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.gridYearTitle}>Year {editYearVal}</Text>
+                  <TouchableOpacity onPress={() => setEditYearVal(editYearVal + 1)} style={styles.gridYearArrow}>
+                    <Text style={styles.gridYearArrowText}>▶</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.monthsPillsGrid}>
+                  {monthNames.map((mName, idx) => {
+                    const isSelected = editMonthVal === idx;
+                    return (
+                      <TouchableOpacity
+                        key={idx}
+                        style={[styles.monthPill, isSelected && styles.monthPillActive]}
+                        onPress={() => setEditMonthVal(idx)}
+                      >
+                        <Text style={[styles.monthPillText, isSelected && styles.monthPillTextActive]}>
+                          {monthShortNames[idx]}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <Text style={[styles.selectedMonthSubtitle, { textAlign: 'center', marginTop: 4 }]}>
+                  {monthNames[editMonthVal]} {editYearVal} (Full Month)
+                </Text>
+              </View>
+            )}
+
+            {editEntryType === 'range' && (
               <View style={styles.dateRangeRow}>
                 <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
                   <Text style={styles.inputLabel}>FROM</Text>
@@ -2220,6 +2410,55 @@ const styles = StyleSheet.create({
     color: theme.colors.accent,
     fontWeight: 'heavy',
     fontSize: theme.fontSize.md,
+  },
+
+  // Month Pills Grid
+  monthsPillsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+  },
+  monthPill: {
+    width: '23%',
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  monthPillActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  monthPillText: {
+    color: theme.colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  monthPillTextActive: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  selectedMonthCard: {
+    backgroundColor: theme.colors.primary + '15',
+    borderRadius: theme.borderRadius.md,
+    padding: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.primary + '40',
+    marginBottom: 6,
+  },
+  selectedMonthTitle: {
+    color: theme.colors.accent,
+    fontSize: theme.fontSize.sm,
+    fontWeight: 'bold',
+  },
+  selectedMonthSubtitle: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    marginTop: 2,
   },
 
   // WhatsApp Smart Parser Modal Styles
