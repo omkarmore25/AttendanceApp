@@ -1,5 +1,5 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect, useRef } from 'react';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text, View, StyleSheet, Platform, ActivityIndicator } from 'react-native';
@@ -203,6 +203,37 @@ const AuthStack = () => (
 // ─── Main Navigator ───
 const AppNavigator = () => {
   const { isLoggedIn, isAdmin, loading } = useAuth();
+  const navigationRef = useNavigationContainerRef();
+  const isNavigatingBackRef = useRef(false);
+
+  // Sync React Navigation with Mobile Web Browser Back Button (popstate)
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    const handlePopState = () => {
+      if (isNavigatingBackRef.current) {
+        isNavigatingBackRef.current = false;
+        return;
+      }
+      if (navigationRef.isReady() && navigationRef.canGoBack()) {
+        isNavigatingBackRef.current = true;
+        navigationRef.goBack();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleStateChange = () => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    if (navigationRef.isReady()) {
+      if (!isNavigatingBackRef.current && navigationRef.canGoBack()) {
+        window.history.pushState({ appNav: true }, '');
+      }
+      isNavigatingBackRef.current = false;
+    }
+  };
 
   if (loading) {
     return (
@@ -228,7 +259,7 @@ const AppNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef} onStateChange={handleStateChange}>
       {!isLoggedIn ? (
         <AuthStack />
       ) : isAdmin ? (
