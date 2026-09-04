@@ -309,25 +309,21 @@ const ProfileScreen = ({ navigation }) => {
       <View style={[styles.card, styles.japmalaCard]}>
         <View style={styles.japmalaHeaderRow}>
           <Text style={styles.japmalaCardTitle}>{t.japmalaTitle}</Text>
-          <View style={styles.liveIndicator}>
-            <Text style={styles.liveText}>{t.japmalaLive}</Text>
-          </View>
+          <Text style={styles.japmalaLiveBadge}>● {lang === 'mr' ? 'थेट नोंद' : 'Live'}</Text>
         </View>
-        <Text style={styles.japmalaSubTitle}>{t.japmalaSub}</Text>
+        <Text style={styles.japmalaSubtitle}>{t.japmalaSub}</Text>
 
         <View style={styles.japmalaStatsRow}>
           <View style={styles.japmalaStatBox}>
             <Text style={styles.japmalaNumber}>
-              {loadingJapmala ? '⏳' : formatNumberByLang(japmalaTotal, lang)}
+              {loadingJapmala ? '—' : formatNumberByLang(japmalaTotal, lang)}
             </Text>
             <Text style={styles.japmalaLabel}>{t.totalMala}</Text>
           </View>
-
-          <View style={styles.statDivider} />
-
+          <View style={styles.japmalaDivider} />
           <View style={styles.japmalaStatBox}>
             <Text style={styles.japmalaNumber}>
-              {loadingJapmala ? '⏳' : formatNumberByLang(japmalaDays, lang)}
+              {loadingJapmala ? '—' : formatNumberByLang(japmalaDays, lang)}
             </Text>
             <Text style={styles.japmalaLabel}>{t.totalDays}</Text>
           </View>
@@ -597,82 +593,74 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  // Original Dark Japmala Card Styles
   japmalaCard: {
-    borderColor: '#ff9800',
-    borderWidth: 1.5,
-    backgroundColor: '#fffdf9',
+    borderColor: theme.colors.primary + '60',
+    backgroundColor: theme.colors.bgCard,
   },
   japmalaHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
   },
   japmalaCardTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#e65100',
-    letterSpacing: 0.5,
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.primary,
+    letterSpacing: 1.2,
   },
-  liveIndicator: {
-    backgroundColor: '#e8f5e9',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#a5d6a7',
+  japmalaLiveBadge: {
+    color: theme.colors.success,
+    fontSize: theme.fontSize.xs,
+    fontWeight: 'bold',
   },
-  liveText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#2e7d32',
-  },
-  japmalaSubTitle: {
-    fontSize: 11,
-    color: '#64748b',
-    marginBottom: 12,
+  japmalaSubtitle: {
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textMuted,
+    marginTop: 2,
+    marginBottom: theme.spacing.md,
   },
   japmalaStatsRow: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderWidth: 1,
-    borderColor: '#ffe0b2',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    backgroundColor: theme.colors.bgInput,
+    borderRadius: theme.borderRadius.md,
   },
   japmalaStatBox: {
     flex: 1,
     alignItems: 'center',
   },
-  statDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: '#ffe0b2',
-  },
   japmalaNumber: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#e65100',
-    marginBottom: 2,
+    fontSize: 28,
+    fontWeight: theme.fontWeight.heavy,
+    color: theme.colors.accent,
   },
   japmalaLabel: {
-    fontSize: 11,
+    fontSize: theme.fontSize.xs,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
     fontWeight: '600',
-    color: '#64748b',
+  },
+  japmalaDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: theme.colors.border,
   },
   openJapmalaBtn: {
-    backgroundColor: '#e65100',
-    borderRadius: 8,
+    backgroundColor: theme.colors.primary + '20',
+    borderRadius: theme.borderRadius.md,
     paddingVertical: 10,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
   },
   openJapmalaBtnText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: '700',
+    color: theme.colors.primary,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.bold,
   },
 });
 
