@@ -2041,6 +2041,7 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: theme.spacing.md,
+    paddingBottom: 160,
     backgroundColor: theme.colors.bg || '#0b0f19',
     minHeight: '100%',
   },

@@ -191,7 +191,7 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 160 }} showsVerticalScrollIndicator={false}>
       {/* Top Header Row with Language Toggle */}
       <View style={styles.topBar}>
         <TouchableOpacity

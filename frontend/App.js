@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#0d1322',
-    ...(Platform.OS === 'web' ? { height: '100vh', width: '100vw', minHeight: '100vh', backgroundColor: '#0d1322' } : {}),
+    ...(Platform.OS === 'web' ? { minHeight: '100%', width: '100%', height: '100%', backgroundColor: '#0d1322' } : {}),
   },
 });
 
