@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../api/client';
 import theme from '../theme';
 import { showAlert, showConfirm } from '../utils/dialog';
+import { toMarathiDigits, toEnglishDigits, formatNumberByLang, transliterateToMarathi } from '../utils/marathiUtils';
 
 const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -146,6 +147,7 @@ function matchUserByName(rawName, users) {
 
 const JapmalaReportScreen = () => {
   // 🌟 Filter Modes: 'all' (Default), 'month', 'year', 'range'
+  const [lang, setLang] = useState('mr');
   const [filterMode, setFilterMode] = useState('all');
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
@@ -334,7 +336,7 @@ const JapmalaReportScreen = () => {
             breakdown.push({
               from: range.from,
               to: range.to,
-              count: Number(val),
+              count: Number(toEnglishDigits(val)),
             });
           }
         });
@@ -364,7 +366,7 @@ const JapmalaReportScreen = () => {
           entryType: 'range',
           date: mRange.from,
           toDate: mRange.to,
-          count: Number(entryCount),
+          count: Number(toEnglishDigits(entryCount)),
           note: entryNote || `Monthly count for ${monthNames[singleMonthVal]} ${singleYearVal}`,
         });
         showAlert('✅ Success', `Saved ${entryCount} माळा for ${monthNames[singleMonthVal]} ${singleYearVal} for ${selectedUser.name}!`);
@@ -378,7 +380,7 @@ const JapmalaReportScreen = () => {
           userId: selectedUser._id,
           entryType: 'daily',
           date: entryDate,
-          count: Number(entryCount),
+          count: Number(toEnglishDigits(entryCount)),
           note: entryNote,
         });
         showAlert('✅ Success', `Saved ${entryCount} माळा for ${selectedUser.name}!`);
@@ -393,7 +395,7 @@ const JapmalaReportScreen = () => {
           entryType: 'range',
           date: entryFrom,
           toDate: entryTo,
-          count: Number(entryCount),
+          count: Number(toEnglishDigits(entryCount)),
           note: entryNote,
         });
         showAlert('✅ Success', `Saved ${entryCount} माळा for ${selectedUser.name}!`);
@@ -666,7 +668,7 @@ const JapmalaReportScreen = () => {
 
     try {
       await api.put(`/japmala/${editEntryItem._id}`, {
-        count: Number(editCountVal),
+        count: Number(toEnglishDigits(editCountVal)),
         note: editNoteVal,
         date: targetDate,
         toDate: targetToDate,
@@ -868,15 +870,30 @@ const JapmalaReportScreen = () => {
       activeOpacity={0.7}
     >
       <View style={styles.memberRank}>
-        <Text style={styles.memberRankText}>{index + 1}</Text>
+        <Text style={styles.memberRankText}>{formatNumberByLang(index + 1, lang)}</Text>
       </View>
       <View style={styles.memberInfo}>
         <Text style={styles.memberName}>{item.name}</Text>
-        {item.phone ? <Text style={styles.memberPhone}>📞 {item.phone}</Text> : null}
+        <View style={styles.memberSubRow}>
+          {item.age != null && item.age !== '' ? (
+            <View style={styles.memberAgeBadge}>
+              <Text style={styles.memberAgeText}>
+                {lang === 'mr' ? `वय: ${toMarathiDigits(item.age)}` : `Age: ${item.age}`}
+              </Text>
+            </View>
+          ) : null}
+          {item.phone ? (
+            <Text style={styles.memberPhone}>
+              📞 {lang === 'mr' ? toMarathiDigits(item.phone) : item.phone}
+            </Text>
+          ) : null}
+        </View>
       </View>
       <View style={styles.memberTotal}>
-        <Text style={styles.memberTotalCount}>{item.total}</Text>
-        <Text style={styles.memberTotalLabel}>✏️ Manage</Text>
+        <Text style={styles.memberTotalCount}>{formatNumberByLang(item.total, lang)}</Text>
+        <Text style={styles.memberTotalLabel}>
+          {lang === 'mr' ? '✏️ व्यवस्थापित' : '✏️ Manage'}
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -897,6 +914,33 @@ const JapmalaReportScreen = () => {
         }
         ListHeaderComponent={
           <View>
+            {/* Language Switcher Bar */}
+            <View style={styles.langHeaderContainer}>
+              <Text style={styles.langHeaderTitle}>
+                {lang === 'mr' ? '🌐 भाषा निवडा / Language:' : '🌐 Language / भाषा:'}
+              </Text>
+              <View style={styles.langToggleWrap}>
+                <TouchableOpacity
+                  style={[styles.langChoiceBtn, lang === 'mr' && styles.langChoiceBtnActive]}
+                  onPress={() => setLang('mr')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.langChoiceText, lang === 'mr' && styles.langChoiceTextActive]}>
+                    🚩 मराठी (Marathi)
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.langChoiceBtn, lang === 'en' && styles.langChoiceBtnActive]}
+                  onPress={() => setLang('en')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.langChoiceText, lang === 'en' && styles.langChoiceTextActive]}>
+                    English
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             {/* Quick Action Buttons Row */}
             <View style={styles.quickActionRow}>
               <TouchableOpacity
@@ -2953,6 +2997,66 @@ const styles = StyleSheet.create({
   calActionTodayText: { color: theme.colors.accent, fontSize: theme.fontSize.xs, fontWeight: 'bold' },
   calCloseBtn: { paddingVertical: 8, paddingHorizontal: 14, backgroundColor: theme.colors.bgElevated, borderRadius: theme.borderRadius.md },
   calCloseText: { color: theme.colors.textMuted, fontSize: theme.fontSize.xs, fontWeight: '600' },
+  langHeaderContainer: {
+    backgroundColor: '#151b2a',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#242f48',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  langHeaderTitle: {
+    color: '#a0aec0',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  langToggleWrap: {
+    flexDirection: 'row',
+    backgroundColor: '#0b0f19',
+    borderRadius: 10,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: '#242f48',
+  },
+  langChoiceBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  langChoiceBtnActive: {
+    backgroundColor: '#ff6b00',
+  },
+  langChoiceText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  langChoiceTextActive: {
+    color: '#ffffff',
+  },
+  memberSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginTop: 4,
+    gap: 8,
+  },
+  memberAgeBadge: {
+    backgroundColor: 'rgba(255, 170, 0, 0.15)',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+    borderWidth: 0.8,
+    borderColor: '#ffaa00',
+  },
+  memberAgeText: {
+    color: '#ffaa00',
+    fontSize: 11,
+    fontWeight: '700',
+  },
 });
 
 export default JapmalaReportScreen;

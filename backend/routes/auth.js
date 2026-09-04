@@ -10,6 +10,14 @@ const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/e
 
 const router = express.Router();
 
+// Helper to convert Devanagari numerals (०-९) to standard English numbers/strings
+function cleanDigits(val) {
+  if (val == null) return val;
+  const str = String(val);
+  const devMap = { '०': '0', '१': '1', '२': '2', '३': '3', '४': '4', '५': '5', '६': '6', '७': '7', '८': '8', '९': '9' };
+  return str.replace(/[०-९]/g, (d) => devMap[d] !== undefined ? devMap[d] : d);
+}
+
 // In-memory store for pending email registrations (email -> { username, email, phone, password, otp, expiresAt })
 const pendingRegistrations = new Map();
 
@@ -60,7 +68,7 @@ router.post('/send-otp', async (req, res) => {
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanUsername = (username || cleanEmail.split('@')[0]).trim();
-    const cleanPhone = (phone || '').trim();
+    const cleanPhone = cleanDigits(phone || '').trim();
 
     const existingUser = await User.findOne({ email: cleanEmail });
     if (existingUser && existingUser.is_email_verified) {
@@ -108,7 +116,7 @@ router.post('/send-otp', async (req, res) => {
 // ═══════════════════════════════════════════════════════
 router.post('/verify-otp', async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const { email, otp, username: bodyUsername, phone: bodyPhone, password: bodyPassword } = req.body;
 
     if (!email || !otp) {
       return res.status(400).json({
@@ -130,7 +138,7 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     const username = pending ? pending.username : (bodyUsername || cleanEmail.split('@')[0]);
-    const phone = pending ? pending.phone : (bodyPhone || '');
+    const phone = cleanDigits(pending ? pending.phone : (bodyPhone || '')).trim();
     const password = pending ? pending.password : bodyPassword;
 
     if (!password) {
@@ -199,6 +207,7 @@ router.post('/register', async (req, res) => {
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanUsername = (username || cleanEmail.split('@')[0]).trim();
+    const cleanPhone = cleanDigits(phone).trim();
 
     const existingUser = await User.findOne({ email: cleanEmail });
     if (existingUser) {
@@ -212,7 +221,7 @@ router.post('/register', async (req, res) => {
       username: cleanUsername,
       name: cleanUsername,
       email: cleanEmail,
-      phone: phone.trim(),
+      phone: cleanPhone,
       password_hash: password,
       role: 'User',
       is_email_verified: true,
@@ -483,7 +492,7 @@ router.post('/google', async (req, res) => {
         username: cleanUsername,
         name: cleanUsername,
         email: cleanEmail,
-        phone: phone || '',
+        phone: cleanDigits(phone || '').trim(),
         google_id: gid,
         role: 'User',
         is_email_verified: true,
@@ -520,7 +529,7 @@ router.post('/google', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════
-// PUT /api/auth/profile — Update Profile (Name & Phone)
+// PUT /api/auth/profile — Update Profile (Name, Phone, Age)
 // ═══════════════════════════════════════════════════════
 router.put('/profile', auth, async (req, res) => {
   try {
@@ -533,9 +542,10 @@ router.put('/profile', auth, async (req, res) => {
 
     if (username) user.username = username.trim();
     if (name) user.name = name.trim();
-    if (phone !== undefined) user.phone = phone.trim();
+    if (phone !== undefined) user.phone = cleanDigits(phone).trim();
     if (age !== undefined) {
-      user.age = age === '' || age === null ? null : Number(age);
+      const cleanAge = cleanDigits(age);
+      user.age = cleanAge === '' || cleanAge === null ? null : Number(cleanAge);
     }
 
     await user.save();

@@ -13,9 +13,81 @@ import { useAuth } from '../context/AuthContext';
 import theme from '../theme';
 import api from '../api/client';
 import { showAlert, showConfirm } from '../utils/dialog';
+import {
+  toMarathiDigits,
+  toEnglishDigits,
+  formatNumberByLang,
+  transliterateToMarathi,
+} from '../utils/marathiUtils';
+
+const strings = {
+  en: {
+    userProfile: 'User Profile',
+    adminBadge: '👑 Administrator',
+    userBadge: '👤 Standard User',
+    japmalaTitle: '📿 JAPMALA RECORD (जपानुष्ठान)',
+    japmalaLive: '● Live',
+    japmalaSub: 'Includes your entries & entries verified by Secretary / Admin',
+    totalMala: 'Total Malas (एकूण माळा)',
+    totalDays: 'Total Days (एकूण दिवस)',
+    openJapmala: '📿 Open Japmala Tracker / नोंदी पहा →',
+    editProfileTitle: 'EDIT PROFILE DETAILS',
+    fullNameLabel: 'FULL NAME / USERNAME',
+    fullNamePlaceholder: 'Enter full name (e.g. Omkar More)',
+    toMarathiBtn: '⚡ Convert to मराठी',
+    mobileLabel: 'MOBILE NUMBER (FOR EVENT ORGANIZERS)',
+    mobilePlaceholder: 'Enter mobile number (e.g. 9876543210)',
+    ageLabel: 'AGE / वय (YEARS)',
+    agePlaceholder: 'Enter your age (e.g. 45)',
+    emailLabel: 'EMAIL ADDRESS (PRIMARY ID)',
+    saveBtn: '💾 Save Profile Changes',
+    saving: 'Saving...',
+    accountActions: 'ACCOUNT ACTIONS',
+    logoutBtn: '🚪 Logout Session',
+    deleteBtn: '🗑️ Delete Account Permanently',
+    confirmDeleteTitle: '⚠️ Delete Account',
+    confirmDeleteMsg: 'Are you sure you want to permanently delete your account? All your attendance history will be erased from the database.',
+    successTitle: '✅ Profile Updated',
+    successMsg: 'Your profile details have been saved.',
+    switchLang: 'मराठी',
+  },
+  mr: {
+    userProfile: 'भाविक प्रोफाईल',
+    adminBadge: '👑 प्रशासक (Admin)',
+    userBadge: '👤 भाविक (User)',
+    japmalaTitle: '📿 जपमाळा नोंदणी (जपानुष्ठान)',
+    japmalaLive: '● थेट नोंद',
+    japmalaSub: 'तुमच्या नोंदी व सेक्रेटरी/प्रशासकांनी पडताळलेल्या नोंदी',
+    totalMala: 'एकूण माळा संख्या',
+    totalDays: 'एकूण दिवस',
+    openJapmala: '📿 जपमाळा ट्रॅकर उघडा / नोंदी पहा →',
+    editProfileTitle: 'प्रोफाईल माहिती बदला',
+    fullNameLabel: 'पूर्ण नाव (FULL NAME)',
+    fullNamePlaceholder: 'पूर्ण नाव प्रविष्ट करा (उदा. आबासाहेब मोरे)',
+    toMarathiBtn: '⚡ A → अ मराठीत करा',
+    mobileLabel: 'मोबाईल नंबर (MOBILE NUMBER)',
+    mobilePlaceholder: 'मोबाईल नंबर प्रविष्ट करा (उदा. ९८७६५४३२१०)',
+    ageLabel: 'वय / AGE (वर्षे)',
+    agePlaceholder: 'तुमचे वय प्रविष्ट करा (उदा. ५२)',
+    emailLabel: 'ईमेल पत्ता (EMAIL ID)',
+    saveBtn: '💾 प्रोफाईल माहिती जतन करा',
+    saving: 'जतन करत आहे...',
+    accountActions: 'खाते सेटिंग्ज',
+    logoutBtn: '🚪 लॉगआउट करा (Logout)',
+    deleteBtn: '🗑️ खाते कायमचे हटवा (Delete)',
+    confirmDeleteTitle: '⚠️ खाते हटवा',
+    confirmDeleteMsg: 'तुम्हाला तुमचे खाते कायमचे हटवायचे आहे का? तुमची सर्व उपस्थिती व माहिती कायमची नष्ट होईल.',
+    successTitle: '✅ प्रोफाईल अपडेट झाली',
+    successMsg: 'तुमची माहिती यशस्वीरित्या जतन करण्यात आली आहे.',
+    switchLang: 'English',
+  },
+};
 
 const ProfileScreen = ({ navigation }) => {
   const { user, logout, updateUserProfile } = useAuth();
+  const [lang, setLang] = useState('mr'); // Default to Marathi
+  const t = strings[lang];
+
   const [name, setName] = useState(user?.name || user?.username || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [age, setAge] = useState(user?.age !== undefined && user?.age !== null ? String(user.age) : '');
@@ -49,26 +121,52 @@ const ProfileScreen = ({ navigation }) => {
     }, [user])
   );
 
+  const handleTransliterateName = () => {
+    if (!name.trim()) return;
+    const converted = transliterateToMarathi(name);
+    setName(converted);
+  };
+
+  const handlePhoneChange = (val) => {
+    if (lang === 'mr') {
+      // Allow Marathi typing or convert English to Marathi digits
+      setPhone(toMarathiDigits(val));
+    } else {
+      setPhone(val);
+    }
+  };
+
+  const handleAgeChange = (val) => {
+    if (lang === 'mr') {
+      setAge(toMarathiDigits(val));
+    } else {
+      setAge(val);
+    }
+  };
+
   const handleSaveProfile = async () => {
     if (!name.trim()) {
-      showAlert('Missing Field', 'Name cannot be empty.');
+      showAlert('Missing Field', lang === 'mr' ? 'नाव रिक्त असू शकत नाही.' : 'Name cannot be empty.');
       return;
     }
+
+    const cleanPhone = toEnglishDigits(phone.trim());
+    const cleanAge = toEnglishDigits(age.trim());
 
     try {
       setSaving(true);
       const response = await api.put('/auth/profile', {
         name: name.trim(),
         username: name.trim(),
-        phone: phone.trim(),
-        age: age.trim() ? Number(age.trim()) : null,
+        phone: cleanPhone,
+        age: cleanAge ? Number(cleanAge) : null,
       });
 
       if (response.data.user && updateUserProfile) {
         updateUserProfile(response.data.user);
       }
 
-      showAlert('✅ Profile Updated', 'Your profile details have been saved.');
+      showAlert(t.successTitle, t.successMsg);
     } catch (error) {
       showAlert('Error', error.response?.data?.message || 'Failed to update profile');
     } finally {
@@ -78,8 +176,8 @@ const ProfileScreen = ({ navigation }) => {
 
   const handleDeleteAccount = () => {
     showConfirm(
-      '🚨 Delete Account',
-      'Are you sure you want to permanently delete your account? All your attendance history will be erased from the database.',
+      t.confirmDeleteTitle,
+      t.confirmDeleteMsg,
       async () => {
         try {
           await api.delete('/auth/account');
@@ -94,78 +192,100 @@ const ProfileScreen = ({ navigation }) => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+      {/* Top Header Row with Language Toggle */}
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          style={styles.langToggleBtn}
+          onPress={() => setLang(lang === 'en' ? 'mr' : 'en')}
+        >
+          <Text style={styles.langToggleText}>🌐 {t.switchLang}</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.header}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>👤</Text>
         </View>
-        <Text style={styles.title}>{user?.username || user?.name || 'User Profile'}</Text>
+        <Text style={styles.title}>{user?.name || user?.username || t.userProfile}</Text>
         <Text style={styles.email}>{user?.email}</Text>
         <View style={styles.roleBadge}>
-          <Text style={styles.roleText}>{user?.role === 'Admin' ? '🛡️ Administrator' : '👤 Standard User'}</Text>
+          <Text style={styles.roleText}>{user?.role === 'Admin' ? t.adminBadge : t.userBadge}</Text>
         </View>
       </View>
 
       {/* 📿 Japmala Card on Profile */}
       <View style={[styles.card, styles.japmalaCard]}>
         <View style={styles.japmalaHeaderRow}>
-          <Text style={styles.japmalaCardTitle}>📿 JAPMALA RECORD (जपानुष्ठान)</Text>
-          <Text style={styles.japmalaLiveBadge}>● Live</Text>
+          <Text style={styles.japmalaCardTitle}>{t.japmalaTitle}</Text>
+          <Text style={styles.japmalaLiveBadge}>{t.japmalaLive}</Text>
         </View>
-        <Text style={styles.japmalaSubtitle}>Includes your entries & entries verified by Secretary / Admin</Text>
+        <Text style={styles.japmalaSubtitle}>{t.japmalaSub}</Text>
 
         <View style={styles.japmalaStatsRow}>
           <View style={styles.japmalaStatBox}>
-            <Text style={styles.japmalaNumber}>{loadingJapmala ? '—' : japmalaTotal}</Text>
-            <Text style={styles.japmalaLabel}>Total Malas (एकूण माळा)</Text>
+            <Text style={styles.japmalaNumber}>
+              {loadingJapmala ? '⏳' : formatNumberByLang(japmalaTotal, lang)}
+            </Text>
+            <Text style={styles.japmalaLabel}>{t.totalMala}</Text>
           </View>
+
           <View style={styles.japmalaDivider} />
+
           <View style={styles.japmalaStatBox}>
-            <Text style={styles.japmalaNumber}>{loadingJapmala ? '—' : japmalaDays}</Text>
-            <Text style={styles.japmalaLabel}>Total Days (एकूण दिवस)</Text>
+            <Text style={styles.japmalaNumber}>
+              {loadingJapmala ? '⏳' : formatNumberByLang(japmalaDays, lang)}
+            </Text>
+            <Text style={styles.japmalaLabel}>{t.totalDays}</Text>
           </View>
         </View>
 
         <TouchableOpacity
           style={styles.openJapmalaBtn}
-          onPress={() => navigation.navigate('JapmalaTab')}
+          onPress={() => navigation.navigate('Japmala')}
         >
-          <Text style={styles.openJapmalaBtnText}>📿 Open Japmala Tracker / नोंदी पहा →</Text>
+          <Text style={styles.openJapmalaBtnText}>{t.openJapmala}</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Edit Profile Details */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>EDIT PROFILE DETAILS</Text>
+        <Text style={styles.sectionTitle}>{t.editProfileTitle}</Text>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>FULL NAME / USERNAME</Text>
+          <View style={styles.inputHeaderRow}>
+            <Text style={styles.inputLabel}>{t.fullNameLabel}</Text>
+            <TouchableOpacity onPress={handleTransliterateName} style={styles.transliterateBtn}>
+              <Text style={styles.transliterateBtnText}>{t.toMarathiBtn}</Text>
+            </TouchableOpacity>
+          </View>
           <TextInput
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder="Enter your name"
+            placeholder={t.fullNamePlaceholder}
             placeholderTextColor={theme.colors.textMuted}
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>MOBILE NUMBER (FOR EVENT ORGANIZERS)</Text>
+          <Text style={styles.inputLabel}>{t.mobileLabel}</Text>
           <TextInput
             style={styles.input}
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="Enter mobile number (e.g. 9876543210)"
+            value={lang === 'mr' ? toMarathiDigits(phone) : phone}
+            onChangeText={handlePhoneChange}
+            placeholder={t.mobilePlaceholder}
             placeholderTextColor={theme.colors.textMuted}
             keyboardType="phone-pad"
           />
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>AGE / वय (YEARS)</Text>
+          <Text style={styles.inputLabel}>{t.ageLabel}</Text>
           <TextInput
             style={styles.input}
-            value={age}
-            onChangeText={setAge}
-            placeholder="Enter your age (e.g. 45)"
+            value={lang === 'mr' ? toMarathiDigits(age) : age}
+            onChangeText={handleAgeChange}
+            placeholder={t.agePlaceholder}
             placeholderTextColor={theme.colors.textMuted}
             keyboardType="numeric"
             maxLength={3}
@@ -173,7 +293,7 @@ const ProfileScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.inputGroupDisabled}>
-          <Text style={styles.inputLabel}>EMAIL ADDRESS (PRIMARY ID)</Text>
+          <Text style={styles.inputLabel}>{t.emailLabel}</Text>
           <Text style={styles.disabledValue}>{user?.email}</Text>
         </View>
 
@@ -185,27 +305,27 @@ const ProfileScreen = ({ navigation }) => {
           {saving ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
-            <Text style={styles.saveBtnText}>💾 Save Profile Changes</Text>
+            <Text style={styles.saveBtnText}>{t.saveBtn}</Text>
           )}
         </TouchableOpacity>
       </View>
 
       {/* Account Settings / Actions */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>ACCOUNT ACTIONS</Text>
+        <Text style={styles.sectionTitle}>{t.accountActions}</Text>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-          <Text style={styles.logoutText}>🚪 Logout Session</Text>
+          <Text style={styles.logoutText}>{t.logoutBtn}</Text>
         </TouchableOpacity>
 
         {user?.role !== 'Admin' && (
           <TouchableOpacity style={styles.deleteBtn} onPress={handleDeleteAccount}>
-            <Text style={styles.deleteText}>🗑 Delete Account Permanently</Text>
+            <Text style={styles.deleteText}>{t.deleteBtn}</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* ─── Subtle Legal Footer ─── */}
+      {/* Subtle Legal Footer */}
       <View style={styles.subtleLegalFooter}>
         <TouchableOpacity onPress={() => navigation.navigate('PrivacyPolicy')}>
           <Text style={styles.subtleLegalLink}>Privacy Policy</Text>
@@ -225,10 +345,28 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.bg,
     padding: theme.spacing.lg,
   },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 8,
+  },
+  langToggleBtn: {
+    backgroundColor: theme.colors.primary + '25',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: theme.borderRadius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.primary + '60',
+  },
+  langToggleText: {
+    color: theme.colors.primaryLight,
+    fontSize: theme.fontSize.xs,
+    fontWeight: 'bold',
+  },
   header: {
     alignItems: 'center',
     marginBottom: theme.spacing.xl,
-    paddingTop: theme.spacing.md,
+    paddingTop: theme.spacing.xs,
   },
   avatar: {
     width: 80,
@@ -356,6 +494,25 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: theme.spacing.md,
+  },
+  inputHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  transliterateBtn: {
+    backgroundColor: theme.colors.primary + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.primary + '60',
+  },
+  transliterateBtnText: {
+    color: theme.colors.accent,
+    fontSize: 11,
+    fontWeight: 'bold',
   },
   inputGroupDisabled: {
     marginBottom: theme.spacing.lg,

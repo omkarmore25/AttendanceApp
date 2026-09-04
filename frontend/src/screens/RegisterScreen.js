@@ -9,14 +9,13 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
-  Image,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import theme from '../theme';
 import { showAlert } from '../utils/dialog';
 import * as WebBrowser from 'expo-web-browser';
-
 import GoogleIcon from '../components/GoogleIcon';
+import { transliterateToMarathi, toEnglishDigits, toMarathiDigits } from '../utils/marathiUtils';
 
 const GOOGLE_CLIENT_ID = '630044773737-2cellkr3ttout8d0jvdln10bl0k8qfpo.apps.googleusercontent.com';
 
@@ -30,37 +29,47 @@ const RegisterScreen = ({ navigation }) => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
 
+  const handleTransliterateName = () => {
+    if (!username.trim()) return;
+    const converted = transliterateToMarathi(username);
+    setUsername(converted);
+  };
+
   const handleSignUp = async () => {
-    if (!username.trim() || !email.trim() || !phone.trim() || !password.trim()) {
-      showAlert('Missing Fields', 'Please fill in Username, Email Address, Mobile Number, and Password.');
+    const cleanUser = username.trim();
+    const cleanMail = email.trim().toLowerCase();
+    const cleanPhone = toEnglishDigits(phone.trim());
+
+    if (!cleanUser || !cleanMail || !cleanPhone || !password.trim()) {
+      showAlert('Missing Fields / माहिती भरा', 'Please fill in Full Name, Email Address, Mobile Number, and Password.');
       return;
     }
 
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
-      showAlert('Invalid Email', 'Please enter a valid email address.');
+    if (!/^\S+@\S+\.\S+$/.test(cleanMail)) {
+      showAlert('Invalid Email / अवैध ईमेल', 'Please enter a valid email address.');
       return;
     }
 
-    if (!/^\d{10,15}$/.test(phone.trim())) {
-      showAlert('Invalid Mobile', 'Please enter a valid 10-15 digit mobile number.');
+    if (!/^\d{10,15}$/.test(cleanPhone)) {
+      showAlert('Invalid Mobile / अवैध मोबाईल', 'Please enter a valid 10-15 digit mobile number.');
       return;
     }
 
     if (password.length < 6) {
-      showAlert('Weak Password', 'Password must be at least 6 characters.');
+      showAlert('Weak Password / पासवर्ड कमी आहे', 'Password must be at least 6 characters.');
       return;
     }
 
     setLoading(true);
-    const result = await sendOTP(username.trim(), email.trim(), phone.trim(), password);
+    const result = await sendOTP(cleanUser, cleanMail, cleanPhone, password);
     setLoading(false);
 
     if (result.success) {
-      showAlert('Verification Code Sent', `A 6-digit verification code has been sent to ${email.trim()}.`);
+      showAlert('Verification Code Sent', `A 6-digit verification code has been sent to ${cleanMail}.`);
       navigation.navigate('OTP', {
-        email: email.trim(),
-        username: username.trim(),
-        phone: phone.trim(),
+        email: cleanMail,
+        username: cleanUser,
+        phone: cleanPhone,
         password,
       });
     } else {
@@ -120,32 +129,30 @@ const RegisterScreen = ({ navigation }) => {
               if (!loginRes.success) {
                 showAlert('Google Sign-In Failed', loginRes.message);
               }
-            } else {
-              showAlert('Google Sign-In', 'Could not fetch Google profile.');
             }
           }
         }
         setGoogleLoading(false);
       }
-    } catch (error) {
-      console.error('Google Sign In error:', error);
-      showAlert('Error', 'Google Sign-In failed.');
+    } catch (err) {
+      console.log('Google Sign-In error:', err);
       setGoogleLoading(false);
+      showAlert('Error', 'Google Sign-In was cancelled or failed.');
     }
   };
+
+  const hasEnglishLetters = /[a-zA-Z]/.test(username);
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
       >
-        {/* Title Above Card */}
-        <Text style={styles.appHeading}>जय सच्चिदानंद 🚩</Text>
+        <Text style={styles.appHeading}>संत समागम | Sant Samagam</Text>
 
         <View style={styles.card}>
           {/* Continue with Google */}
@@ -168,29 +175,42 @@ const RegisterScreen = ({ navigation }) => {
           {/* Divider */}
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
+            <Text style={styles.dividerText}>OR / किंवा</Text>
             <View style={styles.dividerLine} />
           </View>
 
           {/* Form */}
           <View style={styles.form}>
-            <View style={[styles.inputGroup, focusedField === 'username' && styles.inputGroupFocused]}>
-              <TextInput
-                style={styles.input}
-                placeholder="Username"
-                placeholderTextColor="#64748b"
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="words"
-                onFocus={() => setFocusedField('username')}
-                onBlur={() => setFocusedField(null)}
-              />
+            {/* Full Name in Marathi / English */}
+            <View>
+              <View style={[styles.inputGroup, focusedField === 'username' && styles.inputGroupFocused]}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="पूर्ण नाव (Full Name in Marathi or English)"
+                  placeholderTextColor="#64748b"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="words"
+                  onFocus={() => setFocusedField('username')}
+                  onBlur={() => setFocusedField(null)}
+                />
+              </View>
+              {hasEnglishLetters ? (
+                <TouchableOpacity
+                  style={styles.translitBtn}
+                  onPress={handleTransliterateName}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.translitBtnText}>⚡ A → अ मराठीत रुपांतर करा (Convert to Marathi)</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
 
+            {/* Email */}
             <View style={[styles.inputGroup, focusedField === 'email' && styles.inputGroupFocused]}>
               <TextInput
                 style={styles.input}
-                placeholder="Email Address"
+                placeholder="ईमेल (Email Address)"
                 placeholderTextColor="#64748b"
                 value={email}
                 onChangeText={setEmail}
@@ -201,10 +221,11 @@ const RegisterScreen = ({ navigation }) => {
               />
             </View>
 
+            {/* Mobile Number */}
             <View style={[styles.inputGroup, focusedField === 'phone' && styles.inputGroupFocused]}>
               <TextInput
                 style={styles.input}
-                placeholder="Mobile Number"
+                placeholder="मोबाईल नंबर (Mobile Number: 9822... / ९८२२...)"
                 placeholderTextColor="#64748b"
                 value={phone}
                 onChangeText={setPhone}
@@ -214,10 +235,11 @@ const RegisterScreen = ({ navigation }) => {
               />
             </View>
 
+            {/* Password */}
             <View style={[styles.inputGroup, focusedField === 'password' && styles.inputGroupFocused]}>
               <TextInput
                 style={styles.input}
-                placeholder="Password"
+                placeholder="पासवर्ड (Password - min 6 chars)"
                 placeholderTextColor="#64748b"
                 value={password}
                 onChangeText={setPassword}
@@ -252,23 +274,15 @@ const RegisterScreen = ({ navigation }) => {
               {loading ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.buttonText}>Sign Up</Text>
+                <Text style={styles.buttonText}>साइन अप करा (Sign Up)</Text>
               )}
-            </TouchableOpacity>
-
-            {/* Forgot Password */}
-            <TouchableOpacity
-              style={styles.forgotBtn}
-              onPress={() => showAlert('Reset Password', 'Contact administrator or check your email.')}
-            >
-              <Text style={styles.forgotText}>Forgot Password?</Text>
             </TouchableOpacity>
 
             {/* Switch to Log In */}
             <View style={styles.footer}>
-              <Text style={styles.footerText}>Already have an account? </Text>
+              <Text style={styles.footerText}>खाते आधीच आहे का? (Already have an account?) </Text>
               <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.footerLink}>Log In</Text>
+                <Text style={styles.footerLink}>लॉग इन करा (Log In)</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -291,7 +305,7 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   appHeading: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
     color: '#ff6b00',
     textAlign: 'center',
@@ -363,12 +377,27 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   inputGroupFocused: {
-    borderColor: '#6366f1',
+    borderColor: '#ff6b00',
   },
   input: {
     fontSize: 15,
     color: '#ffffff',
     paddingVertical: 12,
+  },
+  translitBtn: {
+    backgroundColor: 'rgba(255, 107, 0, 0.12)',
+    borderColor: '#ff6b00',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  translitBtnText: {
+    color: '#ffaa00',
+    fontSize: 12,
+    fontWeight: '700',
   },
   button: {
     backgroundColor: '#ff6b00',
@@ -390,27 +419,19 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '800',
   },
-  forgotBtn: {
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  forgotText: {
-    color: '#94a3b8',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   footer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
     marginTop: 16,
   },
   footerText: {
     color: '#94a3b8',
-    fontSize: 14,
+    fontSize: 13,
   },
   footerLink: {
     color: '#ff6b00',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
   termsNoticeBox: {

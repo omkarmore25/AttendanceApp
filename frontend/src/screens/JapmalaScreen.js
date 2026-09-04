@@ -21,6 +21,7 @@ import {
 } from '../utils/offlineSync';
 import { useOffline } from '../context/OfflineContext';
 import { showAlert, showConfirm } from '../utils/dialog';
+import { toMarathiDigits, toEnglishDigits, formatNumberByLang } from '../utils/marathiUtils';
 
 // ─── Language Strings ───
 const strings = {
@@ -343,7 +344,7 @@ const JapmalaScreen = () => {
         await api.post('/japmala', {
           entryType: 'daily',
           date,
-          count: Number(count),
+          count: Number(toEnglishDigits(count)),
           note,
         });
       } else if (entryMode === 'month') {
@@ -502,7 +503,7 @@ const JapmalaScreen = () => {
 
     try {
       await api.put(`/japmala/${editItem._id}`, {
-        count: Number(editCount),
+        count: Number(toEnglishDigits(editCount)),
         note: editNote,
         date: targetDate,
         toDate: targetToDate,
@@ -735,7 +736,7 @@ const JapmalaScreen = () => {
           {item.note ? <Text style={styles.entryNoteText}>📝 {item.note}</Text> : null}
         </View>
         <View style={styles.entryCount}>
-          <Text style={styles.entryCountText}>{item.count}</Text>
+          <Text style={styles.entryCountText}>{formatNumberByLang(item.count, lang)}</Text>
           <Text style={styles.entryCountLabel}>{t.mala}</Text>
         </View>
         <Text style={styles.entryEditIcon}>✏️</Text>
@@ -1123,12 +1124,12 @@ const JapmalaScreen = () => {
           </Text>
           <View style={styles.summaryStats}>
             <View style={styles.summaryStatItem}>
-              <Text style={styles.summaryValue}>{summaryTotal}</Text>
+              <Text style={styles.summaryValue}>{formatNumberByLang(summaryTotal, lang)}</Text>
               <Text style={styles.summaryLabel}>{t.totalMala}</Text>
             </View>
             <View style={styles.summaryDivider} />
             <View style={styles.summaryStatItem}>
-              <Text style={styles.summaryValue}>{summaryDays}</Text>
+              <Text style={styles.summaryValue}>{formatNumberByLang(summaryDays, lang)}</Text>
               <Text style={styles.summaryLabel}>{t.days}</Text>
             </View>
           </View>
