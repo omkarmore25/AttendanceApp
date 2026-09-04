@@ -180,49 +180,30 @@ const ManageUsersScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header Info */}
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>👥 Devotees Directory</Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countText}>{users.length}</Text>
-          </View>
-        </View>
-        <Text style={styles.subtitle}>
-          View registered devotees, manual attendance entries, and edit contact info.
-        </Text>
-      </View>
-
-      {/* Feedback Toast Banner */}
-      {!!feedbackMsg && (
-        <View style={styles.feedbackBanner}>
-          <Text style={styles.feedbackText}>{feedbackMsg}</Text>
-        </View>
-      )}
-
-      {/* Search Bar */}
-      <View style={styles.searchBox}>
-        <Text style={styles.searchIcon}>🔍</Text>
+      {/* Search Input */}
+      <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search by name, phone or email..."
+          placeholder="🔍 Search user by username, phone, or email..."
           placeholderTextColor={theme.colors.textMuted}
           value={search}
           onChangeText={setSearch}
         />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Text style={styles.clearSearch}>✕</Text>
-          </TouchableOpacity>
-        )}
       </View>
 
-      {/* Stats Summary Bar */}
-      <View style={styles.statsBar}>
-        <Text style={styles.statsText}>
-          Total: <Text style={styles.statsBold}>{users.length}</Text> • Registered: <Text style={styles.statsBold}>{users.filter((u) => !u.is_manual_entry && u.role !== 'Admin').length}</Text> • Offline/Manual: <Text style={styles.statsBold}>{users.filter((u) => u.is_manual_entry).length}</Text>
+      {/* User Counter */}
+      <View style={styles.countRow}>
+        <Text style={styles.countLabel}>
+          Showing {filteredUsers.length} of {users.length} users
         </Text>
       </View>
+
+      {/* Toast Feedback Notification */}
+      {feedbackMsg !== '' && (
+        <View style={styles.toast}>
+          <Text style={styles.toastText}>{feedbackMsg}</Text>
+        </View>
+      )}
 
       {/* Users List */}
       <FlatList
