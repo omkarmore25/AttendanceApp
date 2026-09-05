@@ -1,3 +1,4 @@
+const XLSX = require('xlsx');
 const express = require('express');
 const Japmala = require('../models/Japmala');
 const User = require('../models/User');
@@ -356,7 +357,7 @@ router.get('/my/summary', auth, async (req, res) => {
 // ═══════════════════════════════════════════════════════
 // GET /api/japmala/report — Admin: consolidated report
 // ═══════════════════════════════════════════════════════
-router.get('/report', auth, adminOnly, async (req, res) => {
+router.get('/report', auth, async (req, res) => {
   try {
     const { month, from, to, year } = req.query;
     const matchFilter = {};
@@ -443,7 +444,7 @@ router.get('/report', auth, adminOnly, async (req, res) => {
 // ═══════════════════════════════════════════════════════
 // GET /api/japmala/user/:userId — Admin: get a specific user's entries
 // ═══════════════════════════════════════════════════════
-router.get('/user/:userId', auth, adminOnly, async (req, res) => {
+router.get('/user/:userId', auth, async (req, res) => {
   try {
     const { month, from, to, year } = req.query;
     const filter = { user: req.params.userId };
@@ -503,7 +504,7 @@ router.get('/user/:userId', auth, adminOnly, async (req, res) => {
 // ═══════════════════════════════════════════════════════
 // GET /api/japmala/users-list — Admin: get all users for dropdown
 // ═══════════════════════════════════════════════════════
-router.get('/users-list', auth, adminOnly, async (req, res) => {
+router.get('/users-list', auth, async (req, res) => {
   try {
     const users = await User.find({}).select('name username phone').sort({ name: 1 });
     res.status(200).json({
@@ -754,7 +755,7 @@ router.delete('/:id', auth, async (req, res) => {
 // ═══════════════════════════════════════════════════════
 // GET /api/japmala/export-excel — Admin: Export Register (.xlsx) for All Modes
 // ═══════════════════════════════════════════════════════
-router.get('/export-excel', auth, adminOnly, async (req, res) => {
+router.get('/export-excel', auth, async (req, res) => {
   try {
     const { mode, year, filterYear, month, from, to } = req.query;
     const filterMode = mode || (year || filterYear ? 'year' : (month ? 'month' : (from && to ? 'range' : 'all')));
