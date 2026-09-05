@@ -1,3 +1,12 @@
+// Helper to clean Marathi/Devanagari numerals
+function cleanDigits(val) {
+  if (val == null) return val;
+  const str = String(val);
+  const devMap = { '०': '0', '१': '1', '२': '2', '३': '3', '४': '4', '५': '5', '६': '6', '७': '7', '८': '8', '९': '9' };
+  const cleaned = str.replace(/[०-९]/g, (d) => devMap[d] !== undefined ? devMap[d] : d);
+  return cleaned;
+}
+
 const express = require('express');
 const User = require('../models/User');
 const Attendance = require('../models/Attendance');
@@ -166,59 +175,62 @@ router.get('/users', async (req, res) => {
 router.put('/users/:id', async (req, res) => {
   try {
     const { name, username, phone, email, age } = req.body;
-    const user = await User.findById(req.params.id);
+    const existing = await User.findById(req.params.id);
 
-    if (!user) {
+    if (!existing) {
       return res.status(404).json({
         success: false,
         message: 'User not found.',
       });
     }
 
-    if (user.role === 'Admin') {
+    if (existing.role === 'Admin') {
       return res.status(403).json({
         success: false,
         message: 'Cannot modify Admin account via this endpoint.',
       });
     }
 
+    const updateFields = {};
+
     if (name !== undefined && name.trim() !== '') {
-      user.name = name.trim();
-      if (user.is_manual_entry) {
-        user.username = (username || name).trim();
+      updateFields.name = name.trim();
+      if (existing.is_manual_entry) {
+        updateFields.username = (username || name).trim();
       }
     }
-    if (username !== undefined && username.trim() !== '' && !user.is_manual_entry) {
-      user.username = username.trim();
+    if (username !== undefined && username.trim() !== '' && !existing.is_manual_entry) {
+      updateFields.username = username.trim();
     }
     if (phone !== undefined) {
-      user.phone = phone.trim();
-    }
-    if (age !== undefined) {
-      user.age = age === '' || age === null ? null : Number(age);
+      updateFields.phone = cleanDigits(phone).trim();
     }
     if (email !== undefined && email.trim() !== '') {
-      user.email = email.trim().toLowerCase();
+      updateFields.email = email.trim().toLowerCase();
+    }
+    if (age !== undefined) {
+      const cleanAge = cleanDigits(age);
+      if (cleanAge === '' || cleanAge === null || cleanAge === undefined) {
+        updateFields.age = null;
+      } else {
+        const pNum = Number(cleanAge);
+        updateFields.age = isNaN(pNum) ? null : pNum;
+      }
     }
 
-    await user.save();
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateFields },
+      { new: true }
+    ).select('username name email phone age role is_manual_entry createdAt');
 
     res.status(200).json({
       success: true,
-      message: `User "${user.name}" updated successfully.`,
-      user: {
-        _id: user._id,
-        name: user.name,
-        username: user.username,
-        phone: user.phone,
-        email: user.email,
-        age: user.age,
-        role: user.role,
-        is_manual_entry: user.is_manual_entry,
-        createdAt: user.createdAt,
-      },
+      message: `User "${updatedUser.name || updatedUser.username}" updated successfully.`,
+      user: updatedUser,
     });
   } catch (error) {
+    console.error('Admin update user error:', error);
     if (error.kind === 'ObjectId') {
       return res.status(400).json({
         success: false,
@@ -228,11 +240,9 @@ router.put('/users/:id', async (req, res) => {
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        message: 'A user with this username or email already exists.',
+        message: 'A user with that email or username already exists.',
       });
     }
-
-    console.error('User update error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error updating user.',

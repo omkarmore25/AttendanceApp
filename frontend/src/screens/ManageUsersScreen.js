@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import api from '../api/client';
 import theme from '../theme';
+import { toMarathiDigits, toEnglishDigits } from '../utils/marathiUtils';
 
 const ManageUsersScreen = () => {
   const [users, setUsers] = useState([]);
@@ -140,7 +141,7 @@ const ManageUsersScreen = () => {
 
         <Text style={styles.userPhone}>
           {item.phone ? `📱 ${item.phone}` : `📧 ${item.email}`}
-          {item.age ? ` • 🎂 Age: ${item.age}` : ''}
+          {item.age !== undefined && item.age !== null && item.age !== '' ? ` • 🎂 Age: ${item.age}` : ''}
         </Text>
         <Text style={styles.userDate}>
           Joined: {new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}

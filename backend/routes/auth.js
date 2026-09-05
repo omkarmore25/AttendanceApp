@@ -544,26 +544,30 @@ router.post('/google', async (req, res) => {
 router.put('/profile', auth, async (req, res) => {
   try {
     const { username, name, phone, age } = req.body;
-    const user = await User.findById(req.user._id);
+    const updateFields = {};
+
+    if (username && username.trim()) updateFields.username = username.trim();
+    if (name && name.trim()) updateFields.name = name.trim();
+    if (phone !== undefined) updateFields.phone = cleanDigits(phone).trim();
+    if (age !== undefined) {
+      const cleanAge = cleanDigits(age);
+      if (cleanAge === '' || cleanAge === null || cleanAge === undefined) {
+        updateFields.age = null;
+      } else {
+        const pNum = Number(cleanAge);
+        updateFields.age = isNaN(pNum) ? null : pNum;
+      }
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: updateFields },
+      { new: true }
+    );
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
-
-    if (username) user.username = username.trim();
-    if (name) user.name = name.trim();
-    if (phone !== undefined) user.phone = cleanDigits(phone).trim();
-    if (age !== undefined) {
-      const cleanAge = cleanDigits(age);
-      if (cleanAge === '' || cleanAge === null || cleanAge === undefined) {
-        user.age = null;
-      } else {
-        const parsedNum = Number(cleanAge);
-        user.age = isNaN(parsedNum) ? null : parsedNum;
-      }
-    }
-
-    await user.save();
 
     res.status(200).json({
       success: true,
