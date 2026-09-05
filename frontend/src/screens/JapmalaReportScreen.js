@@ -764,12 +764,30 @@ const JapmalaReportScreen = () => {
     const yearToExport = filterMode === 'year' ? filterYear : selectedYear;
 
     try {
-      // 1. Fetch user records and entries for the target year
+      // 1. Fetch all users from admin API to get comprehensive age map
+      const userAgeMap = {};
+      try {
+        const usersRes = await api.get('/admin/users');
+        const allUsers = usersRes.data?.users || [];
+        allUsers.forEach((usr) => {
+          const valAge = (usr.age !== undefined && usr.age !== null && usr.age !== '') ? usr.age : null;
+          if (valAge != null) {
+            if (usr._id) userAgeMap[usr._id.toString()] = valAge;
+            if (usr.name) userAgeMap[usr.name.trim().toLowerCase()] = valAge;
+            if (usr.username) userAgeMap[usr.username.trim().toLowerCase()] = valAge;
+            if (usr.phone) userAgeMap[usr.phone.trim()] = valAge;
+          }
+        });
+      } catch (e) {
+        console.warn('Could not fetch admin users for age mapping:', e);
+      }
+
+      // 2. Fetch user records and entries for the target year
       const res = await api.get(`/japmala/report?year=${yearToExport}`);
       const reportData = res.data?.report || report || [];
       const grandTotalVal = res.data?.grandTotal ?? grandTotal;
 
-      // 2. Fetch monthly breakdown for each devotee
+      // 3. Fetch monthly breakdown for each devotee
       const userMonthPromises = reportData.map(async (u) => {
         try {
           const uRes = await api.get(`/japmala/user/${u._id}?year=${yearToExport}`);
@@ -783,16 +801,39 @@ const JapmalaReportScreen = () => {
             }
           });
           const total = months.reduce((acc, c) => acc + c, 0) || u.total || 0;
+
+          // Resolve Age from all available sources
+          const rawAge = (u.age !== undefined && u.age !== null && u.age !== '')
+            ? u.age
+            : (u._id ? userAgeMap[u._id.toString()] : null) ??
+              (u.name ? userAgeMap[u.name.trim().toLowerCase()] : null) ??
+              (u.username ? userAgeMap[u.username.trim().toLowerCase()] : null) ??
+              (u.phone ? userAgeMap[u.phone.trim()] : null);
+
+          const finalAge = (rawAge !== undefined && rawAge !== null && rawAge !== '')
+            ? (Number(rawAge) || rawAge)
+            : '—';
+
           return {
             name: u.name || 'अनामिक भाविक',
-            age: u.age !== null && u.age !== undefined ? u.age : '—',
+            age: finalAge,
             months,
             total,
           };
         } catch (e) {
+          const rawAge = (u.age !== undefined && u.age !== null && u.age !== '')
+            ? u.age
+            : (u._id ? userAgeMap[u._id.toString()] : null) ??
+              (u.name ? userAgeMap[u.name.trim().toLowerCase()] : null) ??
+              (u.phone ? userAgeMap[u.phone.trim()] : null);
+
+          const finalAge = (rawAge !== undefined && rawAge !== null && rawAge !== '')
+            ? (Number(rawAge) || rawAge)
+            : '—';
+
           return {
             name: u.name || 'अनामिक भाविक',
-            age: u.age !== null && u.age !== undefined ? u.age : '—',
+            age: finalAge,
             months: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             total: u.total || 0,
           };
