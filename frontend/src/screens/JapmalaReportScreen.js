@@ -872,22 +872,70 @@ const JapmalaReportScreen = () => {
         const reportData = res.data?.report || report || [];
         const grandTotalVal = res.data?.grandTotal ?? grandTotal;
 
-        const userRows = reportData
-          .filter((u) => (u.total || 0) > 0)
-          .map((u) => {
+        const activeDevotees = reportData.filter((u) => (u.total || 0) > 0);
+        const userRows = await Promise.all(
+          activeDevotees.map(async (u) => {
             const mCounts = Array(12).fill(0);
-            (u.monthly || []).forEach((m) => {
-              if (m.month >= 1 && m.month <= 12) {
-                mCounts[m.month - 1] = m.count || 0;
+            let hasNonZeroMonthly = false;
+
+            if (Array.isArray(u.monthly) && u.monthly.length > 0) {
+              u.monthly.forEach((m) => {
+                if (m.month >= 1 && m.month <= 12) {
+                  mCounts[m.month - 1] = m.count || 0;
+                  if (m.count > 0) hasNonZeroMonthly = true;
+                }
+              });
+            }
+
+            // Fallback: If server hasn't supplied monthly counts yet, fetch devotee detailed entries
+            if (!hasNonZeroMonthly && u._id) {
+              try {
+                const detailRes = await api.get(`/japmala/user/${u._id}`);
+                const entries = detailRes.data?.entries || [];
+                entries.forEach((e) => {
+                  if (!e.date) return;
+                  const d = new Date(e.date);
+                  const yr = d.getUTCFullYear();
+                  if (yr === Number(yearToExport)) {
+                    const cnt = Number(e.count) || 0;
+                    if (cnt > 0) {
+                      if (e.toDate) {
+                        const toD = new Date(e.toDate);
+                        const sM = d.getUTCMonth();
+                        const eM = toD.getUTCMonth();
+                        if (toD.getUTCFullYear() === yr && sM !== eM && (eM - sM + 1) > 1) {
+                          const span = eM - sM + 1;
+                          const perM = Math.floor(cnt / span);
+                          let rem = cnt % span;
+                          for (let i = sM; i <= eM; i++) {
+                            if (i >= 0 && i <= 11) {
+                              mCounts[i] += perM + (rem > 0 ? 1 : 0);
+                              if (rem > 0) rem--;
+                            }
+                          }
+                          return;
+                        }
+                      }
+                      const m = d.getUTCMonth();
+                      if (m >= 0 && m <= 11) {
+                        mCounts[m] += cnt;
+                      }
+                    }
+                  }
+                });
+              } catch (err) {
+                console.warn('Could not fetch user entries for year export:', err);
               }
-            });
+            }
+
             return {
               name: u.name || 'अनामिक भाविक',
               age: getDevoteeAge(u),
               months: mCounts,
               total: u.total || 0,
             };
-          });
+          })
+        );
 
         userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
 
