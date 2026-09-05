@@ -1,3 +1,4 @@
+const XLSX = require('xlsx');
 const express = require('express');
 const Japmala = require('../models/Japmala');
 const User = require('../models/User');
@@ -769,6 +770,183 @@ router.delete('/:id', auth, async (req, res) => {
       success: false,
       message: 'Server error deleting entry.',
     });
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// GET /api/japmala/export-excel — Admin: Export Annual Register (.xlsx)
+// ═══════════════════════════════════════════════════════
+router.get('/export-excel', auth, adminOnly, async (req, res) => {
+  try {
+    const { year: reqYear } = req.query;
+    const targetYear = reqYear ? Number(cleanDigits(reqYear)) : new Date().getFullYear();
+    const y = isNaN(targetYear) || targetYear < 2000 ? new Date().getFullYear() : targetYear;
+
+    const startOfYear = new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0));
+    const endOfYear = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
+
+    // 1. Fetch all registered users
+    const allUsers = await User.find({
+      role: { $in: ['User', 'Admin'] },
+    }).select('name username phone age').sort({ name: 1, username: 1 });
+
+    // 2. Fetch all entries for target year
+    const entries = await Japmala.find({
+      $or: [
+        { date: { $gte: startOfYear, $lte: endOfYear } },
+        { toDate: { $gte: startOfYear, $lte: endOfYear } },
+        { date: { $lte: startOfYear }, toDate: { $gte: endOfYear } },
+      ],
+    }).populate('user', 'name username phone age');
+
+    // 3. Group and deduplicate entries per user
+    const userMap = new Map();
+    allUsers.forEach((u) => {
+      userMap.set(u._id.toString(), {
+        user: u,
+        name: u.name || u.username || 'अनामिक भाविक',
+        age: u.age !== null && u.age !== undefined ? u.age : '—',
+        months: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        total: 0,
+        rawEntries: [],
+      });
+    });
+
+    entries.forEach((e) => {
+      if (!e.user) return;
+      const uId = e.user._id.toString();
+      if (!userMap.has(uId)) {
+        userMap.set(uId, {
+          user: e.user,
+          name: e.user.name || e.user.username || 'अनामिक भाविक',
+          age: e.user.age !== null && e.user.age !== undefined ? e.user.age : '—',
+          months: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          total: 0,
+          rawEntries: [],
+        });
+      }
+      userMap.get(uId).rawEntries.push(e);
+    });
+
+    const userRows = [];
+    userMap.forEach((record) => {
+      const clean = deduplicateEntries(record.rawEntries);
+      clean.forEach((e) => {
+        const d = new Date(e.date);
+        const m = d.getUTCMonth(); // 0 to 11
+        if (m >= 0 && m <= 11) {
+          record.months[m] += Number(e.count) || 0;
+        }
+      });
+      record.total = record.months.reduce((acc, c) => acc + c, 0);
+      userRows.push(record);
+    });
+
+    // Sort devotees alphabetically
+    userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
+
+    // 4. Build Excel Worksheet
+    const headers = [
+      ['॥ हरिः ॐ तत्सत् ॥'],
+      ['गुरुमंत्र जपानुष्ठान नोंदणी तक्ता'],
+      [`वर्ष : ${y} (Year: ${y})`],
+      ['संत समाज :-'],
+      [
+        'अ.क्र.',
+        'शिष्य (नाव)',
+        'वय',
+        'जानेवारी',
+        'फेब्रुवारी',
+        'मार्च',
+        'एप्रिल',
+        'मे',
+        'जून',
+        'जुलै',
+        'ऑगस्ट',
+        'सप्टेंबर',
+        'ऑक्टोबर',
+        'नोव्हेंबर',
+        'डिसेंबर',
+        'एकूण माळा'
+      ]
+    ];
+
+    const dataRows = [];
+    const monthTotals = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let grandTotal = 0;
+
+    userRows.forEach((r, idx) => {
+      dataRows.push([
+        idx + 1,
+        r.name,
+        r.age,
+        ...r.months,
+        r.total
+      ]);
+      r.months.forEach((cnt, mIdx) => {
+        monthTotals[mIdx] += cnt;
+      });
+      grandTotal += r.total;
+    });
+
+    const totalRowIndex = headers.length + dataRows.length;
+    const totalRow = [
+      'एकूण (Overall Total)',
+      '',
+      '',
+      ...monthTotals,
+      grandTotal
+    ];
+
+    const footerRows = [
+      [''],
+      ['॥ जय सच्चिदानंद ॥']
+    ];
+
+    const allRows = [...headers, ...dataRows, totalRow, ...footerRows];
+    const ws = XLSX.utils.aoa_to_sheet(allRows);
+
+    // Column widths for perfect Excel viewing
+    ws['!cols'] = [
+      { wch: 8 },  // अ.क्र.
+      { wch: 28 }, // शिष्य (नाव)
+      { wch: 8 },  // वय
+      { wch: 11 }, // जाने
+      { wch: 11 }, // फेब्रु
+      { wch: 11 }, // मार्च
+      { wch: 11 }, // एप्रि
+      { wch: 11 }, // मे
+      { wch: 11 }, // जून
+      { wch: 11 }, // जुलै
+      { wch: 11 }, // ऑग
+      { wch: 11 }, // सप्टें
+      { wch: 11 }, // ऑक्टो
+      { wch: 11 }, // नोव्हें
+      { wch: 11 }, // डिसे
+      { wch: 14 }  // एकूण माळा
+    ];
+
+    const footerRowIndex = allRows.length - 1;
+
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 15 } }, // ॥ हरिः ॐ तत्सत् ॥
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 15 } }, // गुरुमंत्र जपानुष्ठान नोंदणी तक्ता
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 15 } }, // वर्ष : २०२६
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 3 } },  // संत समाज :-
+      { s: { r: totalRowIndex, c: 0 }, e: { r: totalRowIndex, c: 2 } }, // एकूण (Overall Total)
+      { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 15 } } // ॥ जय सच्चिदानंद ॥
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `जपानुष्ठान_${y}`);
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="Japmala_Nondani_Takta_${y}.xlsx"`);
+    return res.send(buf);
+  } catch (err) {
+    console.error('Excel Export error:', err);
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

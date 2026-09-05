@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
+  Linking,
   Text,
   TextInput,
   TouchableOpacity,
@@ -758,68 +759,32 @@ const JapmalaReportScreen = () => {
     calendarCells.push(`${calYear}-${mm}-${dd}`);
   }
 
-  // Export PDF
-  const handleExport = async () => {
-    const params = getQueryParams();
+  // Export Excel (.xlsx)
+  const handleExportExcel = async () => {
+    const yearToExport = filterMode === 'year' ? filterYear : selectedYear;
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const downloadUrl = `${api.defaults.baseURL}/japmala/export-excel?year=${yearToExport}${token ? `&token=${token}` : ''}`;
 
-    if (Platform.OS === 'web') {
-      const generatePdf = async () => {
-        try {
-          const response = await api.get(`/japmala/export${params}`);
-          let htmlContent = response.data;
-          if (filterMode === 'year' && typeof htmlContent === 'string') {
-            htmlContent = htmlContent.replace(/Japmala Report — [^<]+/g, `Japmala Report — Year ${filterYear}`);
-          }
-
-          const container = document.createElement('div');
-          container.innerHTML = htmlContent;
-          document.body.appendChild(container);
-
-          let period = 'All_Time';
-          if (filterMode === 'month') {
-            period = `${monthNames[selectedMonth]}_${selectedYear}`;
-          } else if (filterMode === 'year') {
-            period = `Year_${filterYear}`;
-          } else if (filterMode === 'range' && fromDate && toDate) {
-            period = `${fromDate}_to_${toDate}`;
-          }
-
-          window.html2pdf().from(container).set({
-            margin: 10,
-            filename: `Japmala_Report_${period}.pdf`,
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-          }).save().then(() => {
-            document.body.removeChild(container);
-          });
-        } catch (err) {
-          console.error('PDF error:', err);
-          try {
-            const token = await AsyncStorage.getItem('token');
-            const tokenParam = token ? (params ? `${params}&token=${token}` : `?token=${token}`) : params;
-            window.open(`${api.defaults.baseURL}/japmala/export${tokenParam}`, '_blank');
-          } catch {
-            window.open(`${api.defaults.baseURL}/japmala/export${params}`, '_blank');
-          }
-        }
-      };
-
-      if (window.html2pdf) {
-        generatePdf();
+      if (Platform.OS === 'web') {
+        // Direct browser download
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `Japmala_Nondani_Takta_${yearToExport}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
       } else {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-        script.onload = generatePdf;
-        document.body.appendChild(script);
+        // Mobile download & open
+        if (Linking && Linking.openURL) {
+          await Linking.openURL(downloadUrl);
+        } else {
+          window.open(downloadUrl, '_blank');
+        }
       }
-    } else {
-      try {
-        const token = await AsyncStorage.getItem('token');
-        const tokenParam = token ? (params ? `${params}&token=${token}` : `?token=${token}`) : params;
-        window.open(`${api.defaults.baseURL}/japmala/export${tokenParam}`, '_blank');
-      } catch {
-        window.open(`${api.defaults.baseURL}/japmala/export${params}`, '_blank');
-      }
+    } catch (err) {
+      console.error('Excel Download Error:', err);
+      showAlert('Download Error', 'Excel file download failed. Please try again.');
     }
   };
 
