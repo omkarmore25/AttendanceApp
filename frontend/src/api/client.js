@@ -6,7 +6,7 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://attendance-back
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 25000, // 25s timeout to handle Render cold starts gracefully
   headers: {
     'Content-Type': 'application/json',
   },
