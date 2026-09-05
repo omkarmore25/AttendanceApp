@@ -788,6 +788,8 @@ const JapmalaReportScreen = () => {
     }
   };
 
+  const handleExport = handleExportExcel;
+
   const prevMonth = () => {
     if (selectedMonth === 0) {
       setSelectedMonth(11);
@@ -1076,15 +1078,9 @@ const JapmalaReportScreen = () => {
             {/* Export Official PDF & Share WhatsApp Action Row */}
             {fetched && report.length > 0 && (
               <View style={styles.reportActionsRow}>
-                <TouchableOpacity style={[styles.exportBtn, { flex: 1.2, marginRight: 8 }]} onPress={handleExport}>
+                <TouchableOpacity style={[styles.exportBtn, { flex: 1.2, marginRight: 8 }]} onPress={handleExportExcel}>
                   <Text style={styles.exportBtnText} numberOfLines={1}>
-                    {filterMode === 'all'
-                      ? '📄 Official PDF Report'
-                      : filterMode === 'month'
-                      ? `📄 PDF (${monthNames[selectedMonth].substring(0, 3)} ${selectedYear})`
-                      : filterMode === 'year'
-                      ? `📄 PDF (${filterYear} Annual)`
-                      : `📄 PDF Range Report`}
+                    📊 Excel नोंदणी तक्ता (${filterMode === 'year' ? filterYear : selectedYear})
                   </Text>
                 </TouchableOpacity>
 
