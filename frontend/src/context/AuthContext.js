@@ -15,6 +15,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const loadStoredAuth = async () => {
+    let hasLocalAuth = false;
     try {
       const storedToken = await AsyncStorage.getItem('token');
       const storedUser = await AsyncStorage.getItem('user');
@@ -23,32 +24,35 @@ export const AuthProvider = ({ children }) => {
         setToken(storedToken);
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
-
-        // Verify token with backend in background
-        try {
-          const res = await api.get('/auth/me');
-          if (res.data?.user) {
-            setUser(res.data.user);
-            await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
-          }
-        } catch (verifyErr) {
-          // If server explicitly rejects token (401/403), reset session.
-          // If it's a network error (offline), keep user logged in locally!
-          if (verifyErr.response?.status === 401 || verifyErr.response?.status === 403) {
-            console.warn('Stored session expired or invalid, resetting auth...');
-            await AsyncStorage.removeItem('token');
-            await AsyncStorage.removeItem('user');
-            setToken(null);
-            setUser(null);
-          } else {
-            console.log('Backend unreachable (offline mode), maintaining local session.');
-          }
-        }
+        hasLocalAuth = true;
       }
     } catch (error) {
       console.error('Error loading auth:', error);
     } finally {
+      // Instantly open the app without waiting for internet/Render cold start
       setLoading(false);
+    }
+
+    // Verify token with backend silently in background (non-blocking)
+    if (hasLocalAuth) {
+      try {
+        const res = await api.get('/auth/me');
+        if (res.data?.user) {
+          setUser(res.data.user);
+          await AsyncStorage.setItem('user', JSON.stringify(res.data.user));
+        }
+      } catch (verifyErr) {
+        // Only reset if explicitly rejected (401/403)
+        if (verifyErr.response?.status === 401 || verifyErr.response?.status === 403) {
+          console.warn('Stored session expired or invalid, resetting auth...');
+          await AsyncStorage.removeItem('token');
+          await AsyncStorage.removeItem('user');
+          setToken(null);
+          setUser(null);
+        } else {
+          console.log('Backend unreachable or slow, keeping local session active.');
+        }
+      }
     }
   };
 
