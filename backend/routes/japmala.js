@@ -482,11 +482,11 @@ router.get('/user/:userId', auth, adminOnly, async (req, res) => {
     const entries = deduplicateEntries(rawEntries);
     const total = entries.reduce((sum, e) => sum + e.count, 0);
 
-    const user = await User.findById(req.params.userId).select('name username phone');
+    const user = await User.findById(req.params.userId).select('name username phone age');
 
     res.status(200).json({
       success: true,
-      user: user ? { name: user.name || user.username, phone: user.phone } : null,
+      user: user ? { name: user.name || user.username, phone: user.phone, age: (user.age !== undefined && user.age !== null) ? user.age : null } : null,
       count: entries.length,
       total,
       entries,
