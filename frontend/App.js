@@ -8,6 +8,7 @@ import { OfflineProvider } from './src/context/OfflineContext';
 import OfflineStatusBanner from './src/components/OfflineStatusBanner';
 import AppNavigator from './src/navigation/AppNavigator';
 import theme from './src/theme';
+import { Analytics } from '@vercel/analytics/react';
 
 // Ensure dark background on web root to prevent white flash
 if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -38,6 +39,7 @@ function App() {
             <StatusBar style="light" />
             <OfflineStatusBanner />
             <AppNavigator />
+            {Platform.OS === 'web' && <Analytics />}
           </OfflineProvider>
         </AuthProvider>
       </View>
