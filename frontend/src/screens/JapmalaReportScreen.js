@@ -829,37 +829,23 @@ const JapmalaReportScreen = () => {
         const reportData = res.data?.report || report || [];
         const grandTotalVal = res.data?.grandTotal ?? grandTotal;
 
-        const userMonthPromises = reportData.map(async (u) => {
-          try {
-            const uRes = await api.get(`/japmala/user/${u._id}?year=${yearToExport}`);
-            const entries = uRes.data?.entries || [];
-            const months = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            entries.forEach((e) => {
-              const d = new Date(e.date);
-              const m = d.getUTCMonth();
-              if (m >= 0 && m <= 11) {
-                months[m] += Number(e.count) || 0;
+        const userRows = reportData
+          .filter((u) => (u.total || 0) > 0)
+          .map((u) => {
+            const mCounts = Array(12).fill(0);
+            (u.monthly || []).forEach((m) => {
+              if (m.month >= 1 && m.month <= 12) {
+                mCounts[m.month - 1] = m.count || 0;
               }
             });
-            const total = months.reduce((acc, c) => acc + c, 0) || u.total || 0;
-
             return {
               name: u.name || 'अनामिक भाविक',
               age: getDevoteeAge(u),
-              months,
-              total,
-            };
-          } catch (e) {
-            return {
-              name: u.name || 'अनामिक भाविक',
-              age: getDevoteeAge(u),
-              months: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              months: mCounts,
               total: u.total || 0,
             };
-          }
-        });
+          });
 
-        const userRows = await Promise.all(userMonthPromises);
         userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
 
         const headers = [
@@ -953,11 +939,13 @@ const JapmalaReportScreen = () => {
         const reportData = res.data?.report || report || [];
         const grandTotalVal = res.data?.grandTotal ?? grandTotal;
 
-        const userRows = reportData.map((u) => ({
-          name: u.name || 'अनामिक भाविक',
-          age: getDevoteeAge(u),
-          total: u.total || 0,
-        }));
+        const userRows = reportData
+          .filter((u) => (u.total || 0) > 0)
+          .map((u) => ({
+            name: u.name || 'अनामिक भाविक',
+            age: getDevoteeAge(u),
+            total: u.total || 0,
+          }));
         userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
 
         const headers = [
@@ -1021,11 +1009,13 @@ const JapmalaReportScreen = () => {
         const reportData = res.data?.report || report || [];
         const grandTotalVal = res.data?.grandTotal ?? grandTotal;
 
-        const userRows = reportData.map((u) => ({
-          name: u.name || 'अनामिक भाविक',
-          age: getDevoteeAge(u),
-          total: u.total || 0,
-        }));
+        const userRows = reportData
+          .filter((u) => (u.total || 0) > 0)
+          .map((u) => ({
+            name: u.name || 'अनामिक भाविक',
+            age: getDevoteeAge(u),
+            total: u.total || 0,
+          }));
         userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
 
         const headers = [
@@ -1089,11 +1079,13 @@ const JapmalaReportScreen = () => {
         const reportData = res.data?.report || report || [];
         const grandTotalVal = res.data?.grandTotal ?? grandTotal;
 
-        const userRows = reportData.map((u) => ({
-          name: u.name || 'अनामिक भाविक',
-          age: getDevoteeAge(u),
-          total: u.total || 0,
-        }));
+        const userRows = reportData
+          .filter((u) => (u.total || 0) > 0)
+          .map((u) => ({
+            name: u.name || 'अनामिक भाविक',
+            age: getDevoteeAge(u),
+            total: u.total || 0,
+          }));
         userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
 
         const rangeLabel = `${formatDateDisplay(fromDate)} ते ${formatDateDisplay(toDate)}`;

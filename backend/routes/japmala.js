@@ -832,7 +832,9 @@ router.get('/export-excel', auth, async (req, res) => {
           }
         });
         record.total = record.months.reduce((acc, c) => acc + c, 0);
-        userRows.push(record);
+        if (record.total > 0) {
+          userRows.push(record);
+        }
       });
 
       userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
@@ -991,12 +993,14 @@ router.get('/export-excel', auth, async (req, res) => {
     userMap.forEach((rec) => {
       const clean = deduplicateEntries(rec.rawEntries);
       const total = clean.reduce((sum, e) => sum + e.count, 0);
-      userRows.push({
-        name: rec.name,
-        age: rec.age,
-        total,
-      });
-      grandTotal += total;
+      if (total > 0) {
+        userRows.push({
+          name: rec.name,
+          age: rec.age,
+          total,
+        });
+        grandTotal += total;
+      }
     });
 
     userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
