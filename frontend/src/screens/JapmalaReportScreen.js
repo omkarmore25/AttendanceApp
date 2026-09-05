@@ -759,7 +759,7 @@ const JapmalaReportScreen = () => {
     calendarCells.push(`${calYear}-${mm}-${dd}`);
   }
 
-      // Export Excel (.xlsx) dynamically tailored to the active filter mode
+        // Export Excel (.xlsx) dynamically tailored to the active filter mode
   const handleExportExcel = async () => {
     try {
       // 1. Fetch user directory for accurate Age mapping
@@ -791,6 +791,35 @@ const JapmalaReportScreen = () => {
         return (rawAge !== undefined && rawAge !== null && rawAge !== '')
           ? (Number(rawAge) || rawAge)
           : '—';
+      };
+
+      // Helper to trigger save on Web (via browser SheetJS) and Mobile (via Linking.openURL)
+      const triggerSave = async (allRows, colWidths, merges, sheetName, filename) => {
+        if (typeof window !== 'undefined' && window.XLSX) {
+          const ws = window.XLSX.utils.aoa_to_sheet(allRows);
+          ws['!cols'] = colWidths;
+          ws['!merges'] = merges;
+          const wb = window.XLSX.utils.book_new();
+          window.XLSX.utils.book_append_sheet(wb, ws, sheetName);
+          window.XLSX.writeFile(wb, filename);
+        } else if (typeof document !== 'undefined') {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+          script.onload = () => {
+            const ws = window.XLSX.utils.aoa_to_sheet(allRows);
+            ws['!cols'] = colWidths;
+            ws['!merges'] = merges;
+            const wb = window.XLSX.utils.book_new();
+            window.XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            window.XLSX.writeFile(wb, filename);
+          };
+          document.body.appendChild(script);
+        } else if (Linking && Linking.openURL) {
+          const token = await AsyncStorage.getItem('token');
+          const mStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
+          const downloadUrl = `${api.defaults.baseURL}/japmala/export-excel?mode=${filterMode}&year=${selectedYear}&filterYear=${filterYear}&month=${mStr}&from=${fromDate || ''}&to=${toDate || ''}${token ? `&token=${token}` : ''}`;
+          await Linking.openURL(downloadUrl);
+        }
       };
 
       // ─── CASE 1: BY YEAR (Official 12-Month Register) ───
@@ -891,56 +920,36 @@ const JapmalaReportScreen = () => {
         ];
 
         const allRows = [...headers, ...dataRows, totalRow, ...footerRows];
+        const colWidths = [
+          { wch: 8 },  // अ.क्र.
+          { wch: 28 }, // नाव
+          { wch: 8 },  // वय
+          { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 },
+          { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 },
+          { wch: 14 }  // एकूण माळा
+        ];
 
-        const buildAndSave = (XLSX) => {
-          const ws = XLSX.utils.aoa_to_sheet(allRows);
-          ws['!cols'] = [
-            { wch: 8 },  // अ.क्र.
-            { wch: 28 }, // नाव
-            { wch: 8 },  // वय
-            { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 },
-            { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 },
-            { wch: 14 }  // एकूण माळा
-          ];
+        const footerRowIndex = allRows.length - 1;
+        const merges = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: 15 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: 15 } },
+          { s: { r: 2, c: 0 }, e: { r: 2, c: 15 } },
+          { s: { r: 3, c: 0 }, e: { r: 3, c: 3 } },
+          { s: { r: totalRowIndex, c: 0 }, e: { r: totalRowIndex, c: 2 } },
+          { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 15 } }
+        ];
 
-          const footerRowIndex = allRows.length - 1;
-          ws['!merges'] = [
-            { s: { r: 0, c: 0 }, e: { r: 0, c: 15 } },
-            { s: { r: 1, c: 0 }, e: { r: 1, c: 15 } },
-            { s: { r: 2, c: 0 }, e: { r: 2, c: 15 } },
-            { s: { r: 3, c: 0 }, e: { r: 3, c: 3 } },
-            { s: { r: totalRowIndex, c: 0 }, e: { r: totalRowIndex, c: 2 } },
-            { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 15 } }
-          ];
-
-          const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, `जपानुष्ठान_${yearToExport}`);
-          XLSX.writeFile(wb, `Japmala_Nondani_Takta_${yearToExport}.xlsx`);
-        };
-
-                const token = await AsyncStorage.getItem('token');
-        const monthStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
-        const downloadUrl = `${api.defaults.baseURL}/japmala/export-excel?mode=${filterMode}&year=${selectedYear}&filterYear=${filterYear}&month=${monthStr}&from=${fromDate || ''}&to=${toDate || ''}${token ? `&token=${token}` : ''}`;
-        if (typeof window !== 'undefined' && window.XLSX) {
-          buildAndSave(window.XLSX);
-        } else if (typeof document !== 'undefined') {
-          const script = document.createElement('script');
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-          script.onload = () => buildAndSave(window.XLSX);
-          document.body.appendChild(script);
-        } else if (Linking && Linking.openURL) {
-          await Linking.openURL(downloadUrl);
-        }
+        await triggerSave(allRows, colWidths, merges, `जपानुष्ठान_${yearToExport}`, `Japmala_Nondani_Takta_${yearToExport}.xlsx`);
         return;
       }
 
       // ─── CASE 2: BY MONTH (Single Month Total Column) ───
       if (filterMode === 'month') {
-        const monthStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
+        const monthQueryStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
         const monthLabelMr = `${marathiMonthNames[selectedMonth]} ${selectedYear}`;
         const monthLabelEn = `${monthNames[selectedMonth]} ${selectedYear}`;
 
-        const res = await api.get(`/japmala/report?month=${monthStr}`);
+        const res = await api.get(`/japmala/report?month=${monthQueryStr}`);
         const reportData = res.data?.report || report || [];
         const grandTotalVal = res.data?.grandTotal ?? grandTotal;
 
@@ -985,44 +994,24 @@ const JapmalaReportScreen = () => {
         ];
 
         const allRows = [...headers, ...dataRows, totalRow, ...footerRows];
+        const colWidths = [
+          { wch: 8 },  // अ.क्र.
+          { wch: 30 }, // नाव
+          { wch: 10 }, // वय
+          { wch: 25 }  // एकूण माळा
+        ];
 
-        const buildAndSave = (XLSX) => {
-          const ws = XLSX.utils.aoa_to_sheet(allRows);
-          ws['!cols'] = [
-            { wch: 8 },  // अ.क्र.
-            { wch: 30 }, // नाव
-            { wch: 10 }, // वय
-            { wch: 25 }  // एकूण माळा
-          ];
+        const footerRowIndex = allRows.length - 1;
+        const merges = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
+          { s: { r: 2, c: 0 }, e: { r: 2, c: 3 } },
+          { s: { r: 3, c: 0 }, e: { r: 3, c: 1 } },
+          { s: { r: totalRowIndex, c: 0 }, e: { r: totalRowIndex, c: 2 } },
+          { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 3 } }
+        ];
 
-          const footerRowIndex = allRows.length - 1;
-          ws['!merges'] = [
-            { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
-            { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
-            { s: { r: 2, c: 0 }, e: { r: 2, c: 3 } },
-            { s: { r: 3, c: 0 }, e: { r: 3, c: 1 } },
-            { s: { r: totalRowIndex, c: 0 }, e: { r: totalRowIndex, c: 2 } },
-            { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 3 } }
-          ];
-
-          const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, `जपानुष्ठान_${monthNames[selectedMonth]}_${selectedYear}`);
-          XLSX.writeFile(wb, `Japmala_Nondani_Takta_${monthNames[selectedMonth]}_${selectedYear}.xlsx`);
-        };
-
-                const token = await AsyncStorage.getItem('token');
-        const monthStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
-        const downloadUrl = `${api.defaults.baseURL}/japmala/export-excel?mode=${filterMode}&year=${selectedYear}&filterYear=${filterYear}&month=${monthStr}&from=${fromDate || ''}&to=${toDate || ''}${token ? `&token=${token}` : ''}`;
-        if (typeof window !== 'undefined' && window.XLSX) {
-          buildAndSave(window.XLSX);
-        } else if (typeof document !== 'undefined') {
-          const script = document.createElement('script');
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-          script.onload = () => buildAndSave(window.XLSX);
-          document.body.appendChild(script);
-        } else if (Linking && Linking.openURL) {
-          await Linking.openURL(downloadUrl);
-        }
+        await triggerSave(allRows, colWidths, merges, `जपानुष्ठान_${monthNames[selectedMonth]}_${selectedYear}`, `Japmala_Nondani_Takta_${monthNames[selectedMonth]}_${selectedYear}.xlsx`);
         return;
       }
 
@@ -1073,44 +1062,24 @@ const JapmalaReportScreen = () => {
         ];
 
         const allRows = [...headers, ...dataRows, totalRow, ...footerRows];
+        const colWidths = [
+          { wch: 8 },  // अ.क्र.
+          { wch: 30 }, // नाव
+          { wch: 10 }, // वय
+          { wch: 25 }  // एकूण माळा
+        ];
 
-        const buildAndSave = (XLSX) => {
-          const ws = XLSX.utils.aoa_to_sheet(allRows);
-          ws['!cols'] = [
-            { wch: 8 },  // अ.क्र.
-            { wch: 30 }, // नाव
-            { wch: 10 }, // वय
-            { wch: 25 }  // एकूण माळा
-          ];
+        const footerRowIndex = allRows.length - 1;
+        const merges = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
+          { s: { r: 2, c: 0 }, e: { r: 2, c: 3 } },
+          { s: { r: 3, c: 0 }, e: { r: 3, c: 1 } },
+          { s: { r: totalRowIndex, c: 0 }, e: { r: totalRowIndex, c: 2 } },
+          { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 3 } }
+        ];
 
-          const footerRowIndex = allRows.length - 1;
-          ws['!merges'] = [
-            { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
-            { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
-            { s: { r: 2, c: 0 }, e: { r: 2, c: 3 } },
-            { s: { r: 3, c: 0 }, e: { r: 3, c: 1 } },
-            { s: { r: totalRowIndex, c: 0 }, e: { r: totalRowIndex, c: 2 } },
-            { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 3 } }
-          ];
-
-          const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, 'जपानुष्ठान_सर्वकाळ');
-          XLSX.writeFile(wb, 'Japmala_Nondani_Takta_All_Time.xlsx');
-        };
-
-                const token = await AsyncStorage.getItem('token');
-        const monthStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
-        const downloadUrl = `${api.defaults.baseURL}/japmala/export-excel?mode=${filterMode}&year=${selectedYear}&filterYear=${filterYear}&month=${monthStr}&from=${fromDate || ''}&to=${toDate || ''}${token ? `&token=${token}` : ''}`;
-        if (typeof window !== 'undefined' && window.XLSX) {
-          buildAndSave(window.XLSX);
-        } else if (typeof document !== 'undefined') {
-          const script = document.createElement('script');
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-          script.onload = () => buildAndSave(window.XLSX);
-          document.body.appendChild(script);
-        } else if (Linking && Linking.openURL) {
-          await Linking.openURL(downloadUrl);
-        }
+        await triggerSave(allRows, colWidths, merges, 'जपानुष्ठान_सर्वकाळ', 'Japmala_Nondani_Takta_All_Time.xlsx');
         return;
       }
 
@@ -1163,44 +1132,24 @@ const JapmalaReportScreen = () => {
         ];
 
         const allRows = [...headers, ...dataRows, totalRow, ...footerRows];
+        const colWidths = [
+          { wch: 8 },  // अ.क्र.
+          { wch: 30 }, // नाव
+          { wch: 10 }, // वय
+          { wch: 28 }  // एकूण माळा
+        ];
 
-        const buildAndSave = (XLSX) => {
-          const ws = XLSX.utils.aoa_to_sheet(allRows);
-          ws['!cols'] = [
-            { wch: 8 },  // अ.क्र.
-            { wch: 30 }, // नाव
-            { wch: 10 }, // वय
-            { wch: 28 }  // एकूण माळा
-          ];
+        const footerRowIndex = allRows.length - 1;
+        const merges = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
+          { s: { r: 2, c: 0 }, e: { r: 2, c: 3 } },
+          { s: { r: 3, c: 0 }, e: { r: 3, c: 1 } },
+          { s: { r: totalRowIndex, c: 0 }, e: { r: totalRowIndex, c: 2 } },
+          { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 3 } }
+        ];
 
-          const footerRowIndex = allRows.length - 1;
-          ws['!merges'] = [
-            { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
-            { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
-            { s: { r: 2, c: 0 }, e: { r: 2, c: 3 } },
-            { s: { r: 3, c: 0 }, e: { r: 3, c: 1 } },
-            { s: { r: totalRowIndex, c: 0 }, e: { r: totalRowIndex, c: 2 } },
-            { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 3 } }
-          ];
-
-          const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, 'जपानुष्ठान_दिनांक_कालावधी');
-          XLSX.writeFile(wb, `Japmala_Nondani_Takta_${fromDate}_to_${toDate}.xlsx`);
-        };
-
-                const token = await AsyncStorage.getItem('token');
-        const monthStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
-        const downloadUrl = `${api.defaults.baseURL}/japmala/export-excel?mode=${filterMode}&year=${selectedYear}&filterYear=${filterYear}&month=${monthStr}&from=${fromDate || ''}&to=${toDate || ''}${token ? `&token=${token}` : ''}`;
-        if (typeof window !== 'undefined' && window.XLSX) {
-          buildAndSave(window.XLSX);
-        } else if (typeof document !== 'undefined') {
-          const script = document.createElement('script');
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-          script.onload = () => buildAndSave(window.XLSX);
-          document.body.appendChild(script);
-        } else if (Linking && Linking.openURL) {
-          await Linking.openURL(downloadUrl);
-        }
+        await triggerSave(allRows, colWidths, merges, 'जपानुष्ठान_दिनांक_कालावधी', `Japmala_Nondani_Takta_${fromDate}_to_${toDate}.xlsx`);
         return;
       }
     } catch (err) {
