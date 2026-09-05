@@ -1299,8 +1299,12 @@ const JapmalaReportScreen = () => {
               >
                 <Text style={styles.addMemberEntryEmoji}>✍️</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.addMemberEntryTitle}>Member Entry</Text>
-                  <Text style={styles.addMemberEntrySubtitle}>Day, Month, Range or Grid</Text>
+                  <Text style={styles.addMemberEntryTitle}>
+                    {lang === 'mr' ? 'भक्त नोंद (Member Entry)' : 'Member Entry'}
+                  </Text>
+                  <Text style={styles.addMemberEntrySubtitle}>
+                    {lang === 'mr' ? 'दिवस, महिना, कालावधी किंवा ग्रिड' : 'Day, Month, Range or Grid'}
+                  </Text>
                 </View>
                 <Text style={styles.addMemberPlus}>＋</Text>
               </TouchableOpacity>
@@ -1315,8 +1319,12 @@ const JapmalaReportScreen = () => {
               >
                 <Text style={styles.pasteWhatsAppEmoji}>💬</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.pasteWhatsAppTitle}>Paste WhatsApp</Text>
-                  <Text style={styles.pasteWhatsAppSubtitle}>Auto-Parse Multi-Devotee</Text>
+                  <Text style={styles.pasteWhatsAppTitle}>
+                    {lang === 'mr' ? 'व्हॉट्सअ‍ॅप मेसेज पेस्ट करा' : 'Paste WhatsApp'}
+                  </Text>
+                  <Text style={styles.pasteWhatsAppSubtitle}>
+                    {lang === 'mr' ? 'अनेक भक्तांची आपोआप नोंद' : 'Auto-Parse Multi-Devotee'}
+                  </Text>
                 </View>
                 <Text style={styles.pasteWhatsAppPlus}>⚡</Text>
               </TouchableOpacity>
@@ -1330,7 +1338,7 @@ const JapmalaReportScreen = () => {
                   onPress={() => setFilterMode('all')}
                 >
                   <Text style={[styles.toggleText, filterMode === 'all' && styles.toggleTextActive]}>
-                    🌟 All Time
+                    {lang === 'mr' ? '🌟 सर्वकाळ' : '🌟 All Time'}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1338,7 +1346,7 @@ const JapmalaReportScreen = () => {
                   onPress={() => setFilterMode('month')}
                 >
                   <Text style={[styles.toggleText, filterMode === 'month' && styles.toggleTextActive]}>
-                    📅 By Month
+                    {lang === 'mr' ? '📅 महिना' : '📅 By Month'}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1346,7 +1354,7 @@ const JapmalaReportScreen = () => {
                   onPress={() => setFilterMode('year')}
                 >
                   <Text style={[styles.toggleText, filterMode === 'year' && styles.toggleTextActive]}>
-                    🗓️ By Year
+                    {lang === 'mr' ? '🗓️ वर्ष' : '🗓️ By Year'}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1354,7 +1362,7 @@ const JapmalaReportScreen = () => {
                   onPress={() => setFilterMode('range')}
                 >
                   <Text style={[styles.toggleText, filterMode === 'range' && styles.toggleTextActive]}>
-                    📆 Date Range
+                    {lang === 'mr' ? '📆 कालावधी' : '📆 Date Range'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1362,9 +1370,13 @@ const JapmalaReportScreen = () => {
               {/* Mode 1: All Time Info Banner */}
               {filterMode === 'all' && (
                 <View style={styles.allTimeBanner}>
-                  <Text style={styles.allTimeBannerTitle}>🌟 All-Time Grand Total Report</Text>
+                  <Text style={styles.allTimeBannerTitle}>
+                    {lang === 'mr' ? '🌟 सर्वकाळ एकूण अहवाल' : '🌟 All-Time Grand Total Report'}
+                  </Text>
                   <Text style={styles.allTimeBannerSub}>
-                    Consolidated report of all Japmala logged by all devotees across the entire history.
+                    {lang === 'mr'
+                      ? 'सर्व भक्तांनी केलेल्या एकूण जपमाळांचा एकत्रित अहवाल.'
+                      : 'Consolidated report of all Japmala logged by all devotees across the entire history.'}
                   </Text>
                 </View>
               )}
@@ -1373,11 +1385,15 @@ const JapmalaReportScreen = () => {
               {filterMode === 'month' && (
                 <View style={styles.monthNav}>
                   <TouchableOpacity onPress={prevMonth} style={styles.navArrow}>
-                    <Text style={styles.monthNavText}>← Prev</Text>
+                    <Text style={styles.monthNavText}>{lang === 'mr' ? '← मागील' : '← Prev'}</Text>
                   </TouchableOpacity>
-                  <Text style={styles.monthTitle}>{monthNames[selectedMonth]} {selectedYear}</Text>
+                  <Text style={styles.monthTitle}>
+                    {lang === 'mr'
+                      ? `${marathiMonthNames[selectedMonth]} ${toMarathiDigits(selectedYear)}`
+                      : `${monthNames[selectedMonth]} ${selectedYear}`}
+                  </Text>
                   <TouchableOpacity onPress={nextMonth} style={styles.navArrow}>
-                    <Text style={styles.monthNavText}>Next →</Text>
+                    <Text style={styles.monthNavText}>{lang === 'mr' ? 'पुढील →' : 'Next →'}</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1386,11 +1402,17 @@ const JapmalaReportScreen = () => {
               {filterMode === 'year' && (
                 <View style={styles.monthNav}>
                   <TouchableOpacity onPress={prevYear} style={styles.navArrow}>
-                    <Text style={styles.monthNavText}>← {filterYear - 1}</Text>
+                    <Text style={styles.monthNavText}>
+                      {lang === 'mr' ? `← ${toMarathiDigits(filterYear - 1)}` : `← ${filterYear - 1}`}
+                    </Text>
                   </TouchableOpacity>
-                  <Text style={styles.monthTitle}>🗓️ Year {filterYear}</Text>
+                  <Text style={styles.monthTitle}>
+                    {lang === 'mr' ? `🗓️ वर्ष ${toMarathiDigits(filterYear)}` : `🗓️ Year ${filterYear}`}
+                  </Text>
                   <TouchableOpacity onPress={nextYear} style={styles.navArrow}>
-                    <Text style={styles.monthNavText}>{filterYear + 1} →</Text>
+                    <Text style={styles.monthNavText}>
+                      {lang === 'mr' ? `${toMarathiDigits(filterYear + 1)} →` : `${filterYear + 1} →`}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1400,22 +1422,30 @@ const JapmalaReportScreen = () => {
                 <View>
                   <View style={styles.dateRangeRow}>
                     <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-                      <Text style={styles.inputLabel}>FROM</Text>
+                      <Text style={styles.inputLabel}>{lang === 'mr' ? 'पासून (FROM)' : 'FROM'}</Text>
                       <TouchableOpacity
                         style={styles.dateTriggerBtn}
                         onPress={() => openCalendar('filterFrom')}
                       >
-                        <Text style={styles.dateTriggerText}>{fromDate ? formatDateDisplay(fromDate) : 'Select start date'}</Text>
+                        <Text style={styles.dateTriggerText}>
+                          {fromDate
+                            ? (lang === 'mr' ? toMarathiDigits(formatDateDisplay(fromDate)) : formatDateDisplay(fromDate))
+                            : (lang === 'mr' ? 'सुरुवात तारीख निवडा' : 'Select start date')}
+                        </Text>
                         <Text>📅</Text>
                       </TouchableOpacity>
                     </View>
                     <View style={[styles.inputGroup, { flex: 1 }]}>
-                      <Text style={styles.inputLabel}>TO</Text>
+                      <Text style={styles.inputLabel}>{lang === 'mr' ? 'पर्यंत (TO)' : 'TO'}</Text>
                       <TouchableOpacity
                         style={styles.dateTriggerBtn}
                         onPress={() => openCalendar('filterTo')}
                       >
-                        <Text style={styles.dateTriggerText}>{toDate ? formatDateDisplay(toDate) : 'Select end date'}</Text>
+                        <Text style={styles.dateTriggerText}>
+                          {toDate
+                            ? (lang === 'mr' ? toMarathiDigits(formatDateDisplay(toDate)) : formatDateDisplay(toDate))
+                            : (lang === 'mr' ? 'शेवट तारीख निवडा' : 'Select end date')}
+                        </Text>
                         <Text>📅</Text>
                       </TouchableOpacity>
                     </View>
@@ -1425,7 +1455,9 @@ const JapmalaReportScreen = () => {
                     style={styles.openRangeCalBtn}
                     onPress={() => openCalendar('filterRange')}
                   >
-                    <Text style={styles.openRangeCalText}>📅 Pick Range on Calendar (Select Start & End)</Text>
+                    <Text style={styles.openRangeCalText}>
+                      {lang === 'mr' ? '📅 कॅलेंडरवर कालावधी निवडा (सुरुवात व शेवट)' : '📅 Pick Range on Calendar (Select Start & End)'}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1435,34 +1467,44 @@ const JapmalaReportScreen = () => {
             {fetched && (
               <View style={styles.statsRow}>
                 <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>{memberCount}</Text>
-                  <Text style={styles.statLabel}>Devotees (गुरू बंधू/भगिनी)</Text>
+                  <Text style={styles.statNumber}>
+                    {lang === 'mr' ? toMarathiDigits(memberCount) : memberCount}
+                  </Text>
+                  <Text style={styles.statLabel}>
+                    {lang === 'mr' ? 'गुरू बंधू / भगिनी' : 'Devotees (गुरू बंधू/भगिनी)'}
+                  </Text>
                 </View>
                 <View style={[styles.statCard, styles.statCardHighlight]}>
-                  <Text style={[styles.statNumber, { color: theme.colors.accent }]}>{grandTotal}</Text>
-                  <Text style={styles.statLabel}>Total माळा (एकूण)</Text>
+                  <Text style={[styles.statNumber, { color: theme.colors.accent }]}>
+                    {lang === 'mr' ? toMarathiDigits(grandTotal) : grandTotal}
+                  </Text>
+                  <Text style={styles.statLabel}>
+                    {lang === 'mr' ? 'एकूण माळा' : 'Total माळा (एकूण)'}
+                  </Text>
                 </View>
               </View>
             )}
 
-            {/* Export Official PDF & Share WhatsApp Action Row */}
+            {/* Export Official Excel & Share WhatsApp Action Row */}
             {fetched && report.length > 0 && (
               <View style={styles.reportActionsRow}>
                 <TouchableOpacity style={[styles.exportBtn, { flex: 1.2, marginRight: 8 }]} onPress={handleExportExcel}>
                   <Text style={styles.exportBtnText} numberOfLines={1}>
                     {filterMode === 'all'
-                      ? '📊 Excel नोंदणी तक्ता (सर्वकाळ)'
+                      ? (lang === 'mr' ? '📊 Excel नोंदणी तक्ता (सर्वकाळ)' : '📊 Excel Register (All Time)')
                       : filterMode === 'month'
-                      ? `📊 Excel नोंदणी तक्ता (${lang === 'mr' ? marathiMonthNames[selectedMonth] : monthNames[selectedMonth]} ${selectedYear})`
+                      ? (lang === 'mr' ? `📊 Excel नोंदणी तक्ता (${marathiMonthNames[selectedMonth]} ${toMarathiDigits(selectedYear)})` : `📊 Excel Register (${monthNames[selectedMonth]} ${selectedYear})`)
                       : filterMode === 'year'
-                      ? `📊 Excel नोंदणी तक्ता (${filterYear})`
-                      : `📊 Excel नोंदणी तक्ता (${fromDate && toDate ? `${formatDateDisplay(fromDate)} - ${formatDateDisplay(toDate)}` : 'Date Range'})`
+                      ? (lang === 'mr' ? `📊 Excel नोंदणी तक्ता (${toMarathiDigits(filterYear)})` : `📊 Excel Register (${filterYear})`)
+                      : (lang === 'mr' ? `📊 Excel नोंदणी तक्ता (${fromDate && toDate ? `${toMarathiDigits(formatDateDisplay(fromDate))} - ${toMarathiDigits(formatDateDisplay(toDate))}` : 'कालावधी'})` : `📊 Excel Register (${fromDate && toDate ? `${formatDateDisplay(fromDate)} - ${formatDateDisplay(toDate)}` : 'Date Range'})`)
                     }
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={[styles.shareWhatsAppBtn, { flex: 1 }]} onPress={handleShareWhatsApp}>
-                  <Text style={styles.shareWhatsAppBtnText}>💬 Share WhatsApp</Text>
+                  <Text style={styles.shareWhatsAppBtnText}>
+                    {lang === 'mr' ? '💬 व्हॉट्सअ‍ॅप शेअर' : '💬 Share WhatsApp'}
+                  </Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -1473,7 +1515,7 @@ const JapmalaReportScreen = () => {
                 <Text style={styles.reportSearchIcon}>🔍</Text>
                 <TextInput
                   style={styles.reportSearchInput}
-                  placeholder="Search devotees by name or phone..."
+                  placeholder={lang === 'mr' ? 'भक्ताचे नाव किंवा फोन नंबर शोधा...' : 'Search devotees by name or phone...'}
                   placeholderTextColor={theme.colors.textMuted}
                   value={reportSearch}
                   onChangeText={setReportSearch}
@@ -1490,8 +1532,12 @@ const JapmalaReportScreen = () => {
             {/* Section Title */}
             {fetched && (
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm }}>
-                <Text style={styles.sectionTitle}>Devotee Standings ({filteredReport.length})</Text>
-                <Text style={styles.sectionSubtitle}>Tap member to view/edit entries</Text>
+                <Text style={styles.sectionTitle}>
+                  {lang === 'mr' ? `भक्त क्रमवारी (${toMarathiDigits(filteredReport.length)})` : `Devotee Standings (${filteredReport.length})`}
+                </Text>
+                <Text style={styles.sectionSubtitle}>
+                  {lang === 'mr' ? 'नोंदी पाहण्यासाठी नावावर टॅप करा' : 'Tap member to view/edit entries'}
+                </Text>
               </View>
             )}
           </View>
@@ -1500,11 +1546,19 @@ const JapmalaReportScreen = () => {
           fetched ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>{reportSearch ? '🔍' : '📿'}</Text>
-              <Text style={styles.emptyTitle}>{reportSearch ? 'No matching devotees' : 'No entries found'}</Text>
+              <Text style={styles.emptyTitle}>
+                {lang === 'mr'
+                  ? (reportSearch ? 'कोणतेही भक्त सापडले नाहीत' : 'कोणतीही नोंद उपलब्ध नाही')
+                  : (reportSearch ? 'No matching devotees' : 'No entries found')}
+              </Text>
               <Text style={styles.emptyHint}>
-                {reportSearch
-                  ? `No devotees match "${reportSearch}". Try searching with a different name or phone number.`
-                  : 'No Japmala entries recorded for this time frame.'}
+                {lang === 'mr'
+                  ? (reportSearch
+                      ? `"${reportSearch}" शी जुळणारे भक्त सापडले नाहीत. कृपया दुसरे नाव किंवा फोन नंबर शोधा.`
+                      : 'या कालावधीसाठी कोणतीही जपमाळ नोंद उपलब्ध नाही.')
+                  : (reportSearch
+                      ? `No devotees match "${reportSearch}". Try searching with a different name or phone number.`
+                      : 'No Japmala entries recorded for this time frame.')}
               </Text>
             </View>
           ) : loading ? (
