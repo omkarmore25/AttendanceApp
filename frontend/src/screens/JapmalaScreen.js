@@ -278,7 +278,6 @@ const JapmalaScreen = () => {
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
       fetchEntries();
     }, [filterMode, selectedMonth, selectedYear, filterYear])
   );

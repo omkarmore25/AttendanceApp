@@ -39,9 +39,7 @@ export const OfflineProvider = ({ children }) => {
       };
     } else {
       // 2. Mobile fast heartbeat check every 5s + AppState change
-      const interval = setInterval(() => {
-        updateOnlineStatus();
-      }, 5000);
+      // No aggressive 5s polling
 
       const sub = AppState.addEventListener('change', (nextState) => {
         if (nextState === 'active') {
@@ -51,7 +49,7 @@ export const OfflineProvider = ({ children }) => {
       });
 
       return () => {
-        clearInterval(interval);
+        // No interval cleanup
         sub.remove();
       };
     }
