@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+﻿import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Linking,
@@ -252,25 +252,60 @@ const JapmalaReportScreen = () => {
     return '';
   };
 
-  const fetchReport = async (isRetry = false) => {
+        const fetchReport = async (isRetry = false) => {
+    const params = getQueryParams();
+    const cacheKey = `@japmala_report_cache_${params || 'all'}`;
+
     try {
+      // 1. Instant Cache Load: serve cached report instantly (0ms) so screen never stays blank
+      if (!isRetry && report.length === 0) {
+        try {
+          const cachedRaw = await AsyncStorage.getItem(cacheKey);
+          if (cachedRaw) {
+            const cachedData = JSON.parse(cachedRaw);
+            if (cachedData && cachedData.report) {
+              setReport(cachedData.report);
+              setGrandTotal(cachedData.grandTotal || 0);
+              setMemberCount(cachedData.memberCount || 0);
+              setFetched(true);
+            }
+          }
+        } catch (cErr) {}
+      }
+
       if (!isRetry && report.length === 0) {
         setLoading(true);
       }
       setFetchError(false);
-      const params = getQueryParams();
+
       const response = await api.get(`/japmala/report${params}`);
-      setReport(response.data.report || []);
-      setGrandTotal(response.data.grandTotal || 0);
-      setMemberCount(response.data.memberCount || 0);
+      const freshReport = response.data.report || [];
+      const freshTotal = response.data.grandTotal || 0;
+      const freshCount = response.data.memberCount || 0;
+
+      setReport(freshReport);
+      setGrandTotal(freshTotal);
+      setMemberCount(freshCount);
       setFetched(true);
+
+      // Save to cache
+      try {
+        await AsyncStorage.setItem(cacheKey, JSON.stringify({
+          report: freshReport,
+          grandTotal: freshTotal,
+          memberCount: freshCount,
+          timestamp: Date.now()
+        }));
+      } catch (saveErr) {}
+
     } catch (error) {
       console.error('Report error:', error);
       if (!isRetry) {
-        // Automatic fast silent retry to handle Render cold-start without throwing popups
         setTimeout(() => fetchReport(true), 1200);
       } else {
-        setFetchError(true);
+        if (report.length === 0) {
+          setFetchError(true);
+        }
         setFetched(true);
       }
     } finally {

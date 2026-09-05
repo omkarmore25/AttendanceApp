@@ -1,4 +1,4 @@
-const XLSX = require('xlsx');
+﻿const XLSX = require('xlsx');
 const express = require('express');
 const Japmala = require('../models/Japmala');
 const User = require('../models/User');
@@ -411,15 +411,60 @@ router.get('/report', auth, async (req, res) => {
       usersMap[uId].rawEntries.push(e);
     });
 
-    const report = Object.values(usersMap).map((u) => {
+        const report = Object.values(usersMap).map((u) => {
       const cleanEntries = deduplicateEntries(u.rawEntries);
       const total = cleanEntries.reduce((sum, e) => sum + (Number(e.count) || 0), 0);
+
+      // Build 12-month array (Jan=1 ... Dec=12) with multi-month span distribution
+      const monthlyCounts = Array(12).fill(0);
+      cleanEntries.forEach((e) => {
+        if (!e.date) return;
+        const d = new Date(e.date);
+        const count = Number(e.count) || 0;
+        if (count === 0) return;
+
+        if (e.toDate) {
+          const toD = new Date(e.toDate);
+          const startMonth = d.getUTCMonth();
+          const endMonth = toD.getUTCMonth();
+          const startYear = d.getUTCFullYear();
+          const endYear = toD.getUTCFullYear();
+
+          // If entry is within the queried year and spans multiple months
+          if (startYear === endYear && startMonth !== endMonth) {
+            const monthsSpan = endMonth - startMonth + 1;
+            if (monthsSpan > 1) {
+              const perMonth = Math.floor(count / monthsSpan);
+              let remainder = count % monthsSpan;
+              for (let i = startMonth; i <= endMonth; i++) {
+                if (i >= 0 && i <= 11) {
+                  monthlyCounts[i] += perMonth + (remainder > 0 ? 1 : 0);
+                  if (remainder > 0) remainder--;
+                }
+              }
+              return;
+            }
+          }
+        }
+
+        const m = d.getUTCMonth();
+        if (m >= 0 && m <= 11) {
+          monthlyCounts[m] += count;
+        }
+      });
+
+      const monthly = monthlyCounts.map((cnt, idx) => ({
+        month: idx + 1,
+        count: cnt,
+      }));
+
       return {
         _id: u._id,
         name: u.name,
         phone: u.phone,
         age: (u.age !== undefined && u.age !== null) ? u.age : null,
         total,
+        monthly,
         entriesCount: cleanEntries.length,
       };
     }).sort((a, b) => b.total - a.total);

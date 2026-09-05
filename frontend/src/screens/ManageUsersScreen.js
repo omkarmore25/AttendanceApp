@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -36,19 +36,38 @@ const ManageUsersScreen = () => {
     fetchUsers();
   }, []);
 
-  const fetchUsers = async (isRetry = false) => {
+        const fetchUsers = async (isRetry = false) => {
+    const cacheKey = '@attendance_admin_users_cache';
     try {
+      if (!isRetry && users.length === 0) {
+        try {
+          const cached = await AsyncStorage.getItem(cacheKey);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setUsers(parsed);
+            }
+          }
+        } catch (cErr) {}
+      }
+
       if (!isRetry && users.length === 0) setLoading(true);
       setFeedbackMsg('');
       const response = await api.get('/admin/users');
-      setUsers(response.data.users || []);
+      const freshUsers = response.data.users || [];
+      setUsers(freshUsers);
+
+      try {
+        await AsyncStorage.setItem(cacheKey, JSON.stringify(freshUsers));
+      } catch (sErr) {}
     } catch (error) {
       console.error('Error fetching users:', error);
       if (!isRetry) {
-        // Auto silent retry after 1.2s to absorb Render cold wake-ups
         setTimeout(() => fetchUsers(true), 1200);
       } else {
-        setFeedbackMsg('❌ Failed to load users. Please tap below or pull down to refresh.');
+        if (users.length === 0) {
+          setFeedbackMsg('❌ Failed to load users. Please tap below or pull down to refresh.');
+        }
       }
     } finally {
       setLoading(false);
