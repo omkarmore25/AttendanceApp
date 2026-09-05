@@ -17,6 +17,7 @@ import { toMarathiDigits, toEnglishDigits } from '../utils/marathiUtils';
 const ManageUsersScreen = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
 
   // Delete Modal State
@@ -35,16 +36,23 @@ const ManageUsersScreen = () => {
     fetchUsers();
   }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (isRetry = false) => {
     try {
-      setLoading(true);
+      if (!isRetry && users.length === 0) setLoading(true);
+      setFeedbackMsg('');
       const response = await api.get('/admin/users');
       setUsers(response.data.users || []);
     } catch (error) {
       console.error('Error fetching users:', error);
-      setFeedbackMsg('❌ Failed to load users');
+      if (!isRetry) {
+        // Auto silent retry after 1.2s to absorb Render cold wake-ups
+        setTimeout(() => fetchUsers(true), 1200);
+      } else {
+        setFeedbackMsg('❌ Failed to load users. Please tap below or pull down to refresh.');
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 

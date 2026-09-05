@@ -153,7 +153,8 @@ router.get('/users', async (req, res) => {
   try {
     const users = await User.find()
       .select('username name email phone age role is_manual_entry createdAt')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     res.status(200).json({
       success: true,
@@ -161,7 +162,7 @@ router.get('/users', async (req, res) => {
       users,
     });
   } catch (error) {
-    console.error('Users fetch error:', error);
+    console.error('Admin users fetch error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error fetching users.',

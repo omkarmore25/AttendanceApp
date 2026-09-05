@@ -237,6 +237,8 @@ const JapmalaReportScreen = () => {
     return `${day}-${m}-${d.getFullYear()}`;
   }
 
+  const [fetchError, setFetchError] = useState(false);
+
   const getQueryParams = () => {
     if (filterMode === 'all') {
       return '';
@@ -250,9 +252,12 @@ const JapmalaReportScreen = () => {
     return '';
   };
 
-  const fetchReport = async () => {
+  const fetchReport = async (isRetry = false) => {
     try {
-      setLoading(true);
+      if (!isRetry && report.length === 0) {
+        setLoading(true);
+      }
+      setFetchError(false);
       const params = getQueryParams();
       const response = await api.get(`/japmala/report${params}`);
       setReport(response.data.report || []);
@@ -261,7 +266,13 @@ const JapmalaReportScreen = () => {
       setFetched(true);
     } catch (error) {
       console.error('Report error:', error);
-      showAlert('Error', 'Failed to fetch report.');
+      if (!isRetry) {
+        // Automatic fast silent retry to handle Render cold-start without throwing popups
+        setTimeout(() => fetchReport(true), 1200);
+      } else {
+        setFetchError(true);
+        setFetched(true);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -271,6 +282,7 @@ const JapmalaReportScreen = () => {
   const fetchReportWithRange = async (from, to) => {
     try {
       setLoading(true);
+      setFetchError(false);
       const response = await api.get(`/japmala/report?from=${from}&to=${to}`);
       setReport(response.data.report || []);
       setGrandTotal(response.data.grandTotal || 0);
@@ -278,7 +290,7 @@ const JapmalaReportScreen = () => {
       setFetched(true);
     } catch (error) {
       console.error('Report error:', error);
-      showAlert('Error', 'Failed to fetch report.');
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -292,10 +304,6 @@ const JapmalaReportScreen = () => {
       console.error('Fetch users error:', err);
     }
   };
-
-  useEffect(() => {
-    fetchReport();
-  }, [filterMode, selectedMonth, selectedYear, filterYear]);
 
   useFocusEffect(
     useCallback(() => {
@@ -1255,7 +1263,7 @@ const JapmalaReportScreen = () => {
             {/* Language Switcher Bar */}
             <View style={styles.langHeaderContainer}>
               <Text style={styles.langHeaderTitle}>
-                {lang === 'mr' ? '🌐 भाषा निवडा / Language:' : '🌐 Language / भाषा:'}
+                {lang === 'mr' ? '🌐 भाषा निवडा' : '🌐 Language'}
               </Text>
               <View style={styles.langToggleWrap}>
                 <TouchableOpacity
@@ -1264,7 +1272,7 @@ const JapmalaReportScreen = () => {
                   activeOpacity={0.8}
                 >
                   <Text style={[styles.langChoiceText, lang === 'mr' && styles.langChoiceTextActive]}>
-                    🚩 मराठी (Marathi)
+                    🚩 मराठी
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -1537,21 +1545,30 @@ const JapmalaReportScreen = () => {
         ListEmptyComponent={
           fetched ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>{reportSearch ? '🔍' : '📿'}</Text>
+              <Text style={styles.emptyEmoji}>{fetchError ? '⚠️' : (reportSearch ? '🔍' : '📿')}</Text>
               <Text style={styles.emptyTitle}>
-                {lang === 'mr'
-                  ? (reportSearch ? 'कोणतेही भक्त सापडले नाहीत' : 'कोणतीही नोंद उपलब्ध नाही')
-                  : (reportSearch ? 'No matching devotees' : 'No entries found')}
+                {fetchError
+                  ? (lang === 'mr' ? 'अहवाल लोड करण्यास अडचण आली' : 'Failed to load report')
+                  : (lang === 'mr'
+                    ? (reportSearch ? 'कोणतेही भक्त सापडले नाहीत' : 'कोणतीही नोंद उपलब्ध नाही')
+                    : (reportSearch ? 'No matching devotees' : 'No entries found'))}
               </Text>
               <Text style={styles.emptyHint}>
-                {lang === 'mr'
-                  ? (reportSearch
-                      ? `"${reportSearch}" शी जुळणारे भक्त सापडले नाहीत. कृपया दुसरे नाव किंवा फोन नंबर शोधा.`
-                      : 'या कालावधीसाठी कोणतीही जपमाळ नोंद उपलब्ध नाही.')
-                  : (reportSearch
-                      ? `No devotees match "${reportSearch}". Try searching with a different name or phone number.`
-                      : 'No Japmala entries recorded for this time frame.')}
+                {fetchError
+                  ? (lang === 'mr' ? 'कृपया इंटरनेट तपासा किंवा खालील बटणावर टॅप करा.' : 'Please check your connection and tap retry.')
+                  : (lang === 'mr'
+                    ? (reportSearch
+                        ? `"${reportSearch}" शी जुळणारे भक्त सापडले नाहीत. कृपया दुसरे नाव किंवा फोन नंबर शोधा.`
+                        : 'या कालावधीसाठी कोणतीही जपमाळ नोंद उपलब्ध नाही.')
+                    : (reportSearch
+                        ? `No devotees match "${reportSearch}". Try searching with a different name or phone number.`
+                        : 'No Japmala entries recorded for this time frame.'))}
               </Text>
+              {fetchError && (
+                <TouchableOpacity style={styles.retryBtn} onPress={() => fetchReport(false)}>
+                  <Text style={styles.retryBtnText}>🔄 {lang === 'mr' ? 'पुन्हा प्रयत्न करा' : 'Retry'}</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : loading ? (
             <View style={styles.emptyState}>
@@ -3410,32 +3427,36 @@ const styles = StyleSheet.create({
   calCloseText: { color: theme.colors.textMuted, fontSize: theme.fontSize.xs, fontWeight: '600' },
   langHeaderContainer: {
     backgroundColor: '#151b2a',
-    borderRadius: 14,
-    padding: 12,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#242f48',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 6,
   },
   langHeaderTitle: {
     color: '#a0aec0',
     fontSize: 13,
     fontWeight: '700',
+    flexShrink: 1,
   },
   langToggleWrap: {
     flexDirection: 'row',
     backgroundColor: '#0b0f19',
-    borderRadius: 10,
-    padding: 3,
+    borderRadius: 8,
+    padding: 2,
     borderWidth: 1,
     borderColor: '#242f48',
   },
   langChoiceBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 6,
   },
   langChoiceBtnActive: {
     backgroundColor: '#ff6b00',
@@ -3447,6 +3468,19 @@ const styles = StyleSheet.create({
   },
   langChoiceTextActive: {
     color: '#ffffff',
+  },
+  retryBtn: {
+    marginTop: 14,
+    backgroundColor: '#ff6b00',
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    alignSelf: 'center',
+  },
+  retryBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
   },
   memberSubRow: {
     flexDirection: 'row',

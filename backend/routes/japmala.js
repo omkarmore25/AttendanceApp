@@ -392,17 +392,17 @@ router.get('/report', auth, async (req, res) => {
       ];
     }
 
-    const allEntries = await Japmala.find(matchFilter).populate('user', 'name username phone age');
+    const allEntries = await Japmala.find(matchFilter).populate('user', 'name username phone age').lean();
 
     // Group by user and deduplicate per user
     const usersMap = {};
     allEntries.forEach((e) => {
       if (!e.user) return;
-      const uId = e.user._id.toString();
+      const uId = e.user._id ? e.user._id.toString() : String(e.user);
       if (!usersMap[uId]) {
         usersMap[uId] = {
-          _id: e.user._id,
-          name: e.user.name || e.user.username,
+          _id: e.user._id || uId,
+          name: e.user.name || e.user.username || 'अनामिक भाविक',
           phone: e.user.phone || '',
           age: (e.user.age !== undefined && e.user.age !== null) ? e.user.age : null,
           rawEntries: [],
@@ -413,7 +413,7 @@ router.get('/report', auth, async (req, res) => {
 
     const report = Object.values(usersMap).map((u) => {
       const cleanEntries = deduplicateEntries(u.rawEntries);
-      const total = cleanEntries.reduce((sum, e) => sum + e.count, 0);
+      const total = cleanEntries.reduce((sum, e) => sum + (Number(e.count) || 0), 0);
       return {
         _id: u._id,
         name: u.name,
