@@ -36,7 +36,9 @@ const japmalaSchema = new mongoose.Schema(
   }
 );
 
-// Index for fast query by user and date
-japmalaSchema.index({ user: 1, date: 1 });
+// Indexes for fast month/year/range queries
+japmalaSchema.index({ user: 1, date: 1 });      // primary
+japmalaSchema.index({ user: 1, toDate: 1 });     // range overlap
+japmalaSchema.index({ user: 1, date: -1 });      // sort desc
 
 module.exports = mongoose.model('Japmala', japmalaSchema);

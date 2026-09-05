@@ -282,7 +282,7 @@ router.get('/my', auth, async (req, res) => {
       ];
     }
 
-    const rawEntries = await Japmala.find(filter).sort({ date: -1 });
+    const rawEntries = await Japmala.find(filter).sort({ date: -1 }).lean();
 
     // Deduplicate: daily entries that fall inside any existing range are omitted
     const entries = deduplicateEntries(rawEntries);
@@ -524,7 +524,7 @@ router.get('/user/:userId', auth, async (req, res) => {
       ];
     }
 
-    const rawEntries = await Japmala.find(filter).sort({ date: -1 });
+    const rawEntries = await Japmala.find(filter).sort({ date: -1 }).lean();
     const entries = deduplicateEntries(rawEntries);
     const total = entries.reduce((sum, e) => sum + e.count, 0);
 
