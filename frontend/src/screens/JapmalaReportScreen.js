@@ -918,6 +918,9 @@ const JapmalaReportScreen = () => {
           XLSX.writeFile(wb, `Japmala_Nondani_Takta_${yearToExport}.xlsx`);
         };
 
+                const token = await AsyncStorage.getItem('token');
+        const monthStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
+        const downloadUrl = `${api.defaults.baseURL}/japmala/export-excel?mode=${filterMode}&year=${selectedYear}&filterYear=${filterYear}&month=${monthStr}&from=${fromDate || ''}&to=${toDate || ''}${token ? `&token=${token}` : ''}`;
         if (typeof window !== 'undefined' && window.XLSX) {
           buildAndSave(window.XLSX);
         } else if (typeof document !== 'undefined') {
@@ -925,6 +928,8 @@ const JapmalaReportScreen = () => {
           script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
           script.onload = () => buildAndSave(window.XLSX);
           document.body.appendChild(script);
+        } else if (Linking && Linking.openURL) {
+          await Linking.openURL(downloadUrl);
         }
         return;
       }
@@ -1005,6 +1010,9 @@ const JapmalaReportScreen = () => {
           XLSX.writeFile(wb, `Japmala_Nondani_Takta_${monthNames[selectedMonth]}_${selectedYear}.xlsx`);
         };
 
+                const token = await AsyncStorage.getItem('token');
+        const monthStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
+        const downloadUrl = `${api.defaults.baseURL}/japmala/export-excel?mode=${filterMode}&year=${selectedYear}&filterYear=${filterYear}&month=${monthStr}&from=${fromDate || ''}&to=${toDate || ''}${token ? `&token=${token}` : ''}`;
         if (typeof window !== 'undefined' && window.XLSX) {
           buildAndSave(window.XLSX);
         } else if (typeof document !== 'undefined') {
@@ -1012,6 +1020,8 @@ const JapmalaReportScreen = () => {
           script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
           script.onload = () => buildAndSave(window.XLSX);
           document.body.appendChild(script);
+        } else if (Linking && Linking.openURL) {
+          await Linking.openURL(downloadUrl);
         }
         return;
       }
@@ -1088,6 +1098,9 @@ const JapmalaReportScreen = () => {
           XLSX.writeFile(wb, 'Japmala_Nondani_Takta_All_Time.xlsx');
         };
 
+                const token = await AsyncStorage.getItem('token');
+        const monthStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
+        const downloadUrl = `${api.defaults.baseURL}/japmala/export-excel?mode=${filterMode}&year=${selectedYear}&filterYear=${filterYear}&month=${monthStr}&from=${fromDate || ''}&to=${toDate || ''}${token ? `&token=${token}` : ''}`;
         if (typeof window !== 'undefined' && window.XLSX) {
           buildAndSave(window.XLSX);
         } else if (typeof document !== 'undefined') {
@@ -1095,6 +1108,8 @@ const JapmalaReportScreen = () => {
           script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
           script.onload = () => buildAndSave(window.XLSX);
           document.body.appendChild(script);
+        } else if (Linking && Linking.openURL) {
+          await Linking.openURL(downloadUrl);
         }
         return;
       }
@@ -1173,6 +1188,9 @@ const JapmalaReportScreen = () => {
           XLSX.writeFile(wb, `Japmala_Nondani_Takta_${fromDate}_to_${toDate}.xlsx`);
         };
 
+                const token = await AsyncStorage.getItem('token');
+        const monthStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}`;
+        const downloadUrl = `${api.defaults.baseURL}/japmala/export-excel?mode=${filterMode}&year=${selectedYear}&filterYear=${filterYear}&month=${monthStr}&from=${fromDate || ''}&to=${toDate || ''}${token ? `&token=${token}` : ''}`;
         if (typeof window !== 'undefined' && window.XLSX) {
           buildAndSave(window.XLSX);
         } else if (typeof document !== 'undefined') {
@@ -1180,6 +1198,8 @@ const JapmalaReportScreen = () => {
           script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
           script.onload = () => buildAndSave(window.XLSX);
           document.body.appendChild(script);
+        } else if (Linking && Linking.openURL) {
+          await Linking.openURL(downloadUrl);
         }
         return;
       }

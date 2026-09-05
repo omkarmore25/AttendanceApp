@@ -750,4 +750,301 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
+
+// ═══════════════════════════════════════════════════════
+// GET /api/japmala/export-excel — Admin: Export Register (.xlsx) for All Modes
+// ═══════════════════════════════════════════════════════
+router.get('/export-excel', auth, adminOnly, async (req, res) => {
+  try {
+    const { mode, year, filterYear, month, from, to } = req.query;
+    const filterMode = mode || (year || filterYear ? 'year' : (month ? 'month' : (from && to ? 'range' : 'all')));
+
+    // 1. Fetch all users for age & name mapping
+    const allUsers = await User.find({
+      role: { $in: ['User', 'Admin'] },
+    }).select('name username phone age').sort({ name: 1, username: 1 });
+
+    const userAgeMap = new Map();
+    allUsers.forEach((u) => {
+      userAgeMap.set(u._id.toString(), u.age !== undefined && u.age !== null ? u.age : '—');
+    });
+
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const marathiMonthNames = [
+      'जानेवारी', 'फेब्रुवारी', 'मार्च', 'एप्रिल', 'मे', 'जून',
+      'जुलै', 'ऑगस्ट', 'सप्टेंबर', 'ऑक्टोबर', 'नोव्हेंबर', 'डिसेंबर'
+    ];
+
+    // ─── MODE: YEAR (16 Columns: All 12 Months) ───
+    if (filterMode === 'year') {
+      const targetYear = filterYear ? Number(filterYear) : (year ? Number(year) : new Date().getFullYear());
+      const y = isNaN(targetYear) || targetYear < 2000 ? new Date().getFullYear() : targetYear;
+
+      const startOfYear = new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0));
+      const endOfYear = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
+
+      const entries = await Japmala.find({
+        $or: [
+          { date: { $gte: startOfYear, $lte: endOfYear } },
+          { toDate: { $gte: startOfYear, $lte: endOfYear } },
+          { date: { $lte: startOfYear }, toDate: { $gte: endOfYear } },
+        ],
+      }).populate('user', 'name username phone age');
+
+      const userMap = new Map();
+      allUsers.forEach((u) => {
+        userMap.set(u._id.toString(), {
+          name: u.name || u.username || 'अनामिक भाविक',
+          age: u.age !== null && u.age !== undefined ? u.age : '—',
+          months: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          total: 0,
+          rawEntries: [],
+        });
+      });
+
+      entries.forEach((e) => {
+        if (!e.user) return;
+        const uId = e.user._id.toString();
+        if (!userMap.has(uId)) {
+          userMap.set(uId, {
+            name: e.user.name || e.user.username || 'अनामिक भाविक',
+            age: e.user.age !== null && e.user.age !== undefined ? e.user.age : '—',
+            months: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            total: 0,
+            rawEntries: [],
+          });
+        }
+        userMap.get(uId).rawEntries.push(e);
+      });
+
+      const userRows = [];
+      userMap.forEach((record) => {
+        const clean = deduplicateEntries(record.rawEntries);
+        clean.forEach((e) => {
+          const d = new Date(e.date);
+          const m = d.getUTCMonth();
+          if (m >= 0 && m <= 11) {
+            record.months[m] += Number(e.count) || 0;
+          }
+        });
+        record.total = record.months.reduce((acc, c) => acc + c, 0);
+        userRows.push(record);
+      });
+
+      userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
+
+      const headers = [
+        ['॥ हरिः ॐ तत्सत् ॥'],
+        ['गुरुमंत्र जपानुष्ठान नोंदणी तक्ता'],
+        [`वर्ष : ${y} (Year: ${y})`],
+        ['संत समाज :-'],
+        [
+          'अ.क्र.',
+          'शिष्य (नाव)',
+          'वय',
+          'जानेवारी',
+          'फेब्रुवारी',
+          'मार्च',
+          'एप्रिल',
+          'मे',
+          'जून',
+          'जुलै',
+          'ऑगस्ट',
+          'सप्टेंबर',
+          'ऑक्टोबर',
+          'नोव्हेंबर',
+          'डिसेंबर',
+          'एकूण माळा'
+        ]
+      ];
+
+      const dataRows = [];
+      const monthTotals = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      let grandTotal = 0;
+
+      userRows.forEach((r, idx) => {
+        dataRows.push([
+          idx + 1,
+          r.name,
+          r.age,
+          ...r.months,
+          r.total
+        ]);
+        r.months.forEach((cnt, mIdx) => {
+          monthTotals[mIdx] += cnt;
+        });
+        grandTotal += r.total;
+      });
+
+      const totalRowIndex = headers.length + dataRows.length;
+      const totalRow = [
+        'एकूण (Overall Total)',
+        '',
+        '',
+        ...monthTotals,
+        grandTotal
+      ];
+
+      const footerRows = [
+        [''],
+        ['॥ जय सच्चिदानंद ॥']
+      ];
+
+      const allRows = [...headers, ...dataRows, totalRow, ...footerRows];
+      const ws = XLSX.utils.aoa_to_sheet(allRows);
+      ws['!cols'] = [
+        { wch: 8 }, { wch: 28 }, { wch: 8 },
+        { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 },
+        { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 11 },
+        { wch: 14 }
+      ];
+
+      const footerRowIndex = allRows.length - 1;
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 15 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 15 } },
+        { s: { r: 2, c: 0 }, e: { r: 2, c: 15 } },
+        { s: { r: 3, c: 0 }, e: { r: 3, c: 3 } },
+        { s: { r: totalRowIndex, c: 0 }, e: { r: totalRowIndex, c: 2 } },
+        { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 15 } }
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, `जपानुष्ठान_${y}`);
+      const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="Japmala_Nondani_Takta_${y}.xlsx"`);
+      return res.send(buffer);
+    }
+
+    // ─── MODE: MONTH, ALL TIME, OR RANGE (Clean 4 Columns) ───
+    let matchFilter = {};
+    let subTitle = '';
+    let colHeader = 'एकूण माळा';
+    let fileSuffix = 'All_Time';
+
+    if (filterMode === 'month' && month) {
+      const [mY, mM] = month.split('-').map(Number);
+      const startOfMonth = new Date(Date.UTC(mY, mM - 1, 1, 0, 0, 0, 0));
+      const endOfMonth = new Date(Date.UTC(mY, mM, 0, 23, 59, 59, 999));
+      matchFilter = {
+        $or: [
+          { date: { $gte: startOfMonth, $lte: endOfMonth } },
+          { toDate: { $gte: startOfMonth, $lte: endOfMonth } },
+          { date: { $lte: startOfMonth }, toDate: { $gte: endOfMonth } },
+        ],
+      };
+      const mIdx = mM - 1;
+      subTitle = `महिना : ${marathiMonthNames[mIdx]} ${mY} (${monthNames[mIdx]} ${mY})`;
+      colHeader = `एकूण माळा (${marathiMonthNames[mIdx]} ${mY})`;
+      fileSuffix = `${monthNames[mIdx]}_${mY}`;
+    } else if (filterMode === 'range' && from && to) {
+      const s = new Date(from); s.setUTCHours(0, 0, 0, 0);
+      const e = new Date(to); e.setUTCHours(23, 59, 59, 999);
+      matchFilter = {
+        $or: [
+          { date: { $gte: s, $lte: e } },
+          { toDate: { $gte: s, $lte: e } },
+          { date: { $lte: s }, toDate: { $gte: e } },
+        ],
+      };
+      subTitle = `कालावधी : ${from} ते ${to}`;
+      colHeader = `एकूण माळा (${from} ते ${to})`;
+      fileSuffix = `${from}_to_${to}`;
+    } else {
+      subTitle = 'कालावधी : सर्वकाळ (All-Time Grand Total)';
+      colHeader = 'एकूण माळा (Grand Total)';
+      fileSuffix = 'All_Time';
+    }
+
+    const allEntries = await Japmala.find(matchFilter).populate('user', 'name username phone age');
+    const userMap = new Map();
+    allUsers.forEach((u) => {
+      userMap.set(u._id.toString(), {
+        name: u.name || u.username || 'अनामिक भाविक',
+        age: u.age !== null && u.age !== undefined ? u.age : '—',
+        rawEntries: [],
+      });
+    });
+
+    allEntries.forEach((e) => {
+      if (!e.user) return;
+      const uId = e.user._id.toString();
+      if (!userMap.has(uId)) {
+        userMap.set(uId, {
+          name: e.user.name || e.user.username || 'अनामिक भाविक',
+          age: e.user.age !== null && e.user.age !== undefined ? e.user.age : '—',
+          rawEntries: [],
+        });
+      }
+      userMap.get(uId).rawEntries.push(e);
+    });
+
+    const userRows = [];
+    let grandTotal = 0;
+
+    userMap.forEach((rec) => {
+      const clean = deduplicateEntries(rec.rawEntries);
+      const total = clean.reduce((sum, e) => sum + e.count, 0);
+      userRows.push({
+        name: rec.name,
+        age: rec.age,
+        total,
+      });
+      grandTotal += total;
+    });
+
+    userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
+
+    const headers = [
+      ['॥ हरिः ॐ तत्सत् ॥'],
+      ['गुरुमंत्र जपानुष्ठान नोंदणी तक्ता'],
+      [subTitle],
+      ['संत समाज :-'],
+      ['अ.क्र.', 'शिष्य (नाव)', 'वय', colHeader]
+    ];
+
+    const dataRows = userRows.map((r, idx) => [
+      idx + 1,
+      r.name,
+      r.age,
+      r.total
+    ]);
+
+    const totalRowIndex = headers.length + dataRows.length;
+    const totalRow = ['एकूण (Overall Total)', '', '', grandTotal];
+    const footerRows = [[''], ['॥ जय सच्चिदानंद ॥']];
+    const allRows = [...headers, ...dataRows, totalRow, ...footerRows];
+
+    const ws = XLSX.utils.aoa_to_sheet(allRows);
+    ws['!cols'] = [{ wch: 8 }, { wch: 30 }, { wch: 10 }, { wch: 25 }];
+
+    const footerRowIndex = allRows.length - 1;
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 3 } },
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 1 } },
+      { s: { r: totalRowIndex, c: 0 }, e: { r: totalRowIndex, c: 2 } },
+      { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 3 } }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'जपानुष्ठान');
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="Japmala_Nondani_Takta_${fileSuffix}.xlsx"`);
+    return res.send(buffer);
+  } catch (error) {
+    console.error('Excel Export Server Error:', error);
+    res.status(500).json({ success: false, message: 'Server error generating Excel.' });
+  }
+});
+
+
 module.exports = router;
