@@ -11,6 +11,8 @@ import {
   ScrollView,
   Platform,
   StatusBar,
+  Share,
+  Linking,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../api/client';
@@ -21,6 +23,7 @@ import {
   saveOfflineJapmalaDelete,
 } from '../utils/offlineSync';
 import { useOffline } from '../context/OfflineContext';
+import { useAuth } from '../context/AuthContext';
 import { showAlert, showConfirm } from '../utils/dialog';
 import { toMarathiDigits, toEnglishDigits, formatNumberByLang } from '../utils/marathiUtils';
 
@@ -44,6 +47,7 @@ const strings = {
     filterAll: '🌟 All Time',
     filterMonth: '📅 By Month',
     filterYear: '🗓️ By Year',
+    filterRange: '📅 Date Range',
     totalMala: 'Total Mala',
     days: 'Days',
     history: 'History',
@@ -69,6 +73,8 @@ const strings = {
     multiMonthNotice: 'Multi-month range selected. Choose how you want to log:',
     singleRangeMode: 'Single total for entire range',
     splitMonthMode: 'Separate count per month',
+    shareWhatsAppBtn: 'Share on WhatsApp',
+    shareWhatsAppPrompt: 'Share Mala Count on WhatsApp',
   },
   mr: {
     title: '📿 जपमाळा ट्रॅकर',
@@ -88,6 +94,7 @@ const strings = {
     filterAll: '🌟 सर्व नोंदी',
     filterMonth: '📅 महिना',
     filterYear: '🗓️ वर्ष',
+    filterRange: '📅 कालावधी',
     totalMala: 'एकूण माळा',
     days: 'दिवस',
     history: 'इतिहास',
@@ -113,6 +120,8 @@ const strings = {
     multiMonthNotice: 'दोन किंवा अधिक महिने निवडले आहेत. नोंद कशी करायची ते निवडा:',
     singleRangeMode: 'संपूर्ण श्रेणीसाठी एकच एकूण माळा संख्या',
     splitMonthMode: 'प्रत्येक महिन्यासाठी स्वतंत्र माळा संख्या',
+    shareWhatsAppBtn: 'WhatsApp वर शेअर करा',
+    shareWhatsAppPrompt: 'WhatsApp वर जपमाळ नोंद पाठवा',
   },
 };
 
@@ -155,6 +164,7 @@ const JapmalaScreen = () => {
   const [lang, setLang] = useState('en');
   const t = strings[lang];
   const { lastSyncResult } = useOffline();
+  const { user } = useAuth();
 
   const now = new Date();
   const [entryMode, setEntryMode] = useState('daily'); // 'daily', 'month', or 'range'
@@ -177,12 +187,13 @@ const JapmalaScreen = () => {
   // Range preview for auto-merge
   const [rangePreview, setRangePreview] = useState(null);
 
-  // Filter mode: 'all' (default, no artificial split), 'month', or 'year'
+  // Filter mode: 'all' (default), 'month', 'year', or 'range'
   const [filterMode, setFilterMode] = useState('all');
-
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [filterYear, setFilterYear] = useState(now.getFullYear());
+  const [filterFromDate, setFilterFromDate] = useState(formatDateISO(now));
+  const [filterToDate, setFilterToDate] = useState(formatDateISO(now));
 
   const [entries, setEntries] = useState([]);
   const [summaryTotal, setSummaryTotal] = useState(0);
@@ -238,6 +249,8 @@ const JapmalaScreen = () => {
         url += `?month=${monthStr}`;
       } else if (filterMode === 'year') {
         url += `?year=${filterYear}&from=${filterYear}-01-01&to=${filterYear}-12-31`;
+      } else if (filterMode === 'range' && filterFromDate && filterToDate) {
+        url += `?from=${filterFromDate}&to=${filterToDate}`;
       }
       const response = await api.get(url);
       setEntries(response.data.entries || []);
@@ -274,12 +287,12 @@ const JapmalaScreen = () => {
   useEffect(() => {
     setLoading(true);
     fetchEntries();
-  }, [filterMode, selectedMonth, selectedYear, filterYear]);
+  }, [filterMode, selectedMonth, selectedYear, filterYear, filterFromDate, filterToDate]);
 
   useFocusEffect(
     useCallback(() => {
       fetchEntries();
-    }, [filterMode, selectedMonth, selectedYear, filterYear])
+    }, [filterMode, selectedMonth, selectedYear, filterYear, filterFromDate, filterToDate])
   );
 
   // ─── VALIDATION CHECKS ───
@@ -317,7 +330,7 @@ const JapmalaScreen = () => {
       showAlert(
         'Date Overlap',
         lang === 'mr'
-          ? `⚠️ ही तारीख (${formatDateDisplay(date)}) आधीच तारीख श्रेणीमध्ये (${formatDateDisplay(coveredByRange.date)} ते ${formatDateDisplay(coveredByRange.toDate)}) येते! कृपया खालील इतिहासामधून त्या श्रेणीमध्ये बदल करा.`
+          ? `⚠️ ही तारीख (${formatDateDisplay(date)}) आधीच तारीख श्रेणीमध्ये (${formatDateDisplay(coveredByRange.date)} ते ${formatDateDisplay(coveredByRange.toDate)}) आहे! कृपया खाली इतिहासातील ती श्रेणी संपादित करा.`
           : `⚠️ This date (${formatDateDisplay(date)}) falls inside an existing Date Range (${formatDateDisplay(coveredByRange.date)} to ${formatDateDisplay(coveredByRange.toDate)})! Please edit that range in History below.`
       );
       return;
@@ -328,7 +341,7 @@ const JapmalaScreen = () => {
       showAlert(
         'Range Overlap',
         lang === 'mr'
-          ? `⚠️ ही तारीख श्रेणी आधीच असलेल्या श्रेणीशी (${formatDateDisplay(overlappingRange.date)} ते ${formatDateDisplay(overlappingRange.toDate)}) ओव्हरलॅप होते!`
+          ? `⚠️ ही तारीख श्रेणी आधीच अस्तित्वात असलेल्या श्रेणीशी (${formatDateDisplay(overlappingRange.date)} ते ${formatDateDisplay(overlappingRange.toDate)}) ओव्हरलॅप होते!`
           : `⚠️ This date range overlaps with an existing range (${formatDateDisplay(overlappingRange.date)} to ${formatDateDisplay(overlappingRange.toDate)})!`
       );
       return;
@@ -360,92 +373,88 @@ const JapmalaScreen = () => {
           count: Number(count),
           note: note || `Monthly count for ${monthNames.en[monthLogMonth]} ${monthLogYear}`,
         });
-      } else if (isDifferentMonths && multiMonthMode === 'split') {
-        if (!month1Count || !month2Count) {
-          showAlert('Missing Counts', lang === 'mr' ? 'कृपया दोन्ही महिन्यांसाठी संख्या प्रविष्ट करा.' : 'Please enter counts for both months.');
-          return;
-        }
-
-        const d1 = new Date(fromDate);
-        const endOfMonth1 = new Date(d1.getFullYear(), d1.getMonth() + 1, 0);
-        const d2 = new Date(toDate);
-        const startOfMonth2 = new Date(d2.getFullYear(), d2.getMonth(), 1);
-
-        const breakdown = [
-          { from: fromDate, to: formatDateISO(endOfMonth1), count: Number(month1Count) },
-          { from: formatDateISO(startOfMonth2), to: toDate, count: Number(month2Count) },
-        ];
-
-        await api.post('/japmala', {
-          monthlyBreakdown: breakdown,
-          note,
-        });
       } else {
-        if (!count || Number(count) <= 0) {
-          showAlert('Invalid Count', lang === 'mr' ? 'कृपया वैध माळा संख्या प्रविष्ट करा.' : 'Please enter a valid count.');
-          return;
+        // Range mode
+        if (isDifferentMonths && multiMonthMode === 'split') {
+          const c1 = Number(toEnglishDigits(month1Count)) || 0;
+          const c2 = Number(toEnglishDigits(month2Count)) || 0;
+          if (c1 <= 0 && c2 <= 0) {
+            showAlert('Invalid Count', lang === 'mr' ? 'कृपया किमान एका महिन्यासाठी माळा संख्या प्रविष्ट करा.' : 'Please enter count for at least one month.');
+            return;
+          }
+
+          const s = new Date(fromDate);
+          const endMonth1 = new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth() + 1, 0));
+          const startMonth2 = new Date(Date.UTC(s.getUTCFullYear(), s.getUTCMonth() + 1, 1));
+          const endMonth2 = new Date(toDate);
+
+          const breakdown = [];
+          if (c1 > 0) {
+            breakdown.push({
+              from: fromDate,
+              to: formatDateISO(endMonth1),
+              count: c1,
+            });
+          }
+          if (c2 > 0) {
+            breakdown.push({
+              from: formatDateISO(startMonth2),
+              to: formatDateISO(endMonth2),
+              count: c2,
+            });
+          }
+
+          await api.post('/japmala', {
+            monthlyBreakdown: breakdown,
+            note,
+          });
+        } else {
+          if (!count || Number(count) <= 0) {
+            showAlert('Invalid Count', lang === 'mr' ? 'कृपया वैध माळा संख्या प्रविष्ट करा.' : 'Please enter a valid count.');
+            return;
+          }
+          await api.post('/japmala', {
+            entryType: 'range',
+            date: fromDate,
+            toDate,
+            count: Number(toEnglishDigits(count)),
+            note,
+          });
         }
-        await api.post('/japmala', {
-          entryType: 'range',
-          date: fromDate,
-          toDate: toDate,
-          count: Number(count),
-          note,
-        });
       }
 
       setCount('');
       setMonth1Count('');
       setMonth2Count('');
       setNote('');
-      setRangePreview(null);
-      showAlert('Success', lang === 'mr' ? '✅ जपमाळा नोंद जतन झाली!' : '✅ Japmala entry saved!');
+      showAlert('Success', lang === 'mr' ? '🎉 जपमाळा यशस्वीरित्या नोंदवली!' : '🎉 Japmala logged successfully!');
       fetchEntries();
     } catch (error) {
       if (!error.response || error.message === 'Network Error' || error.code === 'ECONNABORTED') {
         try {
-          const entryCount = Number(count || (Number(month1Count || 0) + Number(month2Count || 0)));
-          let saveDate = date;
-          let saveToDate = null;
-          let saveType = entryMode;
-
-          if (entryMode === 'month') {
-            const mRange = getMonthRangeISO(monthLogYear, monthLogMonth);
-            saveDate = mRange.from;
-            saveToDate = mRange.to;
-            saveType = 'range';
-          } else if (entryMode === 'range') {
-            saveDate = fromDate;
-            saveToDate = toDate;
-          }
-
-          const savedEntry = await saveOfflineJapmala({
-            count: entryCount,
-            date: saveDate,
-            toDate: saveToDate,
-            entryType: saveType,
-            note: note || (entryMode === 'month' ? `Monthly: ${monthNames.en[monthLogMonth]} ${monthLogYear}` : ''),
-          });
-
-          const localEntry = {
-            ...savedEntry,
-            _id: savedEntry.id,
+          const offlineItem = {
+            id: 'local_' + Date.now(),
+            entryType: entryMode,
+            date: entryMode === 'range' ? fromDate : date,
+            toDate: entryMode === 'range' ? toDate : null,
+            count: Number(count),
+            note,
             isOffline: true,
           };
-          setEntries((prev) => [localEntry, ...prev]);
-          setSummaryTotal((prev) => prev + entryCount);
+
+          await saveOfflineJapmala(offlineItem);
+
+          setEntries((prev) => [offlineItem, ...prev]);
+          setSummaryTotal((prev) => prev + Number(count));
+          setSummaryDays((prev) => prev + 1);
 
           setCount('');
-          setMonth1Count('');
-          setMonth2Count('');
           setNote('');
-          setRangePreview(null);
-
           showAlert(
             'Saved Offline',
             lang === 'mr'
-              ? '💾 इंटरनेट उपलब्ध नाही. नोंद फोनमध्ये सुरक्षित सेव्ह झाली आहे! इंटरनेट सुरू होताच ती आपोआप क्लाउडवर सिंक होईल.'
-              : '💾 Offline Mode: Entry saved locally on your phone! It will automatically sync to the cloud when connected.'
+              ? '📡 ऑफलाइन मोडमध्ये सेव्ह केले! इंटरनेट कनेक्शन आल्यावर सर्व्हरवर सिंक केले जाईल.'
+              : '📡 Saved locally! Will automatically sync to cloud once connected.'
           );
           return;
         } catch (offlineErr) {
@@ -511,7 +520,7 @@ const JapmalaScreen = () => {
       });
 
       setEditModal(false);
-      showAlert('Updated', lang === 'mr' ? '✅ जपमाळा नोंद अपडेट झाली!' : '✅ Japmala entry updated!');
+      showAlert('Updated', lang === 'mr' ? '✅ जपमाळा नोंद अपडेट केली!' : '✅ Japmala entry updated!');
       fetchEntries();
     } catch (error) {
       if (!error.response || error.message === 'Network Error' || error.code === 'ECONNABORTED' || editItem.isOffline) {
@@ -544,8 +553,8 @@ const JapmalaScreen = () => {
           showAlert(
             'Updated Offline',
             lang === 'mr'
-              ? '💾 बदल ऑफलाइन सेव्ह झाले आहेत! इंटरनेट सुरू होताच क्लाउडवर अपडेट होतील.'
-              : '💾 Changes saved locally! Will sync to cloud when connected.'
+              ? '📡 ऑफलाइन बदल सेव्ह केले आहेत! इंटरनेट कनेक्ट झाल्यावर क्लाउडवर अपडेट होतील.'
+              : '📡 Changes saved locally! Will sync to cloud when connected.'
           );
           return;
         } catch (offlineErr) {
@@ -578,7 +587,7 @@ const JapmalaScreen = () => {
               showAlert(
                 'Deleted Offline',
                 lang === 'mr'
-                  ? '🗑️ नोंद हटवली गेली (ऑफलाइन)! इंटरनेट सुरू होताच क्लाउडवरूनही हटवली जाईल.'
+                  ? '🗑️ नोंद हटवली (ऑफलाइन)! इंटरनेट कनेक्ट झाल्यावर सर्व्हरवरूनही हटवली जाईल.'
                   : '🗑️ Entry deleted locally! Will sync deletion to cloud when connected.'
               );
               return;
@@ -628,6 +637,8 @@ const JapmalaScreen = () => {
     else if (target === 'toDate') baseDate = new Date(toDate);
     else if (target === 'editDate') baseDate = new Date(editDate);
     else if (target === 'editToDate') baseDate = new Date(editToDate);
+    else if (target === 'filterFromDate') baseDate = new Date(filterFromDate);
+    else if (target === 'filterToDate') baseDate = new Date(filterToDate);
 
     if (!isNaN(baseDate.getTime())) {
       setCalMonth(baseDate.getMonth());
@@ -637,6 +648,9 @@ const JapmalaScreen = () => {
     if (target === 'range') {
       setRangeStart(fromDate);
       setRangeEnd(toDate);
+    } else if (target === 'filterRange') {
+      setRangeStart(filterFromDate);
+      setRangeEnd(filterToDate);
     } else {
       setRangeStart(null);
       setRangeEnd(null);
@@ -661,12 +675,29 @@ const JapmalaScreen = () => {
           setShowCalendar(false);
         }
       }
+    } else if (calendarTarget === 'filterRange') {
+      if (!rangeStart || (rangeStart && rangeEnd)) {
+        setRangeStart(dayStr);
+        setRangeEnd(null);
+      } else {
+        if (new Date(dayStr) < new Date(rangeStart)) {
+          setRangeStart(dayStr);
+          setRangeEnd(null);
+        } else {
+          setRangeEnd(dayStr);
+          setFilterFromDate(rangeStart);
+          setFilterToDate(dayStr);
+          setShowCalendar(false);
+        }
+      }
     } else {
       if (calendarTarget === 'date') setDate(dayStr);
       else if (calendarTarget === 'fromDate') setFromDate(dayStr);
       else if (calendarTarget === 'toDate') setToDate(dayStr);
       else if (calendarTarget === 'editDate') setEditDate(dayStr);
       else if (calendarTarget === 'editToDate') setEditToDate(dayStr);
+      else if (calendarTarget === 'filterFromDate') setFilterFromDate(dayStr);
+      else if (calendarTarget === 'filterToDate') setFilterToDate(dayStr);
       setShowCalendar(false);
     }
   };
@@ -701,6 +732,67 @@ const JapmalaScreen = () => {
     calendarCells.push(`${calYear}-${mm}-${dd}`);
   }
 
+  // ─── SHARE JAPMALA COUNT ON WHATSAPP IN MARATHI ───
+  const handleShareWhatsApp = async () => {
+    const devoteeName = user?.name || (lang === 'mr' ? 'साधक' : 'Devotee');
+
+    let periodTitleMr = '';
+    if (filterMode === 'all') {
+      periodTitleMr = 'संपूर्ण काळ (All Time)';
+    } else if (filterMode === 'month') {
+      periodTitleMr = `${monthNames.mr[selectedMonth]} ${selectedYear}`;
+    } else if (filterMode === 'year') {
+      periodTitleMr = `वर्ष ${filterYear}`;
+    } else if (filterMode === 'range') {
+      periodTitleMr = `${formatDateDisplay(filterFromDate)} ते ${formatDateDisplay(filterToDate)}`;
+    }
+
+    const malaFormatted = lang === 'mr' ? toMarathiDigits(summaryTotal) : summaryTotal;
+    const daysFormatted = lang === 'mr' ? toMarathiDigits(summaryDays) : summaryDays;
+    const entriesCountFormatted = lang === 'mr' ? toMarathiDigits(entries.length) : entries.length;
+
+    let msg = `🙏 *जय सच्चिदानंद!* 🙏\n`;
+    msg += `📿 *संत समागम - जपमाळ नोंद* 📿\n\n`;
+    msg += `👤 *साधक:* ${devoteeName}\n`;
+    msg += `📅 *कालावधी:* ${periodTitleMr}\n`;
+    msg += `✨ *एकूण जपमाळ:* ${malaFormatted} माळा\n`;
+    msg += `📆 *नोंदी / दिवस:* ${daysFormatted} दिवस (${entriesCountFormatted} नोंदी)\n\n`;
+    msg += `📲 *Sant Samagam App वरून पाठवले*\n`;
+    msg += `🔗 https://attendance-app-one-umber.vercel.app/download`;
+
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(msg);
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    try {
+      const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(msg)}`;
+      const canOpen = await Linking.canOpenURL(whatsappUrl).catch(() => false);
+      if (canOpen) {
+        await Linking.openURL(whatsappUrl);
+      } else {
+        await Share.share({
+          message: msg,
+          title: 'Sant Samagam Japmala',
+        });
+      }
+    } catch (err) {
+      try {
+        await Share.share({
+          message: msg,
+          title: 'Sant Samagam Japmala',
+        });
+      } catch (e) {
+        if (Platform.OS === 'web') {
+          window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+      }
+    }
+  };
+
   const renderEntry = ({ item }) => {
     const isRange = item.entryType === 'range' || !!item.toDate;
     const isFullMonth = isRange && isPerfectMonth(item.date, item.toDate);
@@ -723,7 +815,7 @@ const JapmalaScreen = () => {
       <TouchableOpacity style={styles.entryRow} onPress={() => handleEdit(item)} activeOpacity={0.7}>
         <View style={styles.entryDate}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontSize: 16 }}>{isFullMonth ? '📅' : isRange ? '📆' : '🗓️'}</Text>
+            <Text style={{ fontSize: 16 }}>{isFullMonth ? '📅' : isRange ? '🗓️' : '📝'}</Text>
             <View>
               <Text style={styles.entryDateText}>{displayDateText}</Text>
               {badgeText ? (
@@ -733,7 +825,7 @@ const JapmalaScreen = () => {
               ) : null}
             </View>
           </View>
-          {item.note ? <Text style={styles.entryNoteText}>📝 {item.note}</Text> : null}
+          {item.note ? <Text style={styles.entryNoteText}>💬 {item.note}</Text> : null}
         </View>
         <View style={styles.entryCount}>
           <Text style={styles.entryCountText}>{formatNumberByLang(item.count, lang)}</Text>
@@ -768,7 +860,7 @@ const JapmalaScreen = () => {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.devotionalHeader}>जय सच्चिदानंद 🚩</Text>
+            <Text style={styles.devotionalHeader}>🙏 जय सच्चिदानंद 🙏</Text>
             <Text style={styles.title}>{t.title}</Text>
           </View>
           <TouchableOpacity style={styles.langBtn} onPress={() => setLang(lang === 'en' ? 'mr' : 'en')}>
@@ -821,7 +913,7 @@ const JapmalaScreen = () => {
                 <View style={styles.warningBanner}>
                   <Text style={styles.warningBannerText}>
                     {lang === 'mr'
-                      ? `⚠️ ही तारीख (${formatDateDisplay(date)}) आधीच तारीख श्रेणीमध्ये (${formatDateDisplay(coveredByRange.date)} ते ${formatDateDisplay(coveredByRange.toDate)}) येते!`
+                      ? `⚠️ ही तारीख (${formatDateDisplay(date)}) आधीच तारीख श्रेणीमध्ये (${formatDateDisplay(coveredByRange.date)} ते ${formatDateDisplay(coveredByRange.toDate)}) आहे!`
                       : `⚠️ Date (${formatDateDisplay(date)}) is already inside Date Range (${formatDateDisplay(coveredByRange.date)} to ${formatDateDisplay(coveredByRange.toDate)})!`}
                   </Text>
                 </View>
@@ -863,15 +955,13 @@ const JapmalaScreen = () => {
                 })}
               </View>
 
-              {/* Selected Month Banner */}
+              {/* Selected Month Preview Card */}
               <View style={styles.selectedMonthCard}>
                 <Text style={styles.selectedMonthTitle}>
                   📅 {monthNames[lang][monthLogMonth]} {monthLogYear}
                 </Text>
                 <Text style={styles.selectedMonthSubtitle}>
-                  {lang === 'mr'
-                    ? `संपूर्ण महिना (${formatDateDisplay(monthRangeBounds.from)} ते ${formatDateDisplay(monthRangeBounds.to)})`
-                    : `Full Month (${formatDateDisplay(monthRangeBounds.from)} to ${formatDateDisplay(monthRangeBounds.to)})`}
+                  {formatDateDisplay(monthRangeBounds.from)}  {lang === 'mr' ? 'ते' : 'to'}  {formatDateDisplay(monthRangeBounds.to)}
                 </Text>
               </View>
 
@@ -879,8 +969,8 @@ const JapmalaScreen = () => {
                 <View style={styles.warningBanner}>
                   <Text style={styles.warningBannerText}>
                     {lang === 'mr'
-                      ? `⚠️ या महिन्यासाठी आधीच नोंद अस्तित्वात आहे (${formatDateDisplay(monthCoveredByRange.date)} ते ${formatDateDisplay(monthCoveredByRange.toDate)})!`
-                      : `⚠️ An entry already exists overlapping this month (${formatDateDisplay(monthCoveredByRange.date)} to ${formatDateDisplay(monthCoveredByRange.toDate)})!`}
+                      ? `⚠️ हा महिना आधीच अस्तित्वात असलेल्या तारीख श्रेणीशी ओव्हरलॅप होतो!`
+                      : `⚠️ This month overlaps with an existing Date Range!`}
                   </Text>
                 </View>
               )}
@@ -926,7 +1016,7 @@ const JapmalaScreen = () => {
               {isPerfectMonth(fromDate, toDate) && (
                 <View style={[styles.selectedMonthCard, { marginVertical: 8 }]}>
                   <Text style={styles.selectedMonthTitle}>
-                    ✨ {monthNames[lang][new Date(fromDate).getUTCMonth()]} {new Date(fromDate).getUTCFullYear()} ({lang === 'mr' ? 'संपूर्ण महिना' : 'Perfect 1 Month Range'})
+                    ✨ {monthNames[lang][new Date(fromDate).getUTCMonth()]} {new Date(fromDate).getUTCFullYear()} ({lang === 'mr' ? 'संपूर्ण १ महिना' : 'Perfect 1 Month Range'})
                   </Text>
                 </View>
               )}
@@ -935,30 +1025,30 @@ const JapmalaScreen = () => {
                 <View style={styles.warningBanner}>
                   <Text style={styles.warningBannerText}>
                     {lang === 'mr'
-                      ? `⚠️ ही तारीख श्रेणी आधीच असलेल्या श्रेणीशी ओव्हरलॅप होते!`
+                      ? `⚠️ ही तारीख श्रेणी आधीच अस्तित्वात असलेल्या श्रेणीशी ओव्हरलॅप होते!`
                       : `⚠️ This date range overlaps with an existing range!`}
                   </Text>
                 </View>
               )}
 
-              {/* 🔄 Auto-Merge Banner */}
+              {/* ⚡ Auto-Merge Banner */}
               {rangePreview && (
                 <View style={styles.mergeBanner}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.mergeTitle}>
                       {lang === 'mr'
-                        ? `🔄 या कालावधीत ${rangePreview.count} दैनिक नोंदी आढळल्या (${rangePreview.totalCount} माळा)`
-                        : `🔄 Found ${rangePreview.count} daily entries (${rangePreview.totalCount} Mala total)`}
+                        ? `⚡ या कालावधीत ${rangePreview.count} दैनिक नोंदी आढळल्या (${rangePreview.totalCount} माळा)`
+                        : `⚡ Found ${rangePreview.count} daily entries (${rangePreview.totalCount} Mala total)`}
                     </Text>
                     <Text style={styles.mergeSubtitle}>
-                      {lang === 'mr' ? 'एकत्रित करण्यासाठी भरा' : 'Tap to auto-fill and merge'}
+                      {lang === 'mr' ? 'एकत्रित करण्यासाठी टॅप करा' : 'Tap to auto-fill and merge'}
                     </Text>
                   </View>
                   <TouchableOpacity
                     style={styles.mergeBtn}
                     onPress={() => setCount(String(rangePreview.totalCount))}
                   >
-                    <Text style={styles.mergeBtnText}>⚡ Fill {rangePreview.totalCount}</Text>
+                    <Text style={styles.mergeBtnText}>⚡ Fill ${rangePreview.totalCount}</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1050,19 +1140,11 @@ const JapmalaScreen = () => {
             onPress={handleSave}
             disabled={saving}
           >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.saveBtnText}>
-                {entryMode === 'month'
-                  ? `${t.save} (${monthNames[lang][monthLogMonth]} ${monthLogYear})`
-                  : t.save}
-              </Text>
-            )}
+            <Text style={styles.saveBtnText}>{saving ? t.saving : t.save}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Filter Card: All Time, By Month, By Year */}
+        {/* Filter Card with 4 Tabs: All Time / Month / Year / Date Range */}
         <View style={styles.card}>
           <View style={styles.toggleRow}>
             <TouchableOpacity
@@ -1082,6 +1164,12 @@ const JapmalaScreen = () => {
               onPress={() => setFilterMode('year')}
             >
               <Text style={[styles.toggleText, filterMode === 'year' && styles.toggleTextActive]}>{t.filterYear}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, filterMode === 'range' && styles.toggleBtnActive]}
+              onPress={() => setFilterMode('range')}
+            >
+              <Text style={[styles.toggleText, filterMode === 'range' && styles.toggleTextActive]}>{t.filterRange}</Text>
             </TouchableOpacity>
           </View>
 
@@ -1114,6 +1202,42 @@ const JapmalaScreen = () => {
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Date Range Selector in Filter Mode */}
+          {filterMode === 'range' && (
+            <View style={{ marginTop: theme.spacing.xs }}>
+              <View style={styles.dateRangeRow}>
+                <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                  <Text style={styles.inputLabel}>{t.from}</Text>
+                  <TouchableOpacity
+                    style={styles.calendarTriggerBtn}
+                    onPress={() => openCalendar('filterFromDate')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.calendarTriggerTextSmall}>{formatDateDisplay(filterFromDate)}</Text>
+                    <Text style={{ fontSize: 16 }}>📅</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={[styles.inputGroup, { flex: 1 }]}>
+                  <Text style={styles.inputLabel}>{t.to}</Text>
+                  <TouchableOpacity
+                    style={styles.calendarTriggerBtn}
+                    onPress={() => openCalendar('filterToDate')}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.calendarTriggerTextSmall}>{formatDateDisplay(filterToDate)}</Text>
+                    <Text style={{ fontSize: 16 }}>📅</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.openRangeCalBtn}
+                onPress={() => openCalendar('filterRange')}
+              >
+                <Text style={styles.openRangeCalText}>📅 {t.pickRange} (Select Start & End on Calendar)</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* Summary Card */}
@@ -1123,6 +1247,8 @@ const JapmalaScreen = () => {
               ? `🌟 ${t.allTimeSummary}`
               : filterMode === 'year'
               ? `🗓️ ${lang === 'mr' ? 'वार्षिक सारांश' : 'Annual Summary'} — ${filterYear}`
+              : filterMode === 'range'
+              ? `📅 ${lang === 'mr' ? 'कालावधी सारांश' : 'Range Summary'}: ${formatDateDisplay(filterFromDate)} ${lang === 'mr' ? 'ते' : 'to'} ${formatDateDisplay(filterToDate)}`
               : `📅 ${monthNames[lang][selectedMonth]} ${selectedYear}`}
           </Text>
           <View style={styles.summaryStats}>
@@ -1137,6 +1263,30 @@ const JapmalaScreen = () => {
             </View>
           </View>
         </View>
+
+        {/* 📱 WhatsApp Share Button for User */}
+        <TouchableOpacity
+          style={styles.shareWhatsAppBtn}
+          onPress={handleShareWhatsApp}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.shareWhatsAppBtnIcon}>📱</Text>
+          <View style={styles.shareWhatsAppBtnContent}>
+            <Text style={styles.shareWhatsAppBtnText}>
+              {t.shareWhatsAppBtn}
+            </Text>
+            <Text style={styles.shareWhatsAppBtnSubtext}>
+              {filterMode === 'all'
+                ? (lang === 'mr' ? `🌟 सर्व नोंदी: ${toMarathiDigits(summaryTotal)} माळा (${toMarathiDigits(summaryDays)} दिवस)` : `🌟 All Time: ${summaryTotal} Mala (${summaryDays} Days)`)
+                : filterMode === 'month'
+                ? `📅 ${monthNames[lang][selectedMonth]} ${selectedYear}: ${formatNumberByLang(summaryTotal, lang)} ${t.mala}`
+                : filterMode === 'year'
+                ? `🗓️ ${lang === 'mr' ? 'वर्ष ' + toMarathiDigits(filterYear) : 'Year ' + filterYear}: ${formatNumberByLang(summaryTotal, lang)} ${t.mala}`
+                : `📅 ${formatDateDisplay(filterFromDate)} - ${formatDateDisplay(filterToDate)}: ${formatNumberByLang(summaryTotal, lang)} ${t.mala}`}
+            </Text>
+          </View>
+          <Text style={styles.shareWhatsAppArrow}>➤</Text>
+        </TouchableOpacity>
 
         {/* History List */}
         <View style={styles.historySection}>
@@ -1306,7 +1456,7 @@ const JapmalaScreen = () => {
               </TouchableOpacity>
             </View>
 
-            {calendarTarget === 'range' && (
+            {(calendarTarget === 'range' || calendarTarget === 'filterRange') && (
               <Text style={styles.calHintText}>
                 {!rangeStart ? 'Tap START date' : !rangeEnd ? 'Now tap END date' : 'Range selected! Tap any date to re-pick.'}
               </Text>
@@ -1329,10 +1479,12 @@ const JapmalaScreen = () => {
                   (calendarTarget === 'toDate' && toDate === dayStr) ||
                   (calendarTarget === 'editDate' && editDate === dayStr) ||
                   (calendarTarget === 'editToDate' && editToDate === dayStr) ||
-                  (calendarTarget === 'range' && (rangeStart === dayStr || rangeEnd === dayStr));
+                  (calendarTarget === 'filterFromDate' && filterFromDate === dayStr) ||
+                  (calendarTarget === 'filterToDate' && filterToDate === dayStr) ||
+                  ((calendarTarget === 'range' || calendarTarget === 'filterRange') && (rangeStart === dayStr || rangeEnd === dayStr));
 
                 const isInRange =
-                  calendarTarget === 'range' &&
+                  (calendarTarget === 'range' || calendarTarget === 'filterRange') &&
                   rangeStart &&
                   rangeEnd &&
                   new Date(dayStr) > new Date(rangeStart) &&
@@ -1708,17 +1860,59 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.bgCard,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
-  summaryTitle: { fontSize: theme.fontSize.sm, color: theme.colors.accent, fontWeight: theme.fontWeight.bold, marginBottom: theme.spacing.sm },
+  summaryTitle: { fontSize: theme.fontSize.sm, color: theme.colors.accent, fontWeight: theme.fontWeight.bold, marginBottom: theme.spacing.sm, textAlign: 'center' },
   summaryStats: { flexDirection: 'row', alignItems: 'center', width: '100%' },
   summaryStatItem: { flex: 1, alignItems: 'center' },
   summaryValue: { fontSize: 28, fontWeight: theme.fontWeight.heavy, color: theme.colors.accent },
   summaryLabel: { fontSize: theme.fontSize.xs, color: theme.colors.textMuted, marginTop: 2 },
   summaryDivider: { width: 1, height: 36, backgroundColor: theme.colors.border },
+
+  // WhatsApp Share Button Styles
+  shareWhatsAppBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#064e3b',
+    borderRadius: theme.borderRadius.lg,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: '#10b981',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  shareWhatsAppBtnIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  shareWhatsAppBtnContent: {
+    flex: 1,
+  },
+  shareWhatsAppBtnText: {
+    color: '#34d399',
+    fontSize: theme.fontSize.sm,
+    fontWeight: 'bold',
+  },
+  shareWhatsAppBtnSubtext: {
+    color: '#a7f3d0',
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  shareWhatsAppArrow: {
+    color: '#34d399',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
 
   historySection: {
     marginBottom: theme.spacing.xl,
