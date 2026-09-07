@@ -755,10 +755,7 @@ const JapmalaScreen = () => {
     msg += `📿 *संत समागम - जपमाळ नोंद* 📿\n\n`;
     msg += `👤 *साधक:* ${devoteeName}\n`;
     msg += `📅 *कालावधी:* ${periodTitleMr}\n`;
-    msg += `✨ *एकूण जपमाळ:* ${malaFormatted} माळा\n`;
-    msg += `📆 *नोंदी / दिवस:* ${daysFormatted} दिवस (${entriesCountFormatted} नोंदी)\n\n`;
-    msg += `📲 *Sant Samagam App वरून पाठवले*\n`;
-    msg += `🔗 https://attendance-app-one-umber.vercel.app/download`;
+    msg += `✨ *एकूण जपमाळ:* ${malaFormatted} माळा`;
 
     if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
       try {
