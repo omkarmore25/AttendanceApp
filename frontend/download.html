@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sant Samagam App — Download</title>
+  <meta name="description" content="Download the Sant Samagam App for Android or use the web version instantly. Japmala Tracker, Events, Attendance and more." />
+  <meta property="og:title" content="Sant Samagam App — Download" />
+  <meta property="og:description" content="Track your Japmala, attend events, and stay connected. Available on Android and Web." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: #0d1322;
+      color: #ffffff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      top: -200px; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(249,115,22,0.15) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .container { max-width: 440px; width: 100%; position: relative; z-index: 1; }
+    .header { text-align: center; margin-bottom: 40px; }
+    .app-icon {
+      width: 96px; height: 96px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 48px;
+      margin: 0 auto 20px;
+      box-shadow: 0 8px 32px rgba(249,115,22,0.4);
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .blessing { font-size: 14px; color: #f97316; font-weight: 600; letter-spacing: 1px; margin-bottom: 8px; }
+    .app-name {
+      font-size: 32px; font-weight: 800;
+      background: linear-gradient(135deg, #ffffff, #f97316);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 8px;
+    }
+    .app-tagline { font-size: 15px; color: #94a3b8; }
+    .version-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(249,115,22,0.1);
+      border: 1px solid rgba(249,115,22,0.3);
+      border-radius: 20px; padding: 4px 12px;
+      font-size: 12px; color: #f97316; font-weight: 600; margin-top: 12px;
+    }
+    .cards { display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px; }
+    .card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px; padding: 24px;
+      text-decoration: none; color: inherit;
+      display: flex; align-items: center; gap: 20px;
+      transition: all 0.3s ease; cursor: pointer;
+      position: relative; overflow: hidden;
+    }
+    .card::before {
+      content: ''; position: absolute; inset: 0; border-radius: 20px; opacity: 0; transition: opacity 0.3s;
+    }
+    .card.primary::before { background: linear-gradient(135deg, rgba(249,115,22,0.15), rgba(234,88,12,0.1)); }
+    .card.secondary::before { background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(79,70,229,0.1)); }
+    .card:hover { transform: translateY(-4px); border-color: rgba(255,255,255,0.2); box-shadow: 0 16px 40px rgba(0,0,0,0.4); }
+    .card:hover::before { opacity: 1; }
+    .card:hover.primary { border-color: rgba(249,115,22,0.4); }
+    .card:hover.secondary { border-color: rgba(99,102,241,0.4); }
+    .card:active { transform: scale(0.98); }
+    .card-icon {
+      width: 60px; height: 60px; border-radius: 16px;
+      display: flex; align-items: center; justify-content: center; font-size: 28px;
+      flex-shrink: 0; position: relative; z-index: 1;
+    }
+    .card.primary .card-icon { background: linear-gradient(135deg, rgba(249,115,22,0.2), rgba(234,88,12,0.3)); }
+    .card.secondary .card-icon { background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(79,70,229,0.3)); }
+    .card-content { flex: 1; position: relative; z-index: 1; }
+    .card-label { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 4px; }
+    .card.primary .card-label { color: #f97316; }
+    .card.secondary .card-label { color: #818cf8; }
+    .card-title { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .card-desc { font-size: 13px; color: #64748b; }
+    .card-arrow { font-size: 20px; color: #475569; position: relative; z-index: 1; transition: transform 0.3s; }
+    .card:hover .card-arrow { transform: translateX(4px); }
+    .pulse-ring {
+      position: absolute; top: 50%; left: 24px;
+      transform: translateY(-50%);
+      width: 60px; height: 60px; border-radius: 16px;
+      border: 2px solid rgba(249,115,22,0.4);
+      animation: pulse 2s ease-out infinite; pointer-events: none;
+    }
+    @keyframes pulse {
+      0% { transform: translateY(-50%) scale(1); opacity: 0.8; }
+      100% { transform: translateY(-50%) scale(1.3); opacity: 0; }
+    }
+    .steps { margin-bottom: 32px; }
+    .steps-title { font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; text-align: center; }
+    .step-list { display: flex; flex-direction: column; gap: 12px; }
+    .step-item { display: flex; align-items: flex-start; gap: 14px; }
+    .step-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: rgba(249,115,22,0.15); border: 1px solid rgba(249,115,22,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: #f97316; flex-shrink: 0;
+    }
+    .step-text { font-size: 14px; color: #94a3b8; padding-top: 4px; line-height: 1.5; }
+    .step-text strong { color: #e2e8f0; }
+    .features {
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 20px; padding: 24px; margin-bottom: 32px;
+    }
+    .features-title { font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+    .feature-list { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .feature-item { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #cbd5e1; }
+    .feature-dot { width: 6px; height: 6px; border-radius: 50%; background: #f97316; flex-shrink: 0; }
+    .footer { text-align: center; color: #334155; font-size: 13px; }
+    .footer span { color: #f97316; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="app-icon">&#x1F4FF;</div>
+      <div class="blessing">&#x1F64F; &#x091C;&#x092F; &#x0938;&#x091A;&#x094D;&#x091A;&#x093F;&#x0926;&#x093E;&#x0928;&#x0902;&#x0926;</div>
+      <div class="app-name">Sant Samagam</div>
+      <div class="app-tagline">Japmala Tracker &bull; Events &bull; Attendance</div>
+      <div class="version-badge">&#x2726; Version 1.0.0 &middot; Free</div>
+    </div>
+
+    <div class="cards">
+      <a class="card primary" href="https://expo.dev/accounts/omkarmores-team/projects/app/builds" target="_blank" id="apk-btn">
+        <div class="pulse-ring"></div>
+        <div class="card-icon">&#x1F916;</div>
+        <div class="card-content">
+          <div class="card-label">Android App</div>
+          <div class="card-title">Download APK</div>
+          <div class="card-desc">Install on your Android phone</div>
+        </div>
+        <div class="card-arrow">&#x2192;</div>
+      </a>
+
+      <a class="card secondary" href="https://attendance-app-one-umber.vercel.app" target="_blank" id="web-btn">
+        <div class="card-icon">&#x1F310;</div>
+        <div class="card-content">
+          <div class="card-label">No Install Needed</div>
+          <div class="card-title">Open Web App</div>
+          <div class="card-desc">Works in any browser instantly</div>
+        </div>
+        <div class="card-arrow">&#x2192;</div>
+      </a>
+    </div>
+
+    <div class="steps">
+      <div class="steps-title">&#x1F4E5; How to Install APK</div>
+      <div class="step-list">
+        <div class="step-item">
+          <div class="step-num">1</div>
+          <div class="step-text"><strong>Download</strong> the APK file from the button above</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">2</div>
+          <div class="step-text">Open your <strong>Downloads folder</strong> and tap the APK file</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">3</div>
+          <div class="step-text">If asked, tap <strong>"Install Anyway"</strong> or allow Unknown Sources</div>
+        </div>
+        <div class="step-item">
+          <div class="step-num">4</div>
+          <div class="step-text"><strong>Open Sant Samagam</strong> and log in &mdash; done! &#x1F389;</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="features">
+      <div class="features-title">&#x2728; What&rsquo;s Inside</div>
+      <div class="feature-list">
+        <div class="feature-item"><div class="feature-dot"></div>&#x1F4FF; Japmala Tracker</div>
+        <div class="feature-item"><div class="feature-dot"></div>&#x1F4C5; Events &amp; Calendar</div>
+        <div class="feature-item"><div class="feature-dot"></div>&#x2705; Attendance Mark</div>
+        <div class="feature-item"><div class="feature-dot"></div>&#x1F4CA; Reports &amp; Stats</div>
+        <div class="feature-item"><div class="feature-dot"></div>&#x1F310; Marathi / English</div>
+        <div class="feature-item"><div class="feature-dot"></div>&#x1F4F6; Works Offline</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      Made with <span>&#x2764;&#xFE0F;</span> for Sant Samagam &middot; &#x1F64F; &#x091C;&#x092F; &#x0938;&#x091A;&#x094D;&#x091A;&#x093F;&#x0926;&#x093E;&#x0928;&#x0902;&#x0926;
+    </div>
+  </div>
+
+  <script>
+    var isAndroid = /android/i.test(navigator.userAgent);
+    if (isAndroid) {
+      document.getElementById('apk-btn').style.borderColor = 'rgba(249,115,22,0.5)';
+    }
+  </script>
+</body>
+</html>
