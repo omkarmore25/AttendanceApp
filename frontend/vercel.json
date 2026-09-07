@@ -1,14 +1,14 @@
 {
-  "buildCommand": "npx expo export -p web",
+  "buildCommand": "npx expo export -p web && cp download.html dist/download.html",
   "outputDirectory": "dist",
-  "routes": [
+  "rewrites": [
     {
-      "src": "/download",
-      "dest": "/download.html"
+      "source": "/download",
+      "destination": "/download.html"
     },
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/((?!download).*)",
+      "destination": "/index.html"
     }
   ]
 }
