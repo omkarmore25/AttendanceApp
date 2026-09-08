@@ -1,4 +1,9 @@
-﻿const XLSX = require('xlsx');
+let XLSX;
+try {
+  XLSX = require('xlsx-js-style');
+} catch (e) {
+  XLSX = require('xlsx');
+}
 const express = require('express');
 const Japmala = require('../models/Japmala');
 const User = require('../models/User');
@@ -6,6 +11,96 @@ const auth = require('../middleware/auth');
 const adminOnly = require('../middleware/adminOnly');
 
 const router = express.Router();
+
+function applyExcelStyles(ws, allRows, colCount, totalRowIndex, footerRowIndex) {
+  const titleStyle = {
+    font: { name: 'Calibri', sz: 14, bold: true },
+    alignment: { horizontal: 'center', vertical: 'center' }
+  };
+  const title2Style = {
+    font: { name: 'Calibri', sz: 13, bold: true },
+    alignment: { horizontal: 'center', vertical: 'center' }
+  };
+  const subTitleStyle = {
+    font: { name: 'Calibri', sz: 11, bold: true },
+    alignment: { horizontal: 'center', vertical: 'center' }
+  };
+  const boldLeftStyle = {
+    font: { name: 'Calibri', sz: 11, bold: true },
+    alignment: { horizontal: 'left', vertical: 'center' }
+  };
+  const colHeaderStyle = {
+    font: { name: 'Calibri', sz: 11, bold: true },
+    alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+    border: {
+      top: { style: 'thin', color: { rgb: '000000' } },
+      bottom: { style: 'thin', color: { rgb: '000000' } },
+      left: { style: 'thin', color: { rgb: '000000' } },
+      right: { style: 'thin', color: { rgb: '000000' } }
+    }
+  };
+  const dataCellCenterStyle = {
+    font: { name: 'Calibri', sz: 11 },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: {
+      top: { style: 'thin', color: { rgb: 'D3D3D3' } },
+      bottom: { style: 'thin', color: { rgb: 'D3D3D3' } },
+      left: { style: 'thin', color: { rgb: 'D3D3D3' } },
+      right: { style: 'thin', color: { rgb: 'D3D3D3' } }
+    }
+  };
+  const dataCellLeftStyle = {
+    font: { name: 'Calibri', sz: 11 },
+    alignment: { horizontal: 'left', vertical: 'center' },
+    border: {
+      top: { style: 'thin', color: { rgb: 'D3D3D3' } },
+      bottom: { style: 'thin', color: { rgb: 'D3D3D3' } },
+      left: { style: 'thin', color: { rgb: 'D3D3D3' } },
+      right: { style: 'thin', color: { rgb: 'D3D3D3' } }
+    }
+  };
+  const totalRowStyle = {
+    font: { name: 'Calibri', sz: 11, bold: true },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: {
+      top: { style: 'thin', color: { rgb: '000000' } },
+      bottom: { style: 'double', color: { rgb: '000000' } },
+      left: { style: 'thin', color: { rgb: '000000' } },
+      right: { style: 'thin', color: { rgb: '000000' } }
+    }
+  };
+  const footerStyle = {
+    font: { name: 'Calibri', sz: 12, bold: true },
+    alignment: { horizontal: 'center', vertical: 'center' }
+  };
+
+  for (let r = 0; r < allRows.length; r++) {
+    for (let c = 0; c < colCount; c++) {
+      const cellRef = XLSX.utils.encode_cell({ r, c });
+      if (!ws[cellRef]) {
+        ws[cellRef] = { t: 's', v: '' };
+      }
+
+      if (r === 0) {
+        ws[cellRef].s = titleStyle;
+      } else if (r === 1) {
+        ws[cellRef].s = title2Style;
+      } else if (r === 2) {
+        ws[cellRef].s = subTitleStyle;
+      } else if (r === 3) {
+        ws[cellRef].s = boldLeftStyle;
+      } else if (r === 4) {
+        ws[cellRef].s = colHeaderStyle;
+      } else if (r === totalRowIndex) {
+        ws[cellRef].s = totalRowStyle;
+      } else if (r === footerRowIndex) {
+        ws[cellRef].s = footerStyle;
+      } else if (r > 4 && r < totalRowIndex) {
+        ws[cellRef].s = (c === 1) ? dataCellLeftStyle : dataCellCenterStyle;
+      }
+    }
+  }
+}
 
 // Helper to format ISO date to DD-MM-YYYY
 function formatDateDisplay(d) {
@@ -282,7 +377,7 @@ router.get('/my', auth, async (req, res) => {
       ];
     }
 
-    const rawEntries = await Japmala.find(filter).sort({ date: -1 }).lean();
+    const rawEntries = await Japmala.find(filter).sort({ date: -1 });
 
     // Deduplicate: daily entries that fall inside any existing range are omitted
     const entries = deduplicateEntries(rawEntries);
@@ -487,317 +582,6 @@ router.get('/report', auth, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════
-// GET /api/japmala/user/:userId — Admin: get a specific user's entries
-// ═══════════════════════════════════════════════════════
-router.get('/user/:userId', auth, async (req, res) => {
-  try {
-    const { month, from, to, year } = req.query;
-    const filter = { user: req.params.userId };
-
-    if (year) {
-      const y = Number(year);
-      const start = new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0));
-      const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
-      filter.$or = [
-        { date: { $gte: start, $lte: end } },
-        { toDate: { $gte: start, $lte: end } },
-        { date: { $lte: start }, toDate: { $gte: end } },
-      ];
-    } else if (month) {
-      const [y, m] = month.split('-').map(Number);
-      const start = new Date(Date.UTC(y, m - 1, 1));
-      const end = new Date(Date.UTC(y, m, 0, 23, 59, 59));
-      filter.$or = [
-        { date: { $gte: start, $lte: end } },
-        { toDate: { $gte: start, $lte: end } },
-        { date: { $lte: start }, toDate: { $gte: end } },
-      ];
-    } else if (from && to) {
-      const start = new Date(from);
-      start.setUTCHours(0, 0, 0, 0);
-      const end = new Date(to);
-      end.setUTCHours(23, 59, 59, 999);
-      filter.$or = [
-        { date: { $gte: start, $lte: end } },
-        { toDate: { $gte: start, $lte: end } },
-        { date: { $lte: start }, toDate: { $gte: end } },
-      ];
-    }
-
-    const rawEntries = await Japmala.find(filter).sort({ date: -1 }).lean();
-    const entries = deduplicateEntries(rawEntries);
-    const total = entries.reduce((sum, e) => sum + e.count, 0);
-
-    const user = await User.findById(req.params.userId).select('name username phone age');
-
-    res.status(200).json({
-      success: true,
-      user: user ? { name: user.name || user.username, phone: user.phone, age: (user.age !== undefined && user.age !== null) ? user.age : null } : null,
-      count: entries.length,
-      total,
-      entries,
-    });
-  } catch (error) {
-    console.error('Admin fetch user japmala error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error fetching user entries.',
-    });
-  }
-});
-
-// ═══════════════════════════════════════════════════════
-// GET /api/japmala/users-list — Admin: get all users for dropdown
-// ═══════════════════════════════════════════════════════
-router.get('/users-list', auth, async (req, res) => {
-  try {
-    const users = await User.find({}).select('name username phone').sort({ name: 1 });
-    res.status(200).json({
-      success: true,
-      users: users.map((u) => ({
-        _id: u._id,
-        name: u.name || u.username,
-        phone: u.phone || '',
-      })),
-    });
-  } catch (error) {
-    console.error('Users list error:', error);
-    res.status(500).json({ success: false, message: 'Server error.' });
-  }
-});
-
-// ═══════════════════════════════════════════════════════
-// GET /api/japmala/export — Admin: export report as HTML/PDF
-// ═══════════════════════════════════════════════════════
-router.get('/export', auth, adminOnly, async (req, res) => {
-  try {
-    const { month, from, to, year } = req.query;
-    const matchFilter = {};
-    let periodLabel = 'All Time';
-
-    if (year) {
-      const y = Number(year);
-      const start = new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0));
-      const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
-      matchFilter.$or = [
-        { date: { $gte: start, $lte: end } },
-        { toDate: { $gte: start, $lte: end } },
-        { date: { $lte: start }, toDate: { $gte: end } },
-      ];
-      periodLabel = `Year ${year}`;
-    } else if (month) {
-      const [y, m] = month.split('-').map(Number);
-      const start = new Date(Date.UTC(y, m - 1, 1));
-      const end = new Date(Date.UTC(y, m, 0, 23, 59, 59));
-      matchFilter.$or = [
-        { date: { $gte: start, $lte: end } },
-        { toDate: { $gte: start, $lte: end } },
-        { date: { $lte: start }, toDate: { $gte: end } },
-      ];
-      const monthNamesArr = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      periodLabel = `${monthNamesArr[m]} ${y}`;
-    } else if (from && to) {
-      const start = new Date(from);
-      start.setUTCHours(0, 0, 0, 0);
-      const end = new Date(to);
-      end.setUTCHours(23, 59, 59, 999);
-      matchFilter.$or = [
-        { date: { $gte: start, $lte: end } },
-        { toDate: { $gte: start, $lte: end } },
-        { date: { $lte: start }, toDate: { $gte: end } },
-      ];
-      const fmt = (str) => {
-        try {
-          const parts = str.split('-');
-          if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
-        } catch {}
-        return str;
-      };
-      periodLabel = `${fmt(from)} to ${fmt(to)}`;
-    }
-
-    const allEntries = await Japmala.find(matchFilter).populate('user', 'name username');
-    const usersMap = {};
-    allEntries.forEach((e) => {
-      if (!e.user) return;
-      const uId = e.user._id.toString();
-      if (!usersMap[uId]) {
-        usersMap[uId] = { name: e.user.name || e.user.username, rawEntries: [] };
-      }
-      usersMap[uId].rawEntries.push(e);
-    });
-
-    const report = Object.values(usersMap).map((u) => {
-      const cleanEntries = deduplicateEntries(u.rawEntries);
-      const total = cleanEntries.reduce((sum, e) => sum + e.count, 0);
-      return { name: u.name, total };
-    }).sort((a, b) => b.total - a.total);
-
-    const grandTotal = report.reduce((sum, r) => sum + r.total, 0);
-
-    let rows = '';
-    report.forEach((r, i) => {
-      rows += `
-        <tr>
-          <td style="padding:10px 14px;border-bottom:1px solid #2e3a52;color:#a0aec0;text-align:center;">${i + 1}</td>
-          <td style="padding:10px 14px;border-bottom:1px solid #2e3a52;color:#fff;">${r.name}</td>
-          <td style="padding:10px 14px;border-bottom:1px solid #2e3a52;color:#ffaa00;text-align:center;font-weight:700;">${r.total}</td>
-        </tr>`;
-    });
-
-    const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Japmala Report</title>
-<style>
-  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: #0b0f19; color: #fff; margin: 0; padding: 30px; }
-</style></head><body>
-  <div style="max-width:700px;margin:0 auto;">
-    <h1 style="color:#ff6b00;text-align:center;margin-bottom:4px;">📿 गुरुमंत्र जपानुष्ठान माळा नोंदणी</h1>
-    <h2 style="color:#ffaa00;text-align:center;margin-top:0;">Japmala Report — ${periodLabel}</h2>
-    <p style="text-align:center;color:#a0aec0;">संत समागम | Sant Samagam</p>
-    <table style="width:100%;border-collapse:collapse;margin-top:20px;background:#151b2a;border-radius:12px;overflow:hidden;">
-      <thead>
-        <tr style="background:#1c2438;">
-          <th style="padding:12px 14px;color:#ff6b00;text-align:center;">क्र.</th>
-          <th style="padding:12px 14px;color:#ff6b00;text-align:left;">नाव (Name)</th>
-          <th style="padding:12px 14px;color:#ff6b00;text-align:center;">माळा (Count)</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-      <tfoot>
-        <tr style="background:#1c2438;">
-          <td colspan="2" style="padding:12px 14px;color:#ff6b00;font-weight:700;text-align:right;">एकूण (Grand Total):</td>
-          <td style="padding:12px 14px;color:#10b981;font-weight:700;text-align:center;font-size:18px;">${grandTotal}</td>
-        </tr>
-      </tfoot>
-    </table>
-    <p style="text-align:center;color:#64748b;margin-top:20px;">🙏 जय सच्चिदानंद 🙏</p>
-  </div>
-</body></html>`;
-
-    res.setHeader('Content-Type', 'text/html');
-    res.setHeader('Content-Disposition', `inline; filename="Japmala_Report_${periodLabel.replace(/\s/g, '_')}.html"`);
-    res.send(html);
-  } catch (error) {
-    console.error('Japmala export error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error exporting report.',
-    });
-  }
-});
-
-// ═══════════════════════════════════════════════════════
-// PUT /api/japmala/:id — Edit an entry (Daily or Range)
-// ═══════════════════════════════════════════════════════
-router.put('/:id', auth, async (req, res) => {
-  try {
-    const { count, note, date, toDate, entryType } = req.body;
-    const entry = await Japmala.findById(req.params.id);
-
-    if (!entry) {
-      return res.status(404).json({ success: false, message: 'Entry not found.' });
-    }
-
-    const isAdmin = req.user.role === 'Admin';
-    if (!isAdmin && entry.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Not authorized to edit this entry.' });
-    }
-
-    let effectiveDate = entry.date;
-    if (date) {
-      const d = new Date(date);
-      d.setUTCHours(0, 0, 0, 0);
-      effectiveDate = d;
-      entry.date = d;
-    }
-
-    const effectiveEntryType = entryType || entry.entryType;
-
-    // Validation on PUT:
-    if (effectiveEntryType === 'daily' && (!toDate || toDate === null)) {
-      const existingRange = await Japmala.findOne({
-        _id: { $ne: entry._id },
-        user: entry.user,
-        entryType: 'range',
-        date: { $lte: effectiveDate },
-        toDate: { $gte: effectiveDate },
-      });
-      if (existingRange) {
-        return res.status(400).json({
-          success: false,
-          message: `Validation Error: This date falls inside an existing Date Range (${formatDateDisplay(existingRange.date)} to ${formatDateDisplay(existingRange.toDate)}).`,
-        });
-      }
-    }
-
-    if (count != null) entry.count = Number(count);
-    if (note != null) entry.note = note;
-
-    if (toDate !== undefined) {
-      if (toDate) {
-        const td = new Date(toDate);
-        td.setUTCHours(0, 0, 0, 0);
-        entry.toDate = td;
-        entry.entryType = 'range';
-      } else {
-        entry.toDate = null;
-        entry.entryType = 'daily';
-      }
-    }
-    if (entryType) {
-      entry.entryType = entryType;
-    }
-
-    await entry.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Entry updated successfully!',
-      entry,
-    });
-  } catch (error) {
-    console.error('Japmala update error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error updating entry.',
-    });
-  }
-});
-
-// ═══════════════════════════════════════════════════════
-// DELETE /api/japmala/:id — Delete an entry
-// ═══════════════════════════════════════════════════════
-router.delete('/:id', auth, async (req, res) => {
-  try {
-    const entry = await Japmala.findById(req.params.id);
-
-    if (!entry) {
-      return res.status(404).json({ success: false, message: 'Entry not found.' });
-    }
-
-    const isAdmin = req.user.role === 'Admin';
-    if (!isAdmin && entry.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Not authorized to delete this entry.' });
-    }
-
-    await entry.deleteOne();
-
-    res.status(200).json({
-      success: true,
-      message: 'Entry deleted successfully!',
-    });
-  } catch (error) {
-    console.error('Japmala delete error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error deleting entry.',
-    });
-  }
-});
-
-
-// ═══════════════════════════════════════════════════════
 // GET /api/japmala/export-excel — Admin: Export Register (.xlsx) for All Modes
 // ═══════════════════════════════════════════════════════
 router.get('/export-excel', auth, async (req, res) => {
@@ -885,10 +669,10 @@ router.get('/export-excel', auth, async (req, res) => {
       userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
 
       const headers = [
-        ['॥ हरिः ॐ तत्सत् ॥'],
+        ['॥ हरि: ॐ तत्सत् ॥'],
         ['गुरुमंत्र जपानुष्ठान नोंदणी तक्ता'],
         [`वर्ष : ${y} (Year: ${y})`],
-        ['संत समाज :-'],
+        ['संत समाज :- नगरगाव'],
         [
           'अ.क्र.',
           'शिष्य (नाव)',
@@ -959,6 +743,8 @@ router.get('/export-excel', auth, async (req, res) => {
         { s: { r: totalRowIndex, c: 0 }, e: { r: totalRowIndex, c: 2 } },
         { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 15 } }
       ];
+
+      applyExcelStyles(ws, allRows, 16, totalRowIndex, footerRowIndex);
 
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, `जपानुष्ठान_${y}`);
@@ -1051,10 +837,10 @@ router.get('/export-excel', auth, async (req, res) => {
     userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
 
     const headers = [
-      ['॥ हरिः ॐ तत्सत् ॥'],
+      ['॥ हरि: ॐ तत्सत् ॥'],
       ['गुरुमंत्र जपानुष्ठान नोंदणी तक्ता'],
       [subTitle],
-      ['संत समाज :-'],
+      ['संत समाज :- नगरगाव'],
       ['अ.क्र.', 'शिष्य (नाव)', 'वय', colHeader]
     ];
 
@@ -1082,6 +868,8 @@ router.get('/export-excel', auth, async (req, res) => {
       { s: { r: totalRowIndex, c: 0 }, e: { r: totalRowIndex, c: 2 } },
       { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 3 } }
     ];
+
+    applyExcelStyles(ws, allRows, 4, totalRowIndex, footerRowIndex);
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'जपानुष्ठान');

@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Linking,
@@ -802,7 +802,7 @@ const JapmalaReportScreen = () => {
     calendarCells.push(`${calYear}-${mm}-${dd}`);
   }
 
-        // Export Excel (.xlsx) dynamically tailored to the active filter mode
+  // Export Excel (.xlsx) dynamically tailored to the active filter mode
   const handleExportExcel = async () => {
     try {
       // 1. Fetch user directory for accurate Age mapping
@@ -836,25 +836,125 @@ const JapmalaReportScreen = () => {
           : '—';
       };
 
+      // Helper to apply bold, centered and formatted styles to excel sheet
+      const applyExcelStyles = (ws, allRows, colCount, totalRowIndex, footerRowIndex, XLSX_LIB) => {
+        const titleStyle = {
+          font: { name: 'Calibri', sz: 14, bold: true },
+          alignment: { horizontal: 'center', vertical: 'center' }
+        };
+        const title2Style = {
+          font: { name: 'Calibri', sz: 13, bold: true },
+          alignment: { horizontal: 'center', vertical: 'center' }
+        };
+        const subTitleStyle = {
+          font: { name: 'Calibri', sz: 11, bold: true },
+          alignment: { horizontal: 'center', vertical: 'center' }
+        };
+        const boldLeftStyle = {
+          font: { name: 'Calibri', sz: 11, bold: true },
+          alignment: { horizontal: 'left', vertical: 'center' }
+        };
+        const colHeaderStyle = {
+          font: { name: 'Calibri', sz: 11, bold: true },
+          alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+          border: {
+            top: { style: 'thin', color: { rgb: '000000' } },
+            bottom: { style: 'thin', color: { rgb: '000000' } },
+            left: { style: 'thin', color: { rgb: '000000' } },
+            right: { style: 'thin', color: { rgb: '000000' } }
+          }
+        };
+        const dataCellCenterStyle = {
+          font: { name: 'Calibri', sz: 11 },
+          alignment: { horizontal: 'center', vertical: 'center' },
+          border: {
+            top: { style: 'thin', color: { rgb: 'D3D3D3' } },
+            bottom: { style: 'thin', color: { rgb: 'D3D3D3' } },
+            left: { style: 'thin', color: { rgb: 'D3D3D3' } },
+            right: { style: 'thin', color: { rgb: 'D3D3D3' } }
+          }
+        };
+        const dataCellLeftStyle = {
+          font: { name: 'Calibri', sz: 11 },
+          alignment: { horizontal: 'left', vertical: 'center' },
+          border: {
+            top: { style: 'thin', color: { rgb: 'D3D3D3' } },
+            bottom: { style: 'thin', color: { rgb: 'D3D3D3' } },
+            left: { style: 'thin', color: { rgb: 'D3D3D3' } },
+            right: { style: 'thin', color: { rgb: 'D3D3D3' } }
+          }
+        };
+        const totalRowStyle = {
+          font: { name: 'Calibri', sz: 11, bold: true },
+          alignment: { horizontal: 'center', vertical: 'center' },
+          border: {
+            top: { style: 'thin', color: { rgb: '000000' } },
+            bottom: { style: 'double', color: { rgb: '000000' } },
+            left: { style: 'thin', color: { rgb: '000000' } },
+            right: { style: 'thin', color: { rgb: '000000' } }
+          }
+        };
+        const footerStyle = {
+          font: { name: 'Calibri', sz: 12, bold: true },
+          alignment: { horizontal: 'center', vertical: 'center' }
+        };
+
+        const enc = XLSX_LIB?.utils?.encode_cell || ((coord) => {
+          const colLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+          return (coord.c < 26 ? colLetters[coord.c] : colLetters[Math.floor(coord.c / 26) - 1] + colLetters[coord.c % 26]) + (coord.r + 1);
+        });
+
+        for (let r = 0; r < allRows.length; r++) {
+          for (let c = 0; c < colCount; c++) {
+            const cellRef = enc({ r, c });
+            if (!ws[cellRef]) {
+              ws[cellRef] = { t: 's', v: '' };
+            }
+
+            if (r === 0) {
+              ws[cellRef].s = titleStyle;
+            } else if (r === 1) {
+              ws[cellRef].s = title2Style;
+            } else if (r === 2) {
+              ws[cellRef].s = subTitleStyle;
+            } else if (r === 3) {
+              ws[cellRef].s = boldLeftStyle;
+            } else if (r === 4) {
+              ws[cellRef].s = colHeaderStyle;
+            } else if (r === totalRowIndex) {
+              ws[cellRef].s = totalRowStyle;
+            } else if (r === footerRowIndex) {
+              ws[cellRef].s = footerStyle;
+            } else if (r > 4 && r < totalRowIndex) {
+              ws[cellRef].s = (c === 1) ? dataCellLeftStyle : dataCellCenterStyle;
+            }
+          }
+        }
+      };
+
       // Helper to trigger save on Web (via browser SheetJS) and Mobile (via Linking.openURL)
-      const triggerSave = async (allRows, colWidths, merges, sheetName, filename) => {
-        if (typeof window !== 'undefined' && window.XLSX) {
-          const ws = window.XLSX.utils.aoa_to_sheet(allRows);
+      const triggerSave = async (allRows, colWidths, merges, sheetName, filename, colCount, totalRowIndex, footerRowIndex) => {
+        const renderAndDownload = (XLSX_LIB) => {
+          const ws = XLSX_LIB.utils.aoa_to_sheet(allRows);
           ws['!cols'] = colWidths;
           ws['!merges'] = merges;
-          const wb = window.XLSX.utils.book_new();
-          window.XLSX.utils.book_append_sheet(wb, ws, sheetName);
-          window.XLSX.writeFile(wb, filename);
+          try {
+            applyExcelStyles(ws, allRows, colCount, totalRowIndex, footerRowIndex, XLSX_LIB);
+          } catch (styleErr) {
+            console.warn('Excel styling error:', styleErr);
+          }
+          const wb = XLSX_LIB.utils.book_new();
+          XLSX_LIB.utils.book_append_sheet(wb, ws, sheetName);
+          XLSX_LIB.writeFile(wb, filename);
+        };
+
+        if (typeof window !== 'undefined' && window.XLSX && window.XLSX.write) {
+          renderAndDownload(window.XLSX);
         } else if (typeof document !== 'undefined') {
           const script = document.createElement('script');
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+          script.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
           script.onload = () => {
-            const ws = window.XLSX.utils.aoa_to_sheet(allRows);
-            ws['!cols'] = colWidths;
-            ws['!merges'] = merges;
-            const wb = window.XLSX.utils.book_new();
-            window.XLSX.utils.book_append_sheet(wb, ws, sheetName);
-            window.XLSX.writeFile(wb, filename);
+            renderAndDownload(window.XLSX);
           };
           document.body.appendChild(script);
         } else if (Linking && Linking.openURL) {
@@ -872,60 +972,25 @@ const JapmalaReportScreen = () => {
         const reportData = res.data?.report || report || [];
         const grandTotalVal = res.data?.grandTotal ?? grandTotal;
 
-        const activeDevotees = reportData.filter((u) => (u.total || 0) > 0);
         const userRows = await Promise.all(
-          activeDevotees.map(async (u) => {
-            const mCounts = Array(12).fill(0);
-            let hasNonZeroMonthly = false;
-
-            if (Array.isArray(u.monthly) && u.monthly.length > 0) {
-              u.monthly.forEach((m) => {
-                if (m.month >= 1 && m.month <= 12) {
-                  mCounts[m.month - 1] = m.count || 0;
-                  if (m.count > 0) hasNonZeroMonthly = true;
-                }
-              });
-            }
-
-            // Fallback: If server hasn't supplied monthly counts yet, fetch devotee detailed entries
-            if (!hasNonZeroMonthly && u._id) {
-              try {
-                const detailRes = await api.get(`/japmala/user/${u._id}`);
-                const entries = detailRes.data?.entries || [];
-                entries.forEach((e) => {
-                  if (!e.date) return;
+          reportData.map(async (u) => {
+            let mCounts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            try {
+              const uId = u._id || (u.user && u.user._id) || u.userId;
+              if (uId) {
+                const uRes = await api.get(`/japmala/history?userId=${uId}&year=${yearToExport}`);
+                const rawEntries = uRes.data?.entries || [];
+                const clean = deduplicateEntries(rawEntries);
+                clean.forEach((e) => {
                   const d = new Date(e.date);
-                  const yr = d.getUTCFullYear();
-                  if (yr === Number(yearToExport)) {
-                    const cnt = Number(e.count) || 0;
-                    if (cnt > 0) {
-                      if (e.toDate) {
-                        const toD = new Date(e.toDate);
-                        const sM = d.getUTCMonth();
-                        const eM = toD.getUTCMonth();
-                        if (toD.getUTCFullYear() === yr && sM !== eM && (eM - sM + 1) > 1) {
-                          const span = eM - sM + 1;
-                          const perM = Math.floor(cnt / span);
-                          let rem = cnt % span;
-                          for (let i = sM; i <= eM; i++) {
-                            if (i >= 0 && i <= 11) {
-                              mCounts[i] += perM + (rem > 0 ? 1 : 0);
-                              if (rem > 0) rem--;
-                            }
-                          }
-                          return;
-                        }
-                      }
-                      const m = d.getUTCMonth();
-                      if (m >= 0 && m <= 11) {
-                        mCounts[m] += cnt;
-                      }
-                    }
+                  const m = d.getUTCMonth();
+                  if (m >= 0 && m <= 11) {
+                    mCounts[m] += Number(e.count) || 0;
                   }
                 });
-              } catch (err) {
-                console.warn('Could not fetch user entries for year export:', err);
               }
+            } catch (err) {
+              console.warn(`Error fetching monthly breakdown for user ${u.name}:`, err);
             }
 
             return {
@@ -940,10 +1005,10 @@ const JapmalaReportScreen = () => {
         userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
 
         const headers = [
-          ['॥ हरिः ॐ तत्सत् ॥'],
+          ['॥ हरि: ॐ तत्सत् ॥'],
           ['गुरुमंत्र जपानुष्ठान नोंदणी तक्ता'],
           [`वर्ष : ${yearToExport} (Year: ${yearToExport})`],
-          ['संत समाज :-'],
+          ['संत समाज :- नगरगाव'],
           [
             'अ.क्र.',
             'शिष्य (नाव)',
@@ -1016,7 +1081,7 @@ const JapmalaReportScreen = () => {
           { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 15 } }
         ];
 
-        await triggerSave(allRows, colWidths, merges, `जपानुष्ठान_${yearToExport}`, `Japmala_Nondani_Takta_${yearToExport}.xlsx`);
+        await triggerSave(allRows, colWidths, merges, `जपानुष्ठान_${yearToExport}`, `Japmala_Nondani_Takta_${yearToExport}.xlsx`, 16, totalRowIndex, footerRowIndex);
         return;
       }
 
@@ -1040,10 +1105,10 @@ const JapmalaReportScreen = () => {
         userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
 
         const headers = [
-          ['॥ हरिः ॐ तत्सत् ॥'],
+          ['॥ हरि: ॐ तत्सत् ॥'],
           ['गुरुमंत्र जपानुष्ठान नोंदणी तक्ता'],
           [`महिना : ${monthLabelMr} (${monthLabelEn})`],
-          ['संत समाज :-'],
+          ['संत समाज :- नगरगाव'],
           [
             'अ.क्र.',
             'शिष्य (नाव)',
@@ -1090,7 +1155,7 @@ const JapmalaReportScreen = () => {
           { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 3 } }
         ];
 
-        await triggerSave(allRows, colWidths, merges, `जपानुष्ठान_${monthNames[selectedMonth]}_${selectedYear}`, `Japmala_Nondani_Takta_${monthNames[selectedMonth]}_${selectedYear}.xlsx`);
+        await triggerSave(allRows, colWidths, merges, `जपानुष्ठान_${monthNames[selectedMonth]}_${selectedYear}`, `Japmala_Nondani_Takta_${monthNames[selectedMonth]}_${selectedYear}.xlsx`, 4, totalRowIndex, footerRowIndex);
         return;
       }
 
@@ -1110,10 +1175,10 @@ const JapmalaReportScreen = () => {
         userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
 
         const headers = [
-          ['॥ हरिः ॐ तत्सत् ॥'],
+          ['॥ हरि: ॐ तत्सत् ॥'],
           ['गुरुमंत्र जपानुष्ठान नोंदणी तक्ता'],
           ['कालावधी : सर्वकाळ (All-Time Grand Total)'],
-          ['संत समाज :-'],
+          ['संत समाज :- नगरगाव'],
           [
             'अ.क्र.',
             'शिष्य (नाव)',
@@ -1160,7 +1225,7 @@ const JapmalaReportScreen = () => {
           { s: { r: footerRowIndex, c: 0 }, e: { r: footerRowIndex, c: 3 } }
         ];
 
-        await triggerSave(allRows, colWidths, merges, 'जपानुष्ठान_सर्वकाळ', 'Japmala_Nondani_Takta_All_Time.xlsx');
+        await triggerSave(allRows, colWidths, merges, 'जपानुष्ठान_सर्वकाळ', 'Japmala_Nondani_Takta_All_Time.xlsx', 4, totalRowIndex, footerRowIndex);
         return;
       }
 
@@ -1182,10 +1247,10 @@ const JapmalaReportScreen = () => {
         const rangeLabel = `${formatDateDisplay(fromDate)} ते ${formatDateDisplay(toDate)}`;
 
         const headers = [
-          ['॥ हरिः ॐ तत्सत् ॥'],
+          ['॥ हरि: ॐ तत्सत् ॥'],
           ['गुरुमंत्र जपानुष्ठान नोंदणी तक्ता'],
           [`कालावधी : ${rangeLabel}`],
-          ['संत समाज :-'],
+          ['संत समाज :- नगरगाव'],
           [
             'अ.क्र.',
             'शिष्य (नाव)',
