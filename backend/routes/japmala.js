@@ -12,6 +12,13 @@ const adminOnly = require('../middleware/adminOnly');
 
 const router = express.Router();
 
+function toMarathiDigits(val) {
+  if (val === null || val === undefined || val === '') return '—';
+  if (val === '—') return '—';
+  const devDigits = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
+  return String(val).replace(/[0-9]/g, (d) => devDigits[Number(d)]);
+}
+
 function applyExcelStyles(ws, allRows, colCount, totalRowIndex, footerRowIndex) {
   const titleStyle = {
     font: { name: 'Calibri', sz: 14, bold: true },
@@ -42,16 +49,6 @@ function applyExcelStyles(ws, allRows, colCount, totalRowIndex, footerRowIndex) 
   const dataCellCenterStyle = {
     font: { name: 'Calibri', sz: 11 },
     alignment: { horizontal: 'center', vertical: 'center' },
-    border: {
-      top: { style: 'thin', color: { rgb: 'D3D3D3' } },
-      bottom: { style: 'thin', color: { rgb: 'D3D3D3' } },
-      left: { style: 'thin', color: { rgb: 'D3D3D3' } },
-      right: { style: 'thin', color: { rgb: 'D3D3D3' } }
-    }
-  };
-  const dataCellLeftStyle = {
-    font: { name: 'Calibri', sz: 11 },
-    alignment: { horizontal: 'left', vertical: 'center' },
     border: {
       top: { style: 'thin', color: { rgb: 'D3D3D3' } },
       bottom: { style: 'thin', color: { rgb: 'D3D3D3' } },
@@ -96,7 +93,7 @@ function applyExcelStyles(ws, allRows, colCount, totalRowIndex, footerRowIndex) 
       } else if (r === footerRowIndex) {
         ws[cellRef].s = footerStyle;
       } else if (r > 4 && r < totalRowIndex) {
-        ws[cellRef].s = (c === 1) ? dataCellLeftStyle : dataCellCenterStyle;
+        ws[cellRef].s = dataCellCenterStyle;
       }
     }
   }
@@ -699,11 +696,11 @@ router.get('/export-excel', auth, async (req, res) => {
 
       userRows.forEach((r, idx) => {
         dataRows.push([
-          idx + 1,
+          toMarathiDigits(idx + 1),
           r.name,
-          r.age,
-          ...r.months,
-          r.total
+          toMarathiDigits(r.age),
+          ...r.months.map((m) => toMarathiDigits(m)),
+          toMarathiDigits(r.total)
         ]);
         r.months.forEach((cnt, mIdx) => {
           monthTotals[mIdx] += cnt;
@@ -716,8 +713,8 @@ router.get('/export-excel', auth, async (req, res) => {
         'एकूण (Overall Total)',
         '',
         '',
-        ...monthTotals,
-        grandTotal
+        ...monthTotals.map((t) => toMarathiDigits(t)),
+        toMarathiDigits(grandTotal)
       ];
 
       const footerRows = [
@@ -845,14 +842,14 @@ router.get('/export-excel', auth, async (req, res) => {
     ];
 
     const dataRows = userRows.map((r, idx) => [
-      idx + 1,
+      toMarathiDigits(idx + 1),
       r.name,
-      r.age,
-      r.total
+      toMarathiDigits(r.age),
+      toMarathiDigits(r.total)
     ]);
 
     const totalRowIndex = headers.length + dataRows.length;
-    const totalRow = ['एकूण (Overall Total)', '', '', grandTotal];
+    const totalRow = ['एकूण (Overall Total)', '', '', toMarathiDigits(grandTotal)];
     const footerRows = [[''], ['॥ जय सच्चिदानंद ॥']];
     const allRows = [...headers, ...dataRows, totalRow, ...footerRows];
 

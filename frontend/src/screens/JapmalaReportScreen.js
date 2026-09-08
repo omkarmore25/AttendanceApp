@@ -874,16 +874,6 @@ const JapmalaReportScreen = () => {
             right: { style: 'thin', color: { rgb: 'D3D3D3' } }
           }
         };
-        const dataCellLeftStyle = {
-          font: { name: 'Calibri', sz: 11 },
-          alignment: { horizontal: 'left', vertical: 'center' },
-          border: {
-            top: { style: 'thin', color: { rgb: 'D3D3D3' } },
-            bottom: { style: 'thin', color: { rgb: 'D3D3D3' } },
-            left: { style: 'thin', color: { rgb: 'D3D3D3' } },
-            right: { style: 'thin', color: { rgb: 'D3D3D3' } }
-          }
-        };
         const totalRowStyle = {
           font: { name: 'Calibri', sz: 11, bold: true },
           alignment: { horizontal: 'center', vertical: 'center' },
@@ -926,7 +916,7 @@ const JapmalaReportScreen = () => {
             } else if (r === footerRowIndex) {
               ws[cellRef].s = footerStyle;
             } else if (r > 4 && r < totalRowIndex) {
-              ws[cellRef].s = (c === 1) ? dataCellLeftStyle : dataCellCenterStyle;
+              ws[cellRef].s = dataCellCenterStyle;
             }
           }
         }
@@ -1035,11 +1025,11 @@ const JapmalaReportScreen = () => {
 
         userRows.forEach((r, idx) => {
           dataRows.push([
-            idx + 1,
+            toMarathiDigits(idx + 1),
             r.name,
-            r.age,
-            ...r.months,
-            r.total
+            toMarathiDigits(r.age),
+            ...r.months.map((m) => toMarathiDigits(m)),
+            toMarathiDigits(r.total)
           ]);
           r.months.forEach((cnt, mIdx) => {
             monthTotals[mIdx] += cnt;
@@ -1052,8 +1042,8 @@ const JapmalaReportScreen = () => {
           'एकूण (Overall Total)',
           '',
           '',
-          ...monthTotals,
-          calcGrandTotal || grandTotalVal
+          ...monthTotals.map((t) => toMarathiDigits(t)),
+          toMarathiDigits(calcGrandTotal || grandTotalVal)
         ];
 
         const footerRows = [
@@ -1118,10 +1108,10 @@ const JapmalaReportScreen = () => {
         ];
 
         const dataRows = userRows.map((r, idx) => [
-          idx + 1,
+          toMarathiDigits(idx + 1),
           r.name,
-          r.age,
-          r.total
+          toMarathiDigits(r.age),
+          toMarathiDigits(r.total)
         ]);
 
         const totalRowIndex = headers.length + dataRows.length;
@@ -1129,7 +1119,7 @@ const JapmalaReportScreen = () => {
           'एकूण (Overall Total)',
           '',
           '',
-          grandTotalVal
+          toMarathiDigits(grandTotalVal)
         ];
 
         const footerRows = [
@@ -1188,10 +1178,10 @@ const JapmalaReportScreen = () => {
         ];
 
         const dataRows = userRows.map((r, idx) => [
-          idx + 1,
+          toMarathiDigits(idx + 1),
           r.name,
-          r.age,
-          r.total
+          toMarathiDigits(r.age),
+          toMarathiDigits(r.total)
         ]);
 
         const totalRowIndex = headers.length + dataRows.length;
@@ -1199,7 +1189,7 @@ const JapmalaReportScreen = () => {
           'एकूण (Overall Total)',
           '',
           '',
-          grandTotalVal
+          toMarathiDigits(grandTotalVal)
         ];
 
         const footerRows = [
@@ -1260,10 +1250,10 @@ const JapmalaReportScreen = () => {
         ];
 
         const dataRows = userRows.map((r, idx) => [
-          idx + 1,
+          toMarathiDigits(idx + 1),
           r.name,
-          r.age,
-          r.total
+          toMarathiDigits(r.age),
+          toMarathiDigits(r.total)
         ]);
 
         const totalRowIndex = headers.length + dataRows.length;
@@ -1271,7 +1261,7 @@ const JapmalaReportScreen = () => {
           'एकूण (Overall Total)',
           '',
           '',
-          grandTotalVal
+          toMarathiDigits(grandTotalVal)
         ];
 
         const footerRows = [
