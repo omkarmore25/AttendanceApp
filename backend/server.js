@@ -43,9 +43,11 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Attendance API is running!',
+    buildVersion: '2026-09-08-v2',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
   });
+});
 });
 
 // ─── 404 Handler ───
