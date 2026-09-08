@@ -1,9 +1,4 @@
-let XLSX;
-try {
-  XLSX = require('xlsx-js-style');
-} catch (e) {
-  XLSX = require('xlsx');
-}
+const XLSX = require('xlsx-js-style');
 const express = require('express');
 const Japmala = require('../models/Japmala');
 const User = require('../models/User');
