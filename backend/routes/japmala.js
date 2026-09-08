@@ -651,10 +651,37 @@ router.get('/export-excel', auth, async (req, res) => {
       userMap.forEach((record) => {
         const clean = deduplicateEntries(record.rawEntries);
         clean.forEach((e) => {
+          if (!e.date) return;
           const d = new Date(e.date);
+          const count = Number(e.count) || 0;
+          if (count === 0) return;
+
+          if (e.toDate) {
+            const toD = new Date(e.toDate);
+            const startMonth = d.getUTCMonth();
+            const endMonth = toD.getUTCMonth();
+            const startYear = d.getUTCFullYear();
+            const endYear = toD.getUTCFullYear();
+
+            if (startYear === endYear && startMonth !== endMonth) {
+              const monthsSpan = endMonth - startMonth + 1;
+              if (monthsSpan > 1) {
+                const perMonth = Math.floor(count / monthsSpan);
+                let remainder = count % monthsSpan;
+                for (let i = startMonth; i <= endMonth; i++) {
+                  if (i >= 0 && i <= 11) {
+                    record.months[i] += perMonth + (remainder > 0 ? 1 : 0);
+                    if (remainder > 0) remainder--;
+                  }
+                }
+                return;
+              }
+            }
+          }
+
           const m = d.getUTCMonth();
           if (m >= 0 && m <= 11) {
-            record.months[m] += Number(e.count) || 0;
+            record.months[m] += count;
           }
         });
         record.total = record.months.reduce((acc, c) => acc + c, 0);

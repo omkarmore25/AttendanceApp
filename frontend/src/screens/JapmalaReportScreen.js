@@ -962,35 +962,24 @@ const JapmalaReportScreen = () => {
         const reportData = res.data?.report || report || [];
         const grandTotalVal = res.data?.grandTotal ?? grandTotal;
 
-        const userRows = await Promise.all(
-          reportData.map(async (u) => {
-            let mCounts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-            try {
-              const uId = u._id || (u.user && u.user._id) || u.userId;
-              if (uId) {
-                const uRes = await api.get(`/japmala/history?userId=${uId}&year=${yearToExport}`);
-                const rawEntries = uRes.data?.entries || [];
-                const clean = deduplicateEntries(rawEntries);
-                clean.forEach((e) => {
-                  const d = new Date(e.date);
-                  const m = d.getUTCMonth();
-                  if (m >= 0 && m <= 11) {
-                    mCounts[m] += Number(e.count) || 0;
-                  }
-                });
-              }
-            } catch (err) {
-              console.warn(`Error fetching monthly breakdown for user ${u.name}:`, err);
+        const userRows = reportData
+          .filter((u) => (u.total || 0) > 0)
+          .map((u) => {
+            const mCounts = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            if (Array.isArray(u.monthly) && u.monthly.length > 0) {
+              u.monthly.forEach((m) => {
+                if (m.month >= 1 && m.month <= 12) {
+                  mCounts[m.month - 1] = Number(m.count) || 0;
+                }
+              });
             }
-
             return {
               name: u.name || 'अनामिक भाविक',
               age: getDevoteeAge(u),
               months: mCounts,
               total: u.total || 0,
             };
-          })
-        );
+          });
 
         userRows.sort((a, b) => a.name.localeCompare(b.name, 'mr'));
 
