@@ -76,7 +76,7 @@ const TermsScreen = () => {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>🌸 1. Purpose of the Application</Text>
               <Text style={styles.paragraph}>
-                This application is created solely for the Sant Samagam spiritual community to:
+                This application is created solely for the Sant Samaj spiritual community to:
               </Text>
               <Text style={styles.bulletText}>• Schedule, organize, and attend Satsang/Samagam events.</Text>
               <Text style={styles.bulletText}>• Enable devotees to record daily and monthly Japmala counts.</Text>
@@ -179,7 +179,7 @@ const TermsScreen = () => {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Sant Samagam · जय सच्चिदानंद 🙏</Text>
+          <Text style={styles.footerText}>Sant Samaj · जय सच्चिदानंद 🙏</Text>
         </View>
       </ScrollView>
     </View>

@@ -142,7 +142,7 @@ const PrivacyPolicyScreen = () => {
 
               <View style={styles.contactBox}>
                 <Text style={styles.contactText}>📧 Email: <Text style={styles.bold}>omkarmore5178@gmail.com</Text></Text>
-                <Text style={styles.contactText}>📍 Organization: <Text style={styles.bold}>Sant Samagam Community</Text></Text>
+                <Text style={styles.contactText}>📍 Organization: <Text style={styles.bold}>Sant Samaj Community</Text></Text>
               </View>
 
               <TouchableOpacity style={styles.contactBtn} onPress={handleEmailSupport} activeOpacity={0.85}>
@@ -235,7 +235,7 @@ const PrivacyPolicyScreen = () => {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Sant Samagam · जय सच्चिदानंद 🙏</Text>
+          <Text style={styles.footerText}>Sant Samaj · जय सच्चिदानंद 🙏</Text>
         </View>
       </ScrollView>
     </View>

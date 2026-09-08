@@ -256,8 +256,8 @@ const AppNavigator = () => {
         </View>
 
         {/* Brand App Name */}
-        <Text style={styles.splashTitle}>Sant Samagam</Text>
-        <Text style={styles.splashSubtitle}>संत समागम</Text>
+        <Text style={styles.splashTitle}>Sant Samaj</Text>
+        <Text style={styles.splashSubtitle}>संत समाज</Text>
 
         {/* Tagline */}
         <Text style={styles.splashTagline}>सत्संग, सेवा व जपानुष्ठान</Text>

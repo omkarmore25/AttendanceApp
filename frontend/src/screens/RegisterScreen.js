@@ -152,7 +152,7 @@ const RegisterScreen = ({ navigation }) => {
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.appHeading}>संत समागम | Sant Samagam</Text>
+        <Text style={styles.appHeading}>संत समाज | Sant Samaj</Text>
 
         <View style={styles.card}>
           {/* Continue with Google */}
