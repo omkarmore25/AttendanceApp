@@ -573,6 +573,158 @@ router.get('/report', auth, async (req, res) => {
   }
 });
 
+
+// ═══════════════════════════════════════════════════════
+// GET /api/japmala/users-list — Admin: Get list of all users
+// ═══════════════════════════════════════════════════════
+router.get('/users-list', auth, async (req, res) => {
+  try {
+    const users = await User.find({
+      role: { $in: ['User', 'Admin'] },
+    })
+      .select('name username phone age role')
+      .sort({ name: 1, username: 1 });
+
+    res.status(200).json({
+      success: true,
+      users: users.map((u) => ({
+        _id: u._id,
+        name: u.name || u.username || 'अनामिक भाविक',
+        phone: u.phone || '',
+        age: u.age !== undefined && u.age !== null ? u.age : null,
+        role: u.role,
+      })),
+    });
+  } catch (error) {
+    console.error('Users list error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching users.' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// GET /api/japmala/user/:userId — Admin: Get a specific user's japmala entries
+// ═══════════════════════════════════════════════════════
+router.get('/user/:userId', auth, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { month, from, to, year } = req.query;
+
+    const filter = { user: userId };
+
+    if (month) {
+      const [mY, mM] = month.split('-').map(Number);
+      const startOfMonth = new Date(Date.UTC(mY, mM - 1, 1, 0, 0, 0, 0));
+      const endOfMonth = new Date(Date.UTC(mY, mM, 0, 23, 59, 59, 999));
+      filter.$or = [
+        { date: { $gte: startOfMonth, $lte: endOfMonth } },
+        { toDate: { $gte: startOfMonth, $lte: endOfMonth } },
+        { date: { $lte: startOfMonth }, toDate: { $gte: endOfMonth } },
+      ];
+    } else if (from && to) {
+      const s = new Date(from);
+      s.setUTCHours(0, 0, 0, 0);
+      const e = new Date(to);
+      e.setUTCHours(23, 59, 59, 999);
+      filter.$or = [
+        { date: { $gte: s, $lte: e } },
+        { toDate: { $gte: s, $lte: e } },
+        { date: { $lte: s }, toDate: { $gte: e } },
+      ];
+    } else if (year) {
+      const y = Number(year);
+      const startOfYear = new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0));
+      const endOfYear = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
+      filter.$or = [
+        { date: { $gte: startOfYear, $lte: endOfYear } },
+        { toDate: { $gte: startOfYear, $lte: endOfYear } },
+        { date: { $lte: startOfYear }, toDate: { $gte: endOfYear } },
+      ];
+    }
+
+    const entries = await Japmala.find(filter).sort({ date: -1 });
+
+    res.status(200).json({
+      success: true,
+      entries,
+    });
+  } catch (error) {
+    console.error('User entries error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching user entries.' });
+  }
+});
+
+
+// ═══════════════════════════════════════════════════════
+// PUT /api/japmala/:id — Edit a Japmala entry
+// ═══════════════════════════════════════════════════════
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { count, date, toDate, note, entryType } = req.body;
+
+    const entry = await Japmala.findById(id);
+    if (!entry) {
+      return res.status(404).json({ success: false, message: 'Entry not found.' });
+    }
+
+    // Only owner or Admin can edit
+    if (entry.user.toString() !== req.user._id.toString() && req.user.role !== 'Admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized.' });
+    }
+
+    if (count !== undefined) entry.count = Number(count);
+    if (date) {
+      const d = new Date(date);
+      d.setUTCHours(0, 0, 0, 0);
+      entry.date = d;
+    }
+    if (toDate !== undefined) {
+      if (toDate) {
+        const td = new Date(toDate);
+        td.setUTCHours(0, 0, 0, 0);
+        entry.toDate = td;
+      } else {
+        entry.toDate = null;
+      }
+    }
+    if (note !== undefined) entry.note = note;
+    if (entryType) entry.entryType = entryType;
+
+    await entry.save();
+
+    res.status(200).json({ success: true, message: 'Entry updated.', entry });
+  } catch (error) {
+    console.error('Japmala update error:', error);
+    res.status(500).json({ success: false, message: 'Server error updating entry.' });
+  }
+});
+
+// ═══════════════════════════════════════════════════════
+// DELETE /api/japmala/:id — Delete a Japmala entry
+// ═══════════════════════════════════════════════════════
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const entry = await Japmala.findById(id);
+    if (!entry) {
+      return res.status(404).json({ success: false, message: 'Entry not found.' });
+    }
+
+    // Only owner or Admin can delete
+    if (entry.user.toString() !== req.user._id.toString() && req.user.role !== 'Admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized.' });
+    }
+
+    await Japmala.findByIdAndDelete(id);
+
+    res.status(200).json({ success: true, message: 'Entry deleted.' });
+  } catch (error) {
+    console.error('Japmala delete error:', error);
+    res.status(500).json({ success: false, message: 'Server error deleting entry.' });
+  }
+});
+
 // ═══════════════════════════════════════════════════════
 // GET /api/japmala/export-excel — Admin: Export Register (.xlsx) for All Modes
 // ═══════════════════════════════════════════════════════

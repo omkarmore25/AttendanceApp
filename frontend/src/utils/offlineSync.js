@@ -256,13 +256,19 @@ export const syncAllPending = async (apiClient) => {
             toDate: item.toDate,
             entryType: item.entryType,
             note: item.note,
-            for_user_id: item.for_user_id,
+            userId: item.for_user_id,
           });
           syncedCreations++;
         } catch (err) {
-          console.warn('Failed to sync japmala creation:', item, err);
-          remaining.push(item);
-          errors.push(err);
+          // If server returns 400 (validation error like date inside range) or 409, drop the item — it will never succeed
+          if (err.response?.status === 400 || err.response?.status === 409) {
+            console.warn('Dropping invalid offline japmala creation (server rejected with ' + err.response?.status + '):', item, err.response?.data?.message);
+            syncedCreations++; // count as handled
+          } else {
+            console.warn('Failed to sync japmala creation (will retry):', item, err);
+            remaining.push(item);
+            errors.push(err);
+          }
         }
       }
       await AsyncStorage.setItem(JAPMALA_QUEUE_KEY, JSON.stringify(remaining));
