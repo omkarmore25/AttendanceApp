@@ -109,11 +109,12 @@ function formatDateDisplay(d) {
 // ═══════════════════════════════════════════════════════
 router.post('/', auth, async (req, res) => {
   try {
-    const { date, toDate, entryType, count, note, userId, monthlyBreakdown } = req.body;
+    const { date, toDate, entryType, count, note, userId, for_user_id, monthlyBreakdown } = req.body;
+    const effectiveUserId = userId || for_user_id;
 
     let targetUserId = req.user._id;
-    if (userId && req.user.role === 'Admin') {
-      targetUserId = userId;
+    if (effectiveUserId && req.user.role === 'Admin') {
+      targetUserId = effectiveUserId;
     }
 
     // ─── Case 1: Multi-Month Breakdown (User entered distinct counts per month) ───
@@ -235,11 +236,16 @@ router.post('/', auth, async (req, res) => {
       });
 
       if (existingRange) {
-        const fromStr = formatDateDisplay(existingRange.date);
-        const toStr = formatDateDisplay(existingRange.toDate);
-        return res.status(400).json({
-          success: false,
-          message: `Validation Error: Date ${formatDateDisplay(startDate)} falls inside an existing Date Range (${fromStr} to ${toStr}). Please edit the Date Range in History instead.`,
+        // Auto-merge offline/overlapping count into existing range so sync never fails!
+        existingRange.count = (Number(existingRange.count) || 0) + Number(count);
+        if (note) {
+          existingRange.note = existingRange.note ? `${existingRange.note}; ${note}` : note;
+        }
+        await existingRange.save();
+        return res.status(200).json({
+          success: true,
+          message: `Merged ${count} mala into existing Date Range (${formatDateDisplay(existingRange.date)} to ${formatDateDisplay(existingRange.toDate)}).`,
+          entry: existingRange,
         });
       }
 

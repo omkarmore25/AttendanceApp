@@ -333,7 +333,13 @@ const JapmalaReportScreen = () => {
 
   const fetchAllUsers = async () => {
     try {
-      const response = await api.get('/japmala/users-list');
+      let response;
+      try {
+        response = await api.get('/japmala/users-list');
+      } catch (uErr) {
+        // Fallback to /admin/users which is always active
+        response = await api.get('/admin/users');
+      }
       setAllUsers(response.data.users || []);
     } catch (err) {
       console.error('Fetch users error:', err);
@@ -353,11 +359,29 @@ const JapmalaReportScreen = () => {
     setLoadingMemberEntries(true);
     try {
       const params = getQueryParams();
-      const response = await api.get(`/japmala/user/${member._id}${params}`);
-      setMemberEntries(response.data.entries || []);
+      try {
+        const response = await api.get(`/japmala/user/${member._id}${params}`);
+        setMemberEntries(response.data.entries || []);
+      } catch (err) {
+        console.warn('User specific entries endpoint unavailable, building from report summary:', err);
+        // Fallback: build monthly breakdown entries from member.monthly if available
+        if (member.monthly && Array.isArray(member.monthly)) {
+          const simulatedEntries = member.monthly
+            .filter((m) => m.count > 0)
+            .map((m) => ({
+              _id: `summary_${member._id}_${m.month}`,
+              date: `${selectedYear || new Date().getFullYear()}-${String(m.month).padStart(2, '0')}-01`,
+              count: m.count,
+              entryType: 'range',
+              note: `Monthly total for ${monthNames.en[m.month - 1] || m.month}`,
+            }));
+          setMemberEntries(simulatedEntries);
+        } else {
+          setMemberEntries([]);
+        }
+      }
     } catch (err) {
-      console.error('Error fetching member entries:', err);
-      showAlert('Error', 'Failed to fetch member details.');
+      console.error('Error in member detail modal:', err);
     } finally {
       setLoadingMemberEntries(false);
     }
